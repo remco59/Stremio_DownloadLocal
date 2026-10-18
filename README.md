@@ -133,8 +133,8 @@ Here the torrent client's `/downloads` must be reachable on this machine under t
 
 ### Torrent client notes
 
-- **qBittorrent** (linuxserver/qbittorrent): if requests from the add-on get rejected, untick *Enable Host header validation* in the WebUI settings (or add the add-on's host to the allowed domains).
-- **Transmission** (linuxserver/transmission) needs **4.1 or newer**: older versions don't download sequentially, so titles download in random order and only become playable once (almost) complete. An *incomplete dir* is fine as long as the add-on can see it under the same path mapping (e.g. `/downloads/incomplete`).
+- **qBittorrent** (linuxserver/qbittorrent, 4.x or 5.x): qBittorrent 5.2+ refuses requests that arrive on another port than its own WebUI port (*Invalid Host header, port mismatch* in its log, *login refused (401)* in *Test connection*). Map the same port on both sides (`WEBUI_PORT=8080` with `-p 8080:8080`, as in step 2), or untick *Enable Host header validation* in the WebUI options. *Keep incomplete torrents in* and *Append .!qB extension* both work.
+- **Transmission** (linuxserver/transmission) needs **4.1 or newer**: older versions don't download sequentially, so titles download in random order and only become playable once (almost) complete. *Test connection* warns about this. The linuxserver image's incomplete dir (`/downloads/incomplete`, `.part` files) and download dir (`/downloads/complete`) work as-is when both containers mount the same folder at `/downloads`.
 - The add-on must see the **same** host download folder at `/downloads` as the torrent client. If your client uses a different path inside its container, set `CLIENT_PATH_PREFIX` (client's path) and `LOCAL_PATH_PREFIX` (add-on's path).
 
 ## Playing
@@ -172,6 +172,8 @@ The **Downloads** page lists everything the add-on knows about, with progress, s
 - **✕ Forget** removes it from the list only.
 
 Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
+
+## Security
 
 The token is the only auth, so treat the URL like a password. On top of that:
 
@@ -232,6 +234,16 @@ npm test
 ```
 
 Tests use Node's built-in test runner and in-process mocks of the qBittorrent WebUI API and the Transmission RPC (`test/helpers/`), so no real client or network is needed. The end-to-end suite runs once per client. CI runs everything on every push and pull request.
+
+### Against real clients
+
+`npm run test:real` runs the whole flow against real torrent clients in Docker (needs Docker; pulls the linuxserver images):
+
+- qBittorrent 5.x and 4.x, and Transmission 4.1+, each downloading a generated video from the other client through a tiny local tracker: connection test, category/label, sequential download, file selection, playing while downloading (incomplete dir, `.!qB` / `.part`), pause/resume, completion, remove, delete files (directly and through the client).
+- Transmission 4.0: the connection test warns about the missing sequential download.
+- The add-on's own image next to a qBittorrent container, like `docker-compose.yml`: container-to-container connection, settings kept in `/data` across a restart, refusing to start without a token.
+
+If Docker Hub rate-limits the `node:20-alpine` base image, pull it from a mirror first (`docker pull mirror.gcr.io/library/node:20-alpine && docker tag mirror.gcr.io/library/node:20-alpine node:20-alpine`). `REAL_ADDON_IMAGE=<image>` skips the build and tests a prebuilt image instead.
 
 ### Adding a torrent client
 

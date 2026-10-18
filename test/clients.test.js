@@ -162,6 +162,23 @@ test('qbittorrent 4.x: stop/start fall back to pause/resume', async () => {
   assert.equal((await clients.info([HASH]))[0].state, 'downloading');
 });
 
+test('qbittorrent 5.2+: 204 login with a port-specific cookie; 401 explains Host header validation', async () => {
+  await SETUPS.qbittorrent({ v52: true });
+  assert.deepEqual(await clients.info([HASH]), []);
+  const ok = await clients.testConnection();
+  assert.equal(ok.ok, true, ok.error);
+  assert.equal(ok.version, 'qBittorrent v5.2.4');
+  const bad = await clients.testConnection({ url: cfg.qbUrl, user: 'admin', pass: 'wrong' });
+  assert.match(bad.error, /Host header validation/);
+});
+
+test('qbittorrent: incomplete-files folder is reported as a partial dir', async () => {
+  await SETUPS.qbittorrent({ tempPath: '/downloads/incomplete/' });
+  assert.deepEqual(await clients.partialDirs(), ['/downloads/incomplete']);
+  await SETUPS.qbittorrent();
+  assert.deepEqual(await clients.partialDirs(), []);
+});
+
 test('transmission: the full RPC URL works too', async () => {
   await SETUPS.transmission();
   cfg.trUrl += '/transmission/rpc';

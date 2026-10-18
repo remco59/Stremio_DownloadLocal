@@ -15,8 +15,12 @@ function qbState(model, t) {
   return done ? 'uploading' : 'downloading';
 }
 
-/** @param {{user?:string, pass?:string, v4?:boolean}} opts v4: old API (pause/resume instead of stop/start) */
-function createMockQb({ user = 'admin', pass = 'secret', v4 = false, model = createModel() } = {}) {
+/**
+ * @param {{user?:string, pass?:string, v4?:boolean, v52?:boolean, tempPath?:string|null}} opts
+ *   v52: login like qBittorrent 5.2+ (204 + QBT_SID_<port> cookie, 401 on wrong password)
+ *   tempPath: incomplete-files folder (client path), or null when disabled
+ */
+function createMockQb({ user = 'admin', pass = 'secret', v4 = false, v52 = false, tempPath = null, model = createModel() } = {}) {
   const SID = 'SID=mock-session';
   const categories = new Set();
 
@@ -28,10 +32,16 @@ function createMockQb({ user = 'admin', pass = 'secret', v4 = false, model = cre
     if (!p.startsWith('/api/v2/')) return send(res, 404, 'Not Found');
     if (p === '/api/v2/auth/login') {
       const f = await form(req, body);
+      if (v52) {
+        if (f.username !== user || f.password !== pass) return send(res, 401, 'Unauthorized');
+        res.writeHead(204, { 'Set-Cookie': `QBT_${SID.replace('SID=', 'SID_8080=')}; HttpOnly; path=/` });
+        return res.end();
+      }
       if (f.username === user && f.password === pass) return send(res, 200, 'Ok.', { 'Set-Cookie': `${SID}; HttpOnly; path=/` });
       return send(res, 200, 'Fails.');
     }
-    if (user && req.headers.cookie !== SID) return send(res, 403, 'Forbidden');
+    const cookie = v52 ? `QBT_${SID.replace('SID=', 'SID_8080=')}` : SID;
+    if (user && req.headers.cookie !== cookie) return send(res, 403, 'Forbidden');
 
     const f = req.method === 'POST' ? await form(req, body) : {};
     const one = (h) => model.torrents.get(String(h || '').toLowerCase());
@@ -40,7 +50,9 @@ function createMockQb({ user = 'admin', pass = 'secret', v4 = false, model = cre
 
     switch (p) {
       case '/api/v2/app/version':
-        return send(res, 200, v4 ? 'v4.6.7' : 'v5.0.0');
+        return send(res, 200, v4 ? 'v4.6.7' : v52 ? 'v5.2.4' : 'v5.0.0');
+      case '/api/v2/app/preferences':
+        return send(res, 200, { temp_path_enabled: !!tempPath, temp_path: tempPath || '/downloads/incomplete', save_path: '/downloads' });
       case '/api/v2/torrents/info': {
         const want = q.hashes ? q.hashes.toLowerCase().split('|') : null;
         const list = [...model.torrents.values()]

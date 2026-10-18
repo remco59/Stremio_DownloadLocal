@@ -159,7 +159,8 @@ async function syncOnce() {
 
     if (rec.status === 'complete') {
       // Finished files stay playable even if the torrent is later removed from the client.
-      if (!t && !fs.existsSync(localPath(rec))) syncPatch(rec, { status: 'missing' });
+      // (It may still sit in the client's incomplete dir if the torrent was removed right after finishing.)
+      if (!t && !(await localCandidates(rec)).some((p) => fs.existsSync(p))) syncPatch(rec, { status: 'missing' });
       continue;
     }
     if (!t) {

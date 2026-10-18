@@ -6,6 +6,8 @@ let cookie = null;
 let categoryReady = null; // category name known to exist
 let session = ''; // url/user/pass the cookie belongs to; a settings change forces a fresh login
 const pieceSizes = new Map(); // hash -> piece size (never changes for a torrent)
+const DIRS_TTL_MS = 60000;
+let dirs = { at: 0, list: [] };
 
 function checkSession() {
   const key = `${cfg.qbUrl}\n${cfg.qbUser}\n${cfg.qbPass}`;
@@ -13,6 +15,7 @@ function checkSession() {
     session = key;
     cookie = null;
     categoryReady = null;
+    dirs = { at: 0, list: [] };
   }
 }
 
@@ -24,12 +27,18 @@ async function login({ url, user, pass }) {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   const text = (await res.text()).trim();
-  if (!res.ok || text !== 'Ok.') {
-    throw new Error(`qBittorrent login failed (${res.status}): ${text.slice(0, 80) || 'no response'}`);
-  }
   const sc = res.headers.getSetCookie ? res.headers.getSetCookie() : [];
   const sid = sc.find((c) => /^[^=;]*SID[^=;]*=/.test(c)); // "SID", or "QBT_SID_<port>" on newer versions
-  return sid ? sid.split(';')[0] : null;
+  // Success is "200 Ok." up to 5.1 and "204 No Content" from 5.2 on; wrong credentials are "200 Fails." or 401.
+  if (res.ok && text !== 'Fails.' && (text === 'Ok.' || sid)) return sid ? sid.split(';')[0] : null;
+  if (res.status === 401 && !text.startsWith('Fails')) {
+    throw new Error(
+      'qBittorrent login refused (401). Check username/password. If the add-on reaches the WebUI on another port than ' +
+        "qBittorrent's own WebUI port (Docker port mapping), untick 'Enable Host header validation' in qBittorrent's " +
+        'WebUI options or map the same port on both sides.'
+    );
+  }
+  throw new Error(`qBittorrent login failed (${res.status}): ${text.slice(0, 80) || 'wrong username or password'}`);
 }
 
 async function call(path, opts = {}, retried = false) {
@@ -109,8 +118,16 @@ module.exports = {
     connection: { url: 'qbUrl', user: 'qbUser', pass: 'qbPass' },
   },
 
-  partialSuffixes: ['.!qB'],
-  partialDirs: async () => [],
+  partialSuffixes: ['.!qB'], // only with "Append .!qB extension to incomplete files" on
+
+  /** qBittorrent's incomplete-files folder, if enabled ("Keep incomplete torrents in"). */
+  async partialDirs() {
+    checkSession();
+    if (Date.now() - dirs.at < DIRS_TTL_MS) return dirs.list;
+    const p = await call('/app/preferences');
+    dirs = { at: Date.now(), list: p.temp_path_enabled && p.temp_path ? [String(p.temp_path).replace(/\/+$/, '')] : [] };
+    return dirs.list;
+  },
 
   async add({ magnet, hash }) {
     await ensureCategory();
