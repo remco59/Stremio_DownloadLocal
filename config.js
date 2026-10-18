@@ -1,16 +1,21 @@
+// Live configuration. Env vars give the defaults; DATA_DIR/settings.json (written by the settings page, see
+// settings.js) overrides them. Modules read fields at call time, so updates apply without a restart.
+const fs = require('fs');
+const path = require('path');
+
 const env = process.env;
 const strip = (s) => (s || '').replace(/\/+$/, '');
 
-const config = {
-  port: parseInt(env.PORT || '7000', 10),
+const dataDir = env.DATA_DIR || '/data';
+const settingsFile = path.join(dataDir, 'settings.json');
 
-  // Secret path segment. Everything (manifest, streams, UI) lives under /<ADDON_TOKEN>/
+// Everything in here can be changed from the settings page.
+const defaults = {
+  // Secret path segment. Everything (manifest, streams, UI) lives under /<token>/
   token: env.ADDON_TOKEN || '',
 
   // Public HTTPS URL of this add-on (e.g. https://stremio.yourdomain.com). If empty, derived from request headers.
   publicUrl: strip(env.PUBLIC_URL),
-
-  dataDir: env.DATA_DIR || '/data',
 
   // Which torrent client to use: a name registered in clients/index.js
   torrentClient: (env.TORRENT_CLIENT || 'qbittorrent').toLowerCase(),
@@ -32,7 +37,7 @@ const config = {
   clientPathPrefix: strip(env.CLIENT_PATH_PREFIX || env.QB_PATH_PREFIX || '/downloads'),
   localPathPrefix: strip(env.LOCAL_PATH_PREFIX || '/downloads'),
 
-  // Where to look up torrents (placeholder resolver, see finder.js)
+  // Where to look up torrents (see finder.js)
   torrentioUrl: strip(env.TORRENTIO_URL || 'https://torrentio.strem.fun'),
   maxRes: parseInt(env.MAX_RES || '1080', 10),
 
@@ -41,7 +46,26 @@ const config = {
   syncIntervalMs: parseInt(env.SYNC_INTERVAL_MS || '5000', 10),
 };
 
-if (!/^[A-Za-z0-9_-]{16,}$/.test(config.token)) {
+let saved = {};
+try {
+  saved = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+} catch {
+  /* no saved settings yet */
+}
+
+const config = {
+  port: parseInt(env.PORT || '7000', 10),
+  dataDir,
+  settingsFile,
+  ...defaults,
+};
+for (const k of Object.keys(defaults)) if (k in saved) config[k] = saved[k];
+Object.defineProperty(config, 'defaults', { value: Object.freeze(defaults) });
+
+const TOKEN_RE = /^[A-Za-z0-9_-]{16,}$/;
+Object.defineProperty(config, 'TOKEN_RE', { value: TOKEN_RE });
+
+if (!TOKEN_RE.test(config.token)) {
   console.error('ADDON_TOKEN is required: 16+ characters, letters/digits/-/_ only.');
   process.exit(1);
 }

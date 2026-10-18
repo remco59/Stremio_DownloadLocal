@@ -16,11 +16,19 @@ Downloads run in your own torrent client: **qBittorrent** (default) or **Transmi
    Mount the **same** host download folder read-only at `/downloads` in the add-on container (same path as in the torrent client, or set `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX`).
 3. **Reverse proxy**: point an HTTPS host (Nginx Proxy Manager) at port 7000. Stremio needs HTTPS for remote add-ons.
 4. **Stremio**: Add-ons -> paste `https://<your-host>/<ADDON_TOKEN>/manifest.json`.
-5. **Download UI** (search bar): `https://<your-host>/<ADDON_TOKEN>/`
+5. **Web UI**: `https://<your-host>/<ADDON_TOKEN>/`, with search/download, the download list and **Settings**.
 
 The token is the only auth, so treat the URL like a password.
 
+## Settings
+
+Everything below can be changed on the **Settings** page of the web UI: torrent client (with a *Test connection* button per client), connection details, path mapping, torrent source, timeouts and the public URL. Changes are stored in `DATA_DIR/settings.json`, override the env vars, and apply right away without a restart. *Reset to default* goes back to the env value. Passwords are never shown again once saved; leave the field empty to keep the saved one.
+
+**Rotate token** creates a new secret URL. The old URL stops working immediately, so reinstall the add-on in Stremio with the new manifest URL shown on the page.
+
 ## Env vars
+
+These are the defaults for the settings page.
 
 | Var | Default | |
 |---|---|---|

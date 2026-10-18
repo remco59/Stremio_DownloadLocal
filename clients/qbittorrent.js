@@ -96,6 +96,19 @@ function state(s) {
 }
 
 module.exports = {
+  label: 'qBittorrent',
+  // Settings-page fields for this client (see settings.js); `connection` maps them onto testConnection().
+  settings: {
+    fields: [
+      { key: 'qbUrl', label: 'WebUI URL', type: 'url', help: 'e.g. http://192.168.1.10:8080' },
+      { key: 'qbUser', label: 'Username', type: 'text', optional: true,
+        help: 'Empty if qBittorrent bypasses auth for this client.' },
+      { key: 'qbPass', label: 'Password', type: 'secret', optional: true },
+      { key: 'qbCategory', label: 'Category', type: 'text', help: 'Category for torrents added by the add-on.' },
+    ],
+    connection: { url: 'qbUrl', user: 'qbUser', pass: 'qbPass' },
+  },
+
   partialSuffixes: ['.!qB'],
   partialDirs: async () => [],
 

@@ -4,6 +4,7 @@ const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
 const dl = require('./downloads');
+const settings = require('./settings');
 const { serveFile } = require('./stream');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
@@ -121,6 +122,36 @@ router.post('/api/download', async (req, res) => {
   }
 });
 
+router.get('/api/settings', (req, res) => res.json(settings.view()));
+
+router.put('/api/settings', (req, res) => {
+  try {
+    res.json(settings.update(req.body));
+  } catch (e) {
+    res.status(400).json({ error: e.message, field: e.field || null });
+  }
+});
+
+// Tests the chosen client with the values from the form (missing ones and a blank password = saved values).
+router.post('/api/settings/test-client', async (req, res) => {
+  const { client = cfg.torrentClient, values } = req.body || {};
+  try {
+    res.json(await settings.testClient(client, values));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+router.post('/api/settings/rotate-token', (req, res) => {
+  try {
+    const token = settings.rotateToken((req.body || {}).token);
+    const base = baseUrl(req);
+    res.json({ token, uiUrl: `${base}/`, manifestUrl: `${base}/manifest.json` });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
 async function cinemeta(p, res) {
   try {
     const r = await fetch(`${CINEMETA}${p}`);
@@ -138,7 +169,8 @@ router.get('/api/meta/:type/:id', (req, res) => {
   cinemeta(`/meta/${req.params.type}/${req.params.id}.json`, res);
 });
 
-app.use(`/${cfg.token}`, router);
+// The token is read per request so a rotation from the settings page applies immediately.
+app.use('/:token', (req, res, next) => (req.params.token === cfg.token ? router(req, res, next) : next()));
 
 module.exports = app;
 
