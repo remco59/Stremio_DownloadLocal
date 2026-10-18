@@ -27,6 +27,10 @@ async function waitFor(fn, timeout = 60000, what = 'condition') {
   }
 }
 
+// Run the clients as the user running the tests (like PUID/PGID on Unraid), so files they write into the
+// shared folders can be deleted by the add-on under test and cleaned up afterwards.
+const OWNER = ['-e', `PUID=${process.getuid ? process.getuid() : 0}`, '-e', `PGID=${process.getgid ? process.getgid() : 0}`];
+
 const NETWORK = 'stremio-real';
 async function network() {
   await sh('docker', ['network', 'create', NETWORK]).catch(() => {});
@@ -45,7 +49,7 @@ async function rm(name) {
 async function startQb({ name, port, mounts, image = QB_IMAGE }) {
   await rm(name);
   await sh('docker', [
-    'run', '-d', '--name', name, '--network', NETWORK, '-e', 'PUID=0', '-e', 'PGID=0',
+    'run', '-d', '--name', name, '--network', NETWORK, ...OWNER,
     '-e', `WEBUI_PORT=${port}`, '-e', 'TORRENTING_PORT=6881', '-p', `${port}:${port}`,
     ...mounts.flatMap((m) => ['-v', m]), image,
   ]);
@@ -62,7 +66,7 @@ async function startQb({ name, port, mounts, image = QB_IMAGE }) {
 async function startTr({ name, port, mounts, image = TR_IMAGE }) {
   await rm(name);
   await sh('docker', [
-    'run', '-d', '--name', name, '--network', NETWORK, '-e', 'PUID=0', '-e', 'PGID=0',
+    'run', '-d', '--name', name, '--network', NETWORK, ...OWNER,
     '-e', 'USER=admin', '-e', 'PASS=secret', '-p', `${port}:9091`, ...mounts.flatMap((m) => ['-v', m]), image,
   ]);
   const url = `http://127.0.0.1:${port}`;
