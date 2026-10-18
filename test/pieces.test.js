@@ -6,11 +6,12 @@ const path = require('path');
 process.env.ADDON_TOKEN = 'test-token-0123456789';
 process.env.DATA_DIR = path.join(os.tmpdir(), `stremio-addon-unit-${process.pid}`);
 
-const qb = require('../qbittorrent');
+const client = require('../clients');
 const { availableUntil } = require('../stream');
 
+// States as qBittorrent reports them (2 = done, 1 = downloading, 0 = missing), fed through the client interface.
 const maps = {};
-qb.pieceStates = async (hash) => maps[hash];
+client.pieces = async (hash) => ({ pieceSize: 100, have: maps[hash].map((s) => s === 2) });
 
 let n = 0;
 // Each case gets its own hash so stream.js's 1 s piece-map cache never leaks between cases.
@@ -20,7 +21,7 @@ function rec(states, fields) {
   return { id: 'tt1', infoHash, status: 'downloading', pieceSize: 100, fileOffset: 0, fileSize: 1000, ...fields };
 }
 
-test('complete records are fully available without asking qBittorrent', async () => {
+test('complete records are fully available without asking the client', async () => {
   const r = { status: 'complete', fileSize: 1234, infoHash: 'nope' };
   assert.equal(await availableUntil(r, 0), 1234);
 });

@@ -1,12 +1,12 @@
 // HTTP range streaming of a file that may still be downloading.
-// Uses qBittorrent's piece map so we only ever read bytes that are really on disk;
+// Uses the torrent client's piece map so we only ever read bytes that are really on disk;
 // if the player asks for something not downloaded yet, the response simply waits (player shows buffering).
 const fs = require('fs');
 const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
-const qb = require('./qbittorrent');
-const { localPath } = require('./downloads');
+const client = require('./clients');
+const { localCandidates } = require('./downloads');
 
 const MIME = {
   '.mkv': 'video/x-matroska',
@@ -20,28 +20,27 @@ const MIME = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pieceCache = new Map();
 
-async function pieceStates(hash) {
+async function havePieces(hash) {
   const c = pieceCache.get(hash);
-  if (c && Date.now() - c.at < 1000) return c.states;
-  const states = await qb.pieceStates(hash);
-  pieceCache.set(hash, { at: Date.now(), states });
-  return states;
+  if (c && Date.now() - c.at < 1000) return c.have;
+  const { have } = await client.pieces(hash);
+  pieceCache.set(hash, { at: Date.now(), have });
+  return have;
 }
 
 /** Exclusive end offset (within the file) of the contiguous downloaded run starting at `pos`. Returns `pos` if nothing is available. */
 async function availableUntil(rec, pos) {
   if (rec.status === 'complete') return rec.fileSize;
-  const states = await pieceStates(rec.infoHash);
+  const have = await havePieces(rec.infoHash);
   const ps = rec.pieceSize;
   let p = Math.floor((rec.fileOffset + pos) / ps);
-  if (states[p] !== 2) return pos;
-  while (p < states.length && states[p] === 2) p++;
+  if (!have[p]) return pos;
+  while (p < have.length && have[p]) p++;
   return Math.min(rec.fileSize, p * ps - rec.fileOffset);
 }
 
 async function openFile(rec) {
-  const p = localPath(rec);
-  for (const candidate of [p, p + '.!qB']) {
+  for (const candidate of await localCandidates(rec)) {
     try {
       return await fs.promises.open(candidate, 'r');
     } catch (e) {
@@ -101,7 +100,7 @@ async function serveFile(req, res, rec) {
       try {
         avail = await availableUntil(rec, pos);
       } catch {
-        /* qBittorrent hiccup: treat as not available yet */
+        /* client hiccup: treat as not available yet */
       }
 
       if (avail <= pos) {
@@ -124,7 +123,7 @@ async function serveFile(req, res, rec) {
           if (e.code !== 'ENOENT') throw e;
         }
         if (n === 0) {
-          // file was renamed (.!qB removed) or not flushed yet: reopen and retry
+          // file was renamed (partial suffix dropped / moved out of the incomplete dir) or not flushed yet: reopen and retry
           if (fh) await fh.close().catch(() => {});
           fh = null;
           stalledSince = stalledSince || Date.now();

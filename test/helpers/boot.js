@@ -4,27 +4,36 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createMockQb } = require('./mock-qb');
+const { createMockTransmission } = require('./mock-transmission');
 
 const TOKEN = 'test-token-0123456789';
 
-async function boot(env = {}) {
+/**
+ * @param {object} env extra env vars
+ * @param {{client?: 'qbittorrent'|'transmission', mockOpts?: object}} opts which mock client to run against
+ */
+async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'stremio-addon-test-'));
   const dataDir = path.join(root, 'data');
   const downloads = path.join(root, 'downloads');
   fs.mkdirSync(downloads, { recursive: true });
 
-  const qb = createMockQb();
-  const qbUrl = await qb.listen();
+  const qb = client === 'transmission' ? createMockTransmission(mockOpts) : createMockQb(mockOpts);
+  const mockUrl = await qb.listen();
 
   Object.assign(process.env, {
     ADDON_TOKEN: TOKEN,
     DATA_DIR: dataDir,
-    QB_URL: qbUrl,
+    TORRENT_CLIENT: client,
+    QB_URL: mockUrl,
     QB_USER: 'admin',
     QB_PASS: 'secret',
-    QB_PATH_PREFIX: '/downloads',
+    TR_URL: mockUrl, // bare host: the client appends /transmission/rpc
+    TR_USER: 'admin',
+    TR_PASS: 'secret',
+    CLIENT_PATH_PREFIX: '/downloads',
     LOCAL_PATH_PREFIX: downloads,
-    TORRENTIO_URL: qbUrl,
+    TORRENTIO_URL: mockUrl,
     WAIT_FOR_START_MS: '3000',
     STALL_MS: '300',
     SYNC_INTERVAL_MS: '50',
@@ -43,6 +52,8 @@ async function boot(env = {}) {
 
   return {
     TOKEN,
+    client,
+    mockUrl,
     origin,
     base: `${origin}/${TOKEN}`,
     downloads,

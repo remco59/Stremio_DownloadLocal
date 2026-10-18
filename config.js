@@ -12,16 +12,24 @@ const config = {
 
   dataDir: env.DATA_DIR || '/data',
 
-  qb: {
-    url: strip(env.QB_URL || 'http://qbittorrent:8080'),
-    user: env.QB_USER || '',
-    pass: env.QB_PASS || '',
-    category: env.QB_CATEGORY || 'stremio',
-  },
+  // Which torrent client to use: a name registered in clients/index.js
+  torrentClient: (env.TORRENT_CLIENT || 'qbittorrent').toLowerCase(),
 
-  // Path remap: how qBittorrent sees the downloads dir vs. how THIS container sees it.
+  qbUrl: strip(env.QB_URL || 'http://qbittorrent:8080'),
+  qbUser: env.QB_USER || '',
+  qbPass: env.QB_PASS || '',
+  qbCategory: env.QB_CATEGORY || 'stremio',
+
+  // Transmission RPC endpoint; a bare http://host:9091 gets /transmission/rpc appended.
+  trUrl: strip(env.TR_URL || 'http://transmission:9091/transmission/rpc'),
+  trUser: env.TR_USER || '',
+  trPass: env.TR_PASS || '',
+  trLabel: env.TR_LABEL || 'stremio',
+  trDownloadDir: strip(env.TR_DOWNLOAD_DIR), // empty = Transmission's own default
+
+  // Path remap: how the torrent client sees the downloads dir vs. how THIS container sees it.
   // If you mount the same host folder at /downloads in both containers, leave both as /downloads.
-  qbPathPrefix: strip(env.QB_PATH_PREFIX || '/downloads'),
+  clientPathPrefix: strip(env.CLIENT_PATH_PREFIX || env.QB_PATH_PREFIX || '/downloads'),
   localPathPrefix: strip(env.LOCAL_PATH_PREFIX || '/downloads'),
 
   // Where to look up torrents (placeholder resolver, see finder.js)

@@ -1,18 +1,41 @@
 // Download state machine: queued -> downloading -> complete (or error / missing).
-// db is the source of truth for the add-on; qBittorrent is polled to keep it current.
+// db is the source of truth for the add-on; the torrent client (clients/) is polled to keep it current.
 const fs = require('fs');
 const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
-const qb = require('./qbittorrent');
+const client = require('./clients');
 const finder = require('./finder');
 
 const VIDEO = /\.(mkv|mp4|m4v|avi|mov|webm|ts)$/i;
 const inflight = new Map();
 
+/** Maps a path as the torrent client sees it to the path inside this container. */
+function toLocal(clientPath) {
+  const pre = cfg.clientPathPrefix;
+  if (clientPath === pre || clientPath.startsWith(pre + '/')) return cfg.localPathPrefix + clientPath.slice(pre.length);
+  return clientPath;
+}
+
+/** Where the finished file lives. */
 function localPath(rec) {
-  const full = path.posix.join(rec.savePath || '', rec.fileName || '');
-  return full.startsWith(cfg.qbPathPrefix) ? cfg.localPathPrefix + full.slice(cfg.qbPathPrefix.length) : full;
+  return toLocal(path.posix.join(rec.savePath || '', rec.fileName || ''));
+}
+
+/** Every place the file may be while downloading: final dir or the client's incomplete dir, with or without the partial suffix. */
+async function localCandidates(rec) {
+  let extra = [];
+  try {
+    extra = await client.partialDirs();
+  } catch {
+    /* client hiccup: just try the final location */
+  }
+  const out = [];
+  for (const dir of [rec.savePath || '', ...extra]) {
+    const base = toLocal(path.posix.join(dir, rec.fileName || ''));
+    out.push(base, ...client.partialSuffixes().map((s) => base + s));
+  }
+  return [...new Set(out)];
 }
 
 /** Start (or reuse) a download for a Stremio ID. Safe to call repeatedly. */
@@ -42,12 +65,7 @@ async function ensureDownload(type, id) {
         pieceSize: null,
         savePath: null,
       });
-      const ok = await qb.addMagnet(pick.magnet);
-      if (!ok) {
-        // "Fails." usually means the torrent is already in qBittorrent - fine if so.
-        const present = await qb.info([pick.infoHash]);
-        if (!present.length) throw new Error('qBittorrent rejected the torrent');
-      }
+      await client.add({ magnet: pick.magnet, hash: pick.infoHash });
       return rec;
     } catch (e) {
       db.set(id, { id, type, status: 'error', error: String(e.message || e) });
@@ -74,11 +92,9 @@ async function selectFile(rec, files, t) {
     if (r.id !== rec.id && r.infoHash === rec.infoHash && r.selected && r.fileIndex != null &&
         r.status !== 'error' && r.status !== 'missing') wanted.add(r.fileIndex);
   }
-  const drop = files.map((_, i) => i).filter((i) => !wanted.has(i));
-  if (drop.length) await qb.setFilePriority(rec.infoHash, drop, 0);
-  await qb.setFilePriority(rec.infoHash, [...wanted], 1);
+  await client.setWanted(rec.infoHash, [...wanted], files.length);
 
-  const props = await qb.properties(rec.infoHash);
+  const { pieceSize } = await client.pieces(rec.infoHash);
   const fileOffset = files.slice(0, idx).reduce((s, f) => s + f.size, 0);
   return db.set(rec.id, {
     selected: true,
@@ -87,8 +103,8 @@ async function selectFile(rec, files, t) {
     fileName: files[idx].name,
     fileSize: files[idx].size,
     fileOffset,
-    pieceSize: props.piece_size,
-    savePath: t.save_path,
+    pieceSize,
+    savePath: t.savePath,
   });
 }
 
@@ -96,14 +112,14 @@ async function syncOnce() {
   const recs = db.all().filter((r) => r.infoHash && r.status !== 'error' && r.status !== 'missing');
   if (!recs.length) return;
 
-  const infos = await qb.info([...new Set(recs.map((r) => r.infoHash))]);
-  const byHash = new Map(infos.map((t) => [t.hash.toLowerCase(), t]));
+  const infos = await client.info([...new Set(recs.map((r) => r.infoHash))]);
+  const byHash = new Map(infos.map((t) => [t.hash, t]));
 
   for (let rec of recs) {
     const t = byHash.get(rec.infoHash);
 
     if (rec.status === 'complete') {
-      // Finished files stay playable even if the torrent is later removed from qBittorrent.
+      // Finished files stay playable even if the torrent is later removed from the client.
       if (!t && !fs.existsSync(localPath(rec))) db.set(rec.id, { status: 'missing' });
       continue;
     }
@@ -111,16 +127,16 @@ async function syncOnce() {
       if (Date.now() - rec.createdAt > 60000) db.set(rec.id, { status: 'missing' });
       continue;
     }
-    if (/error|missingFiles/i.test(t.state)) {
-      db.set(rec.id, { status: 'error', error: `qBittorrent state: ${t.state}` });
+    if (t.error) {
+      db.set(rec.id, { status: 'error', error: t.error });
       continue;
     }
 
     let files;
     try {
-      files = await qb.files(rec.infoHash);
+      files = await client.files(rec.infoHash);
     } catch {
-      continue; // metadata not fetched yet
+      continue; // client hiccup: try again next round
     }
     if (!Array.isArray(files) || !files.length) continue;
 
@@ -128,7 +144,7 @@ async function syncOnce() {
     const f = files[rec.fileIndex];
     if (!f) continue;
     const progress = Math.round(f.progress * 1000) / 1000;
-    db.set(rec.id, { progress, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.save_path });
+    db.set(rec.id, { progress, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
   }
 }
 
@@ -156,4 +172,4 @@ const view = (r) => ({
   error: r.error || null,
 });
 
-module.exports = { ensureDownload, startSync, syncOnce, localPath, view };
+module.exports = { ensureDownload, startSync, syncOnce, localPath, localCandidates, view };

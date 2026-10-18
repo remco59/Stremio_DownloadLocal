@@ -7,7 +7,7 @@ Keep using the usual Stremio add-ons (Torrentio etc.) untouched. A new, lightwei
 Requirements that shaped the design:
 
 - Existing add-ons stay as they are; this add-on only injects its own entry.
-- qBittorrent stays a separate container; the add-on talks to its WebUI API.
+- The torrent client stays a separate container; the add-on talks to its API. qBittorrent is the default, Transmission is supported too, and more clients can be added behind the same interface (`clients/`).
 - Downloads can take hours. Come back the next day and Stremio shows the title as available locally; playback continues from there. Files stay on the server.
 - Partially downloaded files are playable up to the downloaded part.
 - The Stremio add-on is thin: per title/episode it shows one entry that is either a **download** button or a **watch local stream** button, depending on state.
@@ -18,14 +18,14 @@ Requirements that shaped the design:
 ## Architecture
 
 ```
-Stremio ──(manifest + /stream)──▶ add-on server (Node, Docker) ──(WebUI API)──▶ qBittorrent (separate container)
+Stremio ──(manifest + /stream)──▶ add-on server (Node, Docker) ──(client API)──▶ qBittorrent / Transmission (separate container)
    │                                   │  state.json (per Stremio ID)                │
    └────────(HTTP range requests)──────┘◀──── reads files from shared /downloads ───┘
 ```
 
 Three pieces on Unraid:
 
-1. **qBittorrent**: official/linuxserver container, unchanged. Does the actual torrenting.
+1. **Torrent client**: qBittorrent or Transmission (4.1+ for sequential download), official/linuxserver container, unchanged. Does the actual torrenting. The add-on only uses a small client interface (`clients/index.js`), so another client is one extra file.
 2. **Add-on + backend** (this repo): speaks the Stremio add-on protocol, tracks state, serves video over HTTP ranges, hosts the search UI.
 3. **Reverse proxy**: HTTPS in front (Nginx Proxy Manager); Stremio requires HTTPS for remote add-ons. The secret token in the URL is the only auth.
 
@@ -60,7 +60,8 @@ Both containers mount the same host downloads folder at `/downloads` (read-only 
 ## Decisions
 
 - Plain Express, JSON file store (no native deps, easy to run on Unraid).
-- Add-on and qBittorrent kept as separate containers, so the downloader can be swapped without touching the add-on logic.
+- Add-on and torrent client kept as separate containers; all client access goes through one interface (add, info, files, pieces, set wanted files, stop/start, remove, test connection), so the downloader can be swapped without touching the add-on logic.
+- Transmission needs 4.1+ for sequential download (`sequential_download`); older versions work but only play once (almost) complete.
 - Piece-map gating instead of guessing from file size (qBittorrent files are sparse while downloading).
 - Secret token in the URL path for all routes (manifest, streams, UI, API).
 - Settings live in a JSON file in the data volume and override env vars, so the web UI can edit them at runtime.
@@ -76,6 +77,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Search/download web UI (movies and single episodes only)
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
+- [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
 
 Still to build to meet the requirements above (not in the code yet):
 
