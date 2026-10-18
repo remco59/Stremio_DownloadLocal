@@ -19,6 +19,17 @@ Downloads run in your own torrent client: **qBittorrent** (default) or **Transmi
 4. **Stremio**: Add-ons -> paste `https://<your-host>/<ADDON_TOKEN>/manifest.json`.
 5. **Web UI**: `https://<your-host>/<ADDON_TOKEN>/`, with search/download, the download list and **Settings**.
 
+## Choosing torrents
+
+Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Settings → Torrent source). Results from all sources are merged per info hash, then filtered and scored with the *Torrent choice* settings:
+
+- **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders.
+- **Score**: seeders, then bonuses for the preferred resolution, a preferred language (`nl`, `en`, `multi`, ...; from release names and Torrentio's flags), preferred words / release groups, and season packs for batch downloads. Releases above the max resolution are only used when nothing else exists.
+
+The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or **...** next to an episode. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
+
+Jackett: use the *all indexers* Torznab URL (`http://jackett:9117/api/v2.0/indexers/all/results/torznab/`) and its API key. Prowlarr has one URL per indexer (`http://prowlarr:9696/<id>/api`); list several separated by commas.
+
 ## Pre-downloading series
 
 Search a series under **Add**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
@@ -59,8 +70,14 @@ These are the defaults for the settings page.
 | `TR_LABEL` | `stremio` | label for added torrents |
 | `TR_DOWNLOAD_DIR` | Transmission's default | download dir for added torrents |
 | `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX` | `/downloads` | path remap between containers (`QB_PATH_PREFIX` still works) |
-| `TORRENTIO_URL` | `https://torrentio.strem.fun` | torrent lookup (placeholder, see `finder.js`) |
-| `MAX_RES` | `1080` | skip releases above this resolution |
+| `TORRENTIO_URL` | `https://torrentio.strem.fun` | Torrentio (or compatible) instance |
+| `SOURCES` | `torrentio` | `torrentio`, `torznab` or `both` |
+| `TORZNAB_URLS` / `TORZNAB_APIKEY` | | Jackett/Prowlarr Torznab URL(s), comma separated, and API key |
+| `MAX_RES` | `1080` | skip releases above this resolution (unless nothing else exists) |
+| `PREFERRED_RES` | `0` (none) | resolution that gets a bonus |
+| `LANGUAGES` | | preferred language codes, e.g. `nl, multi` |
+| `MIN_SEEDERS` / `MIN_SIZE_MB` / `MAX_SIZE_GB` | `0` (off) | hard filters |
+| `PREFER_KEYWORDS` / `BLOCK_KEYWORDS` | `` / `cam, camrip, hdcam, telesync, hdts, telecine` | preferred / blocked words and release groups |
 | `CINEMETA_URL` | `https://v3-cinemeta.strem.io` | title/episode metadata (search, seasons) |
 | `WAIT_FOR_START_MS` | `45000` | how long `/play` waits for torrent metadata |
 | `STALL_MS` | `30000` | how long a stream waits for missing pieces before dropping the connection |

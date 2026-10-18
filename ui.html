@@ -28,6 +28,13 @@
   .complete .bar > div { background: var(--ok); }
   .error .s { color: var(--err); }
   .paused .bar > div { background: var(--mut); }
+  dialog { background: var(--bg); color: var(--fg); border: 1px solid #2a2f3a; border-radius: 12px; width: min(720px, calc(100vw - 32px)); max-height: 85vh; padding: 14px; }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  .cand { padding: 8px 0; border-bottom: 1px solid #2a2f3a; display: flex; gap: 10px; align-items: center; }
+  .cand .t, .cand .s { white-space: normal; word-break: break-word; }
+  .cand .t { font-weight: 500; font-size: 14px; }
+  .cand.rejected { opacity: .55; }
+  .cand.current .t::before { content: '● '; color: var(--ok); }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .actions button, .actions .btn { padding: 5px 10px; font-size: 13px; }
   a.btn { color: inherit; text-decoration: none; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; }
@@ -69,6 +76,11 @@
 <form id="f"><input id="q" placeholder="Search title..." autocomplete="off"><button class="primary">Search</button></form>
 <div id="results"></div>
 </section>
+
+<dialog id="picker">
+  <div class="row" style="margin-top:0"><strong id="pickTitle" class="grow"></strong><button type="button" id="pickClose">Close</button></div>
+  <div id="pickBody"></div>
+</dialog>
 
 <section id="v-downloads" hidden>
 <div id="downloads"></div>
@@ -189,13 +201,56 @@ function episodes(meta, box, seriesId) {
       b.disabled = !!(st && st.busy) || future;
       b.onclick = () => startDownload('series', v.id, b);
       const state = el('span', { className: 'msg ' + (st && st.cls ? st.cls : ''), textContent: future ? 'Not released yet' : st ? st.text : '', title: (st && st.title) || '' });
-      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), state, b));
+      const choose = el('button', { type: 'button', textContent: '...', title: 'Choose a specific torrent' });
+      choose.disabled = future;
+      choose.onclick = () => openPicker('series', v.id, `${meta.name || seriesId} S${v.season}E${v.episode}`);
+      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), state, b, choose));
     });
   };
   sel.onchange = render;
   box.replaceChildren(el('div', { className: 'row' }, sel, seasonBtn, showBtn), msg, list);
   openLists.add(render);
   render();
+}
+
+// ---- manual torrent picker ----
+$('#pickClose').onclick = () => $('#picker').close();
+
+async function openPicker(type, id, label) {
+  const dlg = $('#picker');
+  $('#pickTitle').textContent = 'Choose a torrent: ' + label;
+  const body = $('#pickBody');
+  body.replaceChildren(el('div', { className: 'msg', textContent: 'Searching...' }));
+  if (!dlg.open) dlg.showModal();
+  let data;
+  try {
+    data = await api(`api/candidates/${type}/${encodeURIComponent(id)}`);
+  } catch (e) {
+    return body.replaceChildren(el('div', { className: 'msg err', textContent: e.message }));
+  }
+  if (!data.candidates.length) return body.replaceChildren(el('div', { className: 'msg', textContent: 'No torrents found.' }));
+  body.replaceChildren(...data.candidates.map((c) => {
+    const isCurrent = c.infoHash === data.current;
+    const facts = [c.res ? c.res + 'p' : '', c.size ? fmtBytes(c.size) : '', `${c.seeders} seeders`, c.languages.join('/'), c.pack ? 'season pack' : '', c.source].filter(Boolean).join(' · ');
+    // Above the resolution cap the score is only a sort key, so leave it out.
+    const why = c.rejected ? 'Filtered out: ' + c.rejected : c.reasons.join(', ') + (c.score > -500 ? ` (score ${c.score})` : '');
+    const b = el('button', { type: 'button', textContent: isCurrent ? 'Current' : 'Download', className: c.rejected ? '' : 'primary' });
+    b.disabled = isCurrent;
+    b.onclick = async () => {
+      if (data.current && !confirm('Replace the current torrent with this one?\nThe current one is removed from the torrent client; files already downloaded stay on disk.')) return;
+      b.disabled = true; b.textContent = 'Starting...';
+      try {
+        await send('POST', 'api/download', { type, id, infoHash: c.infoHash });
+        dlg.close();
+      } catch (e) {
+        b.disabled = false; b.textContent = 'Failed'; b.title = e.message;
+      }
+      refresh();
+    };
+    return el('div', { className: 'cand' + (c.rejected ? ' rejected' : '') + (isCurrent ? ' current' : '') },
+      el('div', { className: 'grow' }, el('div', { className: 't', textContent: c.title }), el('div', { className: 's', textContent: facts }), el('div', { className: 's', textContent: why })),
+      b);
+  }));
 }
 
 async function search(e) {
@@ -220,11 +275,17 @@ async function search(e) {
           catch (err) { epBox.textContent = err.message; }
         }
       };
+      const buttons = [btn];
+      if (type === 'movie') {
+        const choose = el('button', { type: 'button', textContent: 'Choose...', title: 'Pick a specific torrent' });
+        choose.onclick = () => openPicker('movie', id, m.name);
+        buttons.push(choose);
+      }
       out.append(
         el('div', { className: 'item' },
           el('img', { src: m.poster || '', alt: '', loading: 'lazy' }),
           el('div', { className: 'grow' }, el('div', { className: 't', textContent: m.name }), el('div', { className: 's', textContent: `${m.releaseInfo || ''} ${id}` })),
-          btn),
+          ...buttons),
         epBox);
     });
     if (!metas.length) out.textContent = 'No results.';

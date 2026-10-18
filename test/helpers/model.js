@@ -7,6 +7,8 @@ function createModel() {
     torrents: new Map(),
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
     metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
+    torznab: {}, // "tt123" or "tt123:1:2" -> [{ title, hash, size, seeders, magnet? }] served at /torznab/api
+    torznabQueries: [], // query params of every Torznab request
     added: [], // normalized { magnet, label, sequential, raw } for every add call
     calls: [], // "METHOD /path" or RPC method names
     onAdd: null, // (hash, added) => void - create the torrent in reaction to an add
@@ -61,6 +63,29 @@ function createModel() {
   return model;
 }
 
+/** A Torznab RSS feed like Jackett/Prowlarr return it. */
+function torznabXml(items) {
+  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const body = items
+    .map((it) => {
+      const magnet = it.magnet !== undefined ? it.magnet : `magnet:?xt=urn:btih:${it.hash}&dn=${encodeURIComponent(it.title)}`;
+      return `<item>
+  <title>${esc(it.title)}</title>
+  <size>${it.size}</size>
+  <link>${esc(it.link || magnet || 'http://indexer/download/1.torrent')}</link>
+  <enclosure url="${esc(magnet || 'http://indexer/download/1.torrent')}" length="${it.size}" type="application/x-bittorrent" />
+  <torznab:attr name="seeders" value="${it.seeders}" />
+  ${it.hash && it.withHash !== false ? `<torznab:attr name="infohash" value="${it.hash}" />` : ''}
+  ${magnet ? `<torznab:attr name="magneturl" value="${esc(magnet)}" />` : ''}
+</item>`;
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel><title>mock</title>
+${body}
+</channel></rss>`;
+}
+
 /** Serves `handle(req, res, url, body)` plus the Torrentio- and Cinemeta-style endpoints for `model`. */
 function serve(model, handle) {
   const send = (res, status, body, headers = {}) => {
@@ -80,6 +105,13 @@ function serve(model, handle) {
       if (/^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
         const type = url.pathname.split('/')[2];
         return send(res, 200, { metas: Object.values(model.metas).filter((m) => (m.type || 'series') === type) });
+      }
+      if (url.pathname === '/torznab/api') {
+        const q = Object.fromEntries(url.searchParams);
+        model.torznabQueries.push(q);
+        if (q.apikey !== 'tz-key') return send(res, 200, '<error code="100" description="Incorrect user credentials"/>', { 'Content-Type': 'application/xml' });
+        const key = [q.imdbid, q.season, q.ep].filter(Boolean).join(':');
+        return send(res, 200, torznabXml(model.torznab[key] || []), { 'Content-Type': 'application/xml' });
       }
       const mm = /^\/meta\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (mm) {
@@ -103,4 +135,4 @@ function serve(model, handle) {
   };
 }
 
-module.exports = { createModel, serve };
+module.exports = { createModel, serve, torznabXml };

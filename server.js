@@ -5,6 +5,7 @@ const cfg = require('./config');
 const db = require('./db');
 const dl = require('./downloads');
 const batch = require('./batch');
+const finder = require('./finder');
 const settings = require('./settings');
 const { serveFile } = require('./stream');
 
@@ -134,11 +135,30 @@ router.post('/api/downloads/:id/:action', (req, res) => {
 });
 router.delete('/api/downloads/:id', (req, res) => act(dl.forget, req, res));
 
-router.post('/api/download', async (req, res) => {
-  const { type, id } = req.body || {};
+// Ranked torrents for the manual picker (rejected ones last, with the reason).
+router.get('/api/candidates/:type/:id', async (req, res) => {
+  const { type, id } = req.params;
   if (!valid(type, id)) return res.status(400).json({ error: 'bad type/id' });
   try {
-    res.json(dl.view(await dl.ensureDownload(type, id)));
+    const current = db.get(id);
+    const list = (await finder.candidates(type, id)).slice(0, 60);
+    res.json({ current: current && current.infoHash, candidates: list.map(({ magnet, ...c }) => c) });
+  } catch (e) {
+    res.status(502).json({ error: String(e.message) });
+  }
+});
+
+// { type, id } downloads the best torrent; with infoHash, that torrent from the picker list.
+router.post('/api/download', async (req, res) => {
+  const { type, id, infoHash } = req.body || {};
+  if (!valid(type, id)) return res.status(400).json({ error: 'bad type/id' });
+  try {
+    let pick;
+    if (infoHash != null) {
+      pick = await finder.findCandidate(type, id, infoHash);
+      if (!pick) return res.status(404).json({ error: 'that torrent is not in the search results (anymore)' });
+    }
+    res.json(dl.view(await dl.ensureDownload(type, id, { pick })));
   } catch (e) {
     res.status(502).json({ error: String(e.message) });
   }

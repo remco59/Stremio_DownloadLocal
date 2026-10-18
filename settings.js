@@ -9,7 +9,7 @@ const { CLIENTS } = require('./clients');
 
 const strip = (s) => s.replace(/\/+$/, '');
 
-// type: url | text | path | int | secret | choice. `optional` allows an empty value.
+// type: url | urls (comma separated) | text | path | int | secret | choice. `optional` allows an empty value.
 // `client` marks a field that only matters when that torrent client is selected.
 const FIELDS = [
   { key: 'publicUrl', group: 'Add-on', label: 'Public URL', type: 'url', optional: true,
@@ -22,9 +22,31 @@ const FIELDS = [
   { key: 'clientPathPrefix', group: 'Paths', label: 'Downloads path in the torrent client', type: 'path' },
   { key: 'localPathPrefix', group: 'Paths', label: 'Downloads path in this container', type: 'path' },
 
+  { key: 'sources', group: 'Torrent source', label: 'Search', type: 'choice',
+    options: [
+      { value: 'torrentio', label: 'Torrentio' },
+      { value: 'torznab', label: 'Jackett / Prowlarr (Torznab)' },
+      { value: 'both', label: 'Both' },
+    ] },
   { key: 'torrentioUrl', group: 'Torrent source', label: 'Torrentio URL', type: 'url' },
-  { key: 'maxRes', group: 'Torrent source', label: 'Max resolution', type: 'int',
+  { key: 'torznabUrls', group: 'Torrent source', label: 'Torznab URLs', type: 'urls', optional: true,
+    help: 'Jackett: http://jackett:9117/api/v2.0/indexers/all/results/torznab/ . Prowlarr: one URL per indexer, e.g. http://prowlarr:9696/1/api . Separate several with commas.' },
+  { key: 'torznabApiKey', group: 'Torrent source', label: 'Torznab API key', type: 'secret', optional: true },
+
+  { key: 'maxRes', group: 'Torrent choice', label: 'Max resolution', type: 'int',
     options: [480, 720, 1080, 2160].map((v) => ({ value: v, label: `${v}p` })) },
+  { key: 'preferredRes', group: 'Torrent choice', label: 'Preferred resolution', type: 'int',
+    options: [{ value: 0, label: 'No preference' }, ...[480, 720, 1080, 2160].map((v) => ({ value: v, label: `${v}p` }))] },
+  { key: 'languages', group: 'Torrent choice', label: 'Preferred languages', type: 'text', optional: true,
+    help: 'Language codes, comma separated: nl, en, de, fr, es, it, multi (multi-audio). Matched against release names and flags.' },
+  { key: 'minSeeders', group: 'Torrent choice', label: 'Minimum seeders', type: 'int', min: 0, max: 100000 },
+  { key: 'minSizeMb', group: 'Torrent choice', label: 'Minimum size (MB, 0 = none)', type: 'int', min: 0, max: 1000000 },
+  { key: 'maxSizeGb', group: 'Torrent choice', label: 'Maximum size (GB, 0 = none)', type: 'int', min: 0, max: 10000,
+    help: 'Season packs are exempt.' },
+  { key: 'preferKeywords', group: 'Torrent choice', label: 'Preferred words / release groups', type: 'text', optional: true,
+    help: 'Comma separated, e.g. x265, remux, ntb' },
+  { key: 'blockKeywords', group: 'Torrent choice', label: 'Blocked words / release groups', type: 'text', optional: true,
+    help: 'Comma separated. Releases containing any of these are never picked.' },
 
   { key: 'waitForStartMs', group: 'Timeouts', label: 'Wait for torrent metadata (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'stallMs', group: 'Timeouts', label: 'Wait for missing pieces (ms)', type: 'int', min: 1000, max: 600000 },
@@ -62,6 +84,11 @@ function normalize(field, value) {
   if (!v) {
     if (field.optional) return '';
     fail('is required');
+  }
+  if (field.type === 'urls') {
+    const parts = v.split(/[\s,]+/).filter(Boolean);
+    for (const p of parts) normalize({ ...field, type: 'url' }, p);
+    return parts.map(strip).join(', ');
   }
   if (field.type === 'url') {
     let u;
