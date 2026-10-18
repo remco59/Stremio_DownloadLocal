@@ -1,0 +1,16 @@
+{
+  "name": "stremio-local-addon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stremio add-on that adds a 'Download and watch' stream backed by qBittorrent",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

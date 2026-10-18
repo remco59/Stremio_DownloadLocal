@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local Download</title>
+<style>
+  :root { --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --acc:#7b5cff; --ok:#3ecf8e; --err:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { font: 15px system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 16px; max-width: 760px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  h2 { font-size: 15px; color: var(--mut); margin: 24px 0 8px; font-weight: 600; }
+  form { display: flex; gap: 8px; }
+  input, select, button { font: inherit; color: inherit; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; padding: 9px 12px; }
+  input { flex: 1; min-width: 0; }
+  button { cursor: pointer; }
+  button.primary { background: var(--acc); border-color: var(--acc); }
+  button:disabled { opacity: .5; cursor: default; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+  .tabs button.on { border-color: var(--acc); }
+  .item { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 10px; padding: 8px; margin-bottom: 8px; }
+  .item img { width: 46px; height: 68px; object-fit: cover; border-radius: 6px; background: #222; flex: none; }
+  .grow { flex: 1; min-width: 0; }
+  .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .s { color: var(--mut); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { height: 6px; background: #2a2f3a; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--acc); }
+  .complete .bar > div { background: var(--ok); }
+  .error .s { color: var(--err); }
+  .eps { margin: -2px 0 10px 8px; padding-left: 8px; border-left: 2px solid #2a2f3a; }
+  .ep { display: flex; gap: 8px; align-items: center; padding: 5px 0; }
+</style>
+</head>
+<body>
+<h1>Download to server</h1>
+
+<div class="tabs">
+  <button id="tMovie" class="on">Movies</button>
+  <button id="tSeries">Series</button>
+</div>
+<form id="f"><input id="q" placeholder="Search title..." autocomplete="off"><button class="primary">Search</button></form>
+<div id="results"></div>
+
+<h2>On your server</h2>
+<div id="downloads"></div>
+
+<script>
+const BASE = location.pathname.replace(/\/?$/, '/');
+const $ = (s) => document.querySelector(s);
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+let type = 'movie';
+
+async function api(p, opts) {
+  const r = await fetch(BASE + p, opts);
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  return r.json();
+}
+
+function setType(t) {
+  type = t;
+  $('#tMovie').classList.toggle('on', t === 'movie');
+  $('#tSeries').classList.toggle('on', t === 'series');
+  $('#results').replaceChildren();
+}
+$('#tMovie').onclick = () => setType('movie');
+$('#tSeries').onclick = () => setType('series');
+
+async function startDownload(t, id, btn) {
+  btn.disabled = true; btn.textContent = 'Queued...';
+  try {
+    await api('api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: t, id }) });
+    btn.textContent = 'Started';
+  } catch (e) {
+    btn.textContent = 'Failed'; btn.title = e.message; btn.disabled = false;
+  }
+  refresh();
+}
+
+function episodes(meta, box) {
+  const vids = (meta.videos || []).filter((v) => v.season > 0);
+  const seasons = [...new Set(vids.map((v) => v.season))].sort((a, b) => a - b);
+  const sel = el('select');
+  seasons.forEach((s) => sel.append(el('option', { value: s, textContent: 'Season ' + s })));
+  const list = el('div');
+  const render = () => {
+    list.replaceChildren();
+    vids.filter((v) => v.season === +sel.value).sort((a, b) => a.episode - b.episode).forEach((v) => {
+      const b = el('button', { textContent: 'Download' });
+      b.onclick = () => startDownload('series', v.id, b);
+      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), b));
+    });
+  };
+  sel.onchange = render;
+  box.replaceChildren(sel, list);
+  render();
+}
+
+async function search(e) {
+  e.preventDefault();
+  const q = $('#q').value.trim();
+  if (!q) return;
+  const out = $('#results');
+  out.replaceChildren(el('div', { className: 's', textContent: 'Searching...' }));
+  try {
+    const { metas = [] } = await api(`api/search?type=${type}&q=${encodeURIComponent(q)}`);
+    out.replaceChildren();
+    metas.slice(0, 12).forEach((m) => {
+      const id = m.imdb_id || m.id;
+      const btn = el('button', { textContent: type === 'movie' ? 'Download' : 'Episodes' });
+      const epBox = el('div', { className: 'eps' });
+      epBox.hidden = true;
+      btn.onclick = async () => {
+        if (type === 'movie') return startDownload('movie', id, btn);
+        epBox.hidden = !epBox.hidden;
+        if (!epBox.hidden && !epBox.children.length) {
+          try { episodes((await api(`api/meta/series/${id}`)).meta || {}, epBox); }
+          catch (err) { epBox.textContent = err.message; }
+        }
+      };
+      out.append(
+        el('div', { className: 'item' },
+          el('img', { src: m.poster || '', alt: '', loading: 'lazy' }),
+          el('div', { className: 'grow' }, el('div', { className: 't', textContent: m.name }), el('div', { className: 's', textContent: `${m.releaseInfo || ''} ${id}` })),
+          btn),
+        epBox);
+    });
+    if (!metas.length) out.textContent = 'No results.';
+  } catch (err) {
+    out.textContent = 'Search failed: ' + err.message;
+  }
+}
+$('#f').onsubmit = search;
+
+async function refresh() {
+  try {
+    const list = await api('api/downloads');
+    const box = $('#downloads');
+    box.replaceChildren();
+    if (!list.length) box.append(el('div', { className: 's', textContent: 'Nothing yet.' }));
+    list.forEach((d) => {
+      const pct = Math.round((d.progress || 0) * 100);
+      const status = d.status === 'error' ? 'Error: ' + (d.error || '') : d.status === 'complete' ? 'Complete' : d.status === 'missing' ? 'Removed from qBittorrent' : `${d.status} ${pct}%`;
+      box.append(
+        el('div', { className: 'item ' + d.status },
+          el('div', { className: 'grow' },
+            el('div', { className: 't', textContent: d.title || d.id }),
+            el('div', { className: 's', textContent: `${d.id} - ${status}` }),
+            el('div', { className: 'bar' }, el('div', { style: `width:${pct}%` })))));
+    });
+  } catch { /* ignore */ }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

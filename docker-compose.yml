@@ -1,0 +1,21 @@
+services:
+  stremio-local-addon:
+    build: .
+    container_name: stremio-local-addon
+    restart: unless-stopped
+    ports:
+      - "7000:7000"
+    environment:
+      ADDON_TOKEN: "change-me-to-a-long-random-string"   # 16+ chars, letters/digits/-/_
+      PUBLIC_URL: "https://stremio.example.com"           # the HTTPS URL you expose via your reverse proxy
+      QB_URL: "http://192.168.1.10:8090"                  # your qBittorrent WebUI
+      QB_USER: "admin"
+      QB_PASS: "changeme"
+      QB_CATEGORY: "stremio"
+      # Same host folder mounted at /downloads in BOTH containers -> leave these as-is
+      QB_PATH_PREFIX: "/downloads"
+      LOCAL_PATH_PREFIX: "/downloads"
+      MAX_RES: "1080"
+    volumes:
+      - /mnt/user/appdata/stremio-local-addon:/data
+      - /mnt/user/downloads/qbittorrent:/downloads:ro
