@@ -38,6 +38,11 @@ class Store {
     return next;
   }
 
+  /** Like set(), but only for a record that still exists: never brings back one deleted meanwhile. */
+  update(id, patch) {
+    return this.data[id] ? this.set(id, patch) : null;
+  }
+
   delete(id) {
     if (!(id in this.data)) return false;
     delete this.data[id];
