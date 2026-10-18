@@ -140,10 +140,14 @@ router.get('/api/meta/:type/:id', (req, res) => {
 
 app.use(`/${cfg.token}`, router);
 
-dl.startSync();
-app.listen(cfg.port, () => {
-  const shown = cfg.publicUrl || `http://<server-ip>:${cfg.port}`;
-  console.log(`Listening on :${cfg.port}`);
-  console.log(`Install in Stremio: ${shown}/${cfg.token}/manifest.json`);
-  console.log(`Download UI:        ${shown}/${cfg.token}/`);
-});
+module.exports = app;
+
+if (require.main === module) {
+  dl.startSync();
+  app.listen(cfg.port, () => {
+    const shown = cfg.publicUrl || `http://<server-ip>:${cfg.port}`;
+    console.log(`Listening on :${cfg.port}`);
+    console.log(`Install in Stremio: ${shown}/${cfg.token}/manifest.json`);
+    console.log(`Download UI:        ${shown}/${cfg.token}/`);
+  });
+}

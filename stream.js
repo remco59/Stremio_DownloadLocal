@@ -51,24 +51,31 @@ async function openFile(rec) {
   throw Object.assign(new Error('file not on disk yet'), { code: 'ENOENT' });
 }
 
+/**
+ * Parses a single-range `Range` header against a file of `size` bytes.
+ * @returns {{start:number, end:number, partial:boolean} | null} inclusive byte range, or null if unsatisfiable (416)
+ */
+function parseRange(header, size) {
+  if (!header) return { start: 0, end: size - 1, partial: false };
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  let start;
+  let end = size - 1;
+  if (m[1] === '') {
+    start = Math.max(0, size - parseInt(m[2], 10));
+  } else {
+    start = parseInt(m[1], 10);
+    if (m[2] !== '') end = Math.min(end, parseInt(m[2], 10));
+  }
+  if (start >= size || start > end) return null;
+  return { start, end, partial: true };
+}
+
 async function serveFile(req, res, rec) {
   const size = rec.fileSize;
-  let start = 0;
-  let end = size - 1;
-  let partial = false;
-
-  if (req.headers.range) {
-    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range.trim());
-    if (!m || (m[1] === '' && m[2] === '')) return res.status(416).set('Content-Range', `bytes */${size}`).end();
-    if (m[1] === '') {
-      start = Math.max(0, size - parseInt(m[2], 10));
-    } else {
-      start = parseInt(m[1], 10);
-      if (m[2] !== '') end = Math.min(end, parseInt(m[2], 10));
-    }
-    if (start >= size || start > end) return res.status(416).set('Content-Range', `bytes */${size}`).end();
-    partial = true;
-  }
+  const range = parseRange(req.headers.range, size);
+  if (!range) return res.status(416).set('Content-Range', `bytes */${size}`).end();
+  const { start, end, partial } = range;
 
   const headers = {
     'Content-Type': MIME[path.extname(rec.fileName).toLowerCase()] || 'application/octet-stream',
@@ -141,4 +148,4 @@ async function serveFile(req, res, rec) {
   }
 }
 
-module.exports = { serveFile };
+module.exports = { serveFile, parseRange, availableUntil };

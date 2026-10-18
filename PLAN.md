@@ -75,6 +75,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Range streaming with piece-map gating
 - [x] Search/download web UI (movies and single episodes only)
 - [x] Dockerfile + compose file
+- [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 
 Still to build to meet the requirements above (not in the code yet):
 
@@ -97,4 +98,4 @@ Not yet verified on the real setup:
 5. **Settings page** (now a requirement): runtime-editable settings, see Web interface.
 6. **Season/show batch download** (now a requirement): queue many episodes at once, skipping ones already present.
 7. **Auth hardening**: token rotation, rate limiting on `/play`.
-8. **Tests**: automated tests for range parsing and piece-map gating (currently verified by a manual mock run).
+8. ~~**Tests**~~: done, see `test/` (`npm test`).
