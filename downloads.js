@@ -64,6 +64,8 @@ async function ensureDownload(type, id, opts = {}) {
         progress: 0,
         error: null,
         createdAt: Date.now(),
+        progressAt: Date.now(),
+        tried: opts.tried || [],
         fileIndex: null,
         fileName: null,
         fileSize: null,
@@ -171,6 +173,14 @@ async function syncOnce() {
       syncPatch(rec, { status: 'error', error: t.error });
       continue;
     }
+    // Time spent paused or waiting on the client does not count as a stall (nor time before this check existed).
+    if (IDLE.has(t.state) || !rec.progressAt) {
+      rec = syncPatch(rec, { progressAt: Date.now() });
+      if (!rec) continue;
+    } else if (stuckAtZero(rec)) {
+      await switchTorrent(rec);
+      continue;
+    }
 
     let files;
     try {
@@ -195,8 +205,37 @@ async function syncOnce() {
         /* keep the last value */
       }
     }
-    syncPatch(rec, { progress, playable, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+    const progressAt = progress > (rec.progress || 0) ? Date.now() : rec.progressAt;
+    syncPatch(rec, { progress, playable, progressAt, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
   }
+}
+
+const IDLE = new Set(['paused', 'queued', 'checking']);
+
+/** Nothing of the file has arrived for `stallSwitchMin` minutes. */
+function stuckAtZero(rec) {
+  return cfg.stallSwitchMin > 0 && !rec.progress && Date.now() - rec.progressAt > cfg.stallSwitchMin * 60000;
+}
+
+/**
+ * Replaces a torrent that never got going (dead swarm, no metadata) with the next best one that was not tried
+ * yet for this title. Without one, the current torrent keeps going and the next attempt waits another round.
+ */
+async function switchTorrent(rec) {
+  const tried = [...new Set([...(rec.tried || []), rec.infoHash])];
+  let pick;
+  try {
+    pick = await finder.resolve(rec.type, rec.id, { exclude: tried });
+  } catch (e) {
+    console.error('[stall]', rec.id, `no other torrent to try: ${e.message}`);
+    syncPatch(rec, { progressAt: Date.now(), tried });
+    return;
+  }
+  // Same check as syncPatch: the user may have removed, deleted or re-picked it while we searched.
+  const cur = db.get(rec.id);
+  if (!cur || cur.infoHash !== rec.infoHash || cur.status !== rec.status) return;
+  console.log('[stall]', rec.id, `no progress for ${cfg.stallSwitchMin} min, switching to ${pick.title}`);
+  await ensureDownload(rec.type, rec.id, { pick, tried }).catch((e) => console.error('[stall]', rec.id, e.message));
 }
 
 /** Polls the torrent client forever; the interval is re-read from settings each round. Returns a stop function. */
@@ -359,6 +398,8 @@ const view = (r, t) => ({
   label: fileLabel(r),
   status: r.status,
   progress: r.progress || 0,
+  progressAt: r.progressAt || null,
+  tried: (r.tried || []).length,
   error: r.error || null,
   fileName: r.fileName || null,
   size: r.fileSize || null,
@@ -368,6 +409,7 @@ const view = (r, t) => ({
   paused: !!t && t.state === 'paused',
   clientState: t ? t.state : null,
   dlSpeed: t && r.status !== 'complete' ? t.dlSpeed : null,
+  seeds: t && r.status !== 'complete' ? t.seeds ?? null : null,
   eta: t && r.status !== 'complete' && t.eta > 0 && t.eta < 8640000 ? t.eta : null,
   shared: !!r.infoHash && sharers(r).length > 0,
 });

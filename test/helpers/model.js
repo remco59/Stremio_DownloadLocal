@@ -27,6 +27,7 @@ function createModel() {
         error: null, // e.g. 'missingFiles'
         sequential: false,
         label: null,
+        seeds: 3, // connected seeders
       };
       model.torrents.set(t.hash, t);
       return t;

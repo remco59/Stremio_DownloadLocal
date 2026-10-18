@@ -33,6 +33,7 @@ function createMockTransmission({ user = 'admin', pass = 'secret', version = '4.
       totalSize: t.files.reduce((s, f) => s + f.size, 0),
       rateDownload: 1234,
       eta: 60,
+      peersSendingToUs: t.seeds,
       metadataPercentComplete: t.metadata ? 1 : 0,
       files: t.metadata ? t.files.map((f, i) => ({ name: f.name, length: f.size, bytesCompleted: model.fileBytesDone(t, i) })) : [],
       fileStats: t.metadata ? t.files.map((f, i) => ({ wanted: !!f.priority, priority: 0, bytesCompleted: model.fileBytesDone(t, i) })) : [],

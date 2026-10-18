@@ -64,3 +64,69 @@ test('a download removed during a sync round stays removed', async () => {
   }
   assert.equal(env.db.get(id).status, 'missing');
 });
+
+// Stuck at 0%: the sync loop moves to the next torrent that was not tried yet.
+const STALE = () => Date.now() - 11 * 60000; // past the default 10-minute limit
+const hashOf = (c) => c.repeat(40);
+
+function stuck(id, hash, extra = {}) {
+  env.mock.addTorrent({ hash, files: [{ name: `${hash}.mkv`, size: 2048 }], metadata: false });
+  env.db.set(id, {
+    id, type: 'movie', status: 'queued', selected: false, infoHash: hash, progress: 0,
+    createdAt: STALE(), progressAt: STALE(), tried: [], ...extra,
+  });
+}
+
+test('a download stuck at 0% switches to the next torrent and never back', async () => {
+  const id = 'tt2000010';
+  env.mock.torrentio[id] = {
+    streams: ['a', 'b', 'c'].map((c, i) => ({ name: '1080p', title: `S${c} 1080p\n👤 ${30 - i * 10}`, infoHash: hashOf(c) })),
+  };
+  env.mock.onAdd = (h) => env.mock.addTorrent({ hash: h, files: [{ name: `${h}.mkv`, size: 2048 }], metadata: false });
+  stuck(id, hashOf('a'));
+
+  await env.dl.syncOnce();
+  let rec = env.db.get(id);
+  assert.equal(rec.infoHash, hashOf('b'));
+  assert.deepEqual(rec.tried, [hashOf('a')]);
+  assert.equal(env.mock.torrents.has(hashOf('a')), false, 'the dead torrent left the client');
+
+  env.db.update(id, { progressAt: STALE() });
+  await env.dl.syncOnce();
+  rec = env.db.get(id);
+  assert.equal(rec.infoHash, hashOf('c'), 'skips the best-seeded one, already tried');
+  assert.deepEqual(rec.tried, [hashOf('a'), hashOf('b')]);
+
+  // Nothing left: keep the current torrent and wait another round.
+  env.db.update(id, { progressAt: STALE() });
+  await env.dl.syncOnce();
+  rec = env.db.get(id);
+  assert.equal(rec.infoHash, hashOf('c'));
+  assert.equal(rec.status, 'queued');
+  assert.ok(Date.now() - rec.progressAt < 60000);
+  assert.deepEqual(rec.tried, [hashOf('a'), hashOf('b'), hashOf('c')]);
+  env.mock.onAdd = null;
+});
+
+test('no switch while paused, after progress, or for records from before the watchdog', async () => {
+  const id = 'tt2000011';
+  const adds = env.mock.added.length;
+  env.mock.torrentio[id] = { streams: [{ name: '1080p', title: 'Other 1080p\n👤 9', infoHash: hashOf('e') }] };
+
+  stuck(id, hashOf('d'));
+  env.mock.torrents.get(hashOf('d')).paused = true;
+  await env.dl.syncOnce();
+  assert.equal(env.db.get(id).infoHash, hashOf('d'), 'paused');
+  assert.ok(Date.now() - env.db.get(id).progressAt < 60000, 'paused time does not count');
+
+  env.db.update(id, { progressAt: STALE(), progress: 0.2 });
+  env.mock.torrents.get(hashOf('d')).paused = false;
+  await env.dl.syncOnce();
+  assert.equal(env.db.get(id).infoHash, hashOf('d'), 'already has data');
+
+  env.db.update(id, { progressAt: undefined, progress: 0 });
+  await env.dl.syncOnce();
+  assert.equal(env.db.get(id).infoHash, hashOf('d'), 'no progressAt yet');
+  assert.ok(env.db.get(id).progressAt, 'the clock starts now');
+  assert.equal(env.mock.added.length, adds);
+});

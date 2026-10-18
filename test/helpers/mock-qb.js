@@ -9,9 +9,9 @@ async function form(req, body) {
 
 function qbState(model, t) {
   if (t.error) return t.error;
-  if (!t.metadata) return 'metaDL';
   const done = model.isComplete(t);
   if (t.paused) return done ? 'stoppedUP' : 'stoppedDL';
+  if (!t.metadata) return 'metaDL';
   return done ? 'uploading' : 'downloading';
 }
 
@@ -66,6 +66,7 @@ function createMockQb({ user = 'admin', pass = 'secret', v4 = false, v52 = false
             size: x.files.reduce((s, y) => s + (y.priority ? y.size : 0), 0),
             dlspeed: 1234,
             eta: 60,
+            num_seeds: x.seeds,
           }));
         return send(res, 200, list);
       }

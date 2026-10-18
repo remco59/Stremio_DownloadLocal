@@ -47,6 +47,8 @@ const FIELDS = [
     help: 'Comma separated, e.g. x265, remux, ntb' },
   { key: 'blockKeywords', group: 'Torrent choice', label: 'Blocked words / release groups', type: 'text', optional: true,
     help: 'Comma separated. Releases containing any of these are never picked.' },
+  { key: 'stallSwitchMin', group: 'Torrent choice', label: 'Try another torrent when stuck at 0% for (minutes)', type: 'int', min: 0, max: 10080,
+    help: 'Dead swarms: the next best torrent is picked, never one already tried for that title. Time paused or queued in the client does not count. 0 = never.' },
 
   { key: 'waitForStartMs', group: 'Timeouts', label: 'First tap: wait before showing the status clip (ms)', type: 'int', min: 1000, max: 600000,
     help: 'If the start of the file is there by then it plays right away; otherwise Stremio shows a short "download started" clip.' },

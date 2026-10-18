@@ -215,6 +215,7 @@ These are the defaults for the settings page.
 | `WAIT_FOR_START_MS` | `15000` | first tap: how long `/play` waits before showing the status clip |
 | `SEEK_WAIT_MS` | `8000` | seek past the downloaded part: how long to wait before answering 503 |
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
+| `STALL_SWITCH_MIN` | `10` | a download still at 0% after this many minutes (not paused or queued in the client) moves to the next best untried torrent; `0` = never |
 | `SYNC_INTERVAL_MS` | `5000` | torrent client poll interval |
 | `PLAY_STARTS_PER_IP_PER_MIN` / `PLAY_STARTS_PER_MIN` | `10` / `30` | new downloads from Stremio per minute (0 = off) |
 | `API_WRITES_PER_IP_PER_MIN` | `120` | web UI actions per minute (0 = off) |

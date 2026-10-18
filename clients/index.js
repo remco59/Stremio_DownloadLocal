@@ -6,9 +6,10 @@
 //   add({ magnet, hash })            add with sequential download (+ first/last piece priority where
 //                                    supported) and the add-on's category/label; a duplicate is fine.
 //                                    Throws if the client rejects it.
-//   info(hashes) -> [{ hash, name, state, error, savePath, progress, size, dlSpeed, eta }]
+//   info(hashes) -> [{ hash, name, state, error, savePath, progress, size, dlSpeed, eta, seeds }]
 //                                    state: metadata | queued | checking | downloading | paused | seeding | error
 //                                    error: message when the torrent is broken (state 'error'), else null
+//                                    seeds: connected peers that have data for us (null if unknown)
 //                                    Unknown hashes are simply absent.
 //   files(hash) -> [{ index, name, size, progress }] | [] (no metadata yet) | null (unknown torrent)
 //   pieces(hash) -> { pieceSize, have: boolean[] }

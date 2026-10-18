@@ -127,11 +127,16 @@ async function findCandidate(type, id, infoHash) {
   return all.find((c) => c.infoHash === String(infoHash).toLowerCase()) || null;
 }
 
-/** @returns {Promise<{infoHash:string, fileIdx:number|null, title:string, magnet:string}>} the best candidate */
+/**
+ * @param {object} [opts] candidates() options, plus `exclude`: info hashes not to pick (torrents already tried)
+ * @returns {Promise<{infoHash:string, fileIdx:number|null, title:string, magnet:string}>} the best candidate
+ */
 async function resolve(type, id, opts = {}) {
-  const all = await candidates(type, id, opts);
+  const exclude = new Set(opts.exclude || []);
+  const all = (await candidates(type, id, opts)).filter((c) => !exclude.has(c.infoHash));
   const best = all.find((c) => !c.rejected);
   if (!best) {
+    if (!all.length && exclude.size) throw new Error(`No untried torrents left for ${id}`);
     throw new Error(all.length ? `No torrent for ${id} passed the filters (${all[0].rejected})` : `No torrents found for ${id}`);
   }
   return { infoHash: best.infoHash, fileIdx: best.fileIdx, title: best.title, magnet: best.magnet };
