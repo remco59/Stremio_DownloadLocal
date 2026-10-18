@@ -13,10 +13,24 @@ Downloads run in your own torrent client: **qBittorrent** (default) or **Transmi
      Transmission only downloads sequentially from 4.1 on. With an older version titles download in random order and only become playable once (almost) complete.
      An *incomplete dir* is fine as long as the add-on can see it under the same path mapping (e.g. `/downloads/incomplete`).
 2. **Add-on**: copy this folder to Unraid, edit `docker-compose.yml`, then `docker compose up -d --build`.
-   Mount the **same** host download folder read-only at `/downloads` in the add-on container (same path as in the torrent client, or set `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX`).
+   Mount the **same** host download folder at `/downloads` in the add-on container (same path as in the torrent client, or set `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX`).
+   Mount it **read-write** if you want *Delete files* in the web UI to work for files the torrent client no longer tracks (read-only works for everything else).
 3. **Reverse proxy**: point an HTTPS host (Nginx Proxy Manager) at port 7000. Stremio needs HTTPS for remote add-ons.
 4. **Stremio**: Add-ons -> paste `https://<your-host>/<ADDON_TOKEN>/manifest.json`.
 5. **Web UI**: `https://<your-host>/<ADDON_TOKEN>/`, with search/download, the download list and **Settings**.
+
+## Managing downloads
+
+The **Downloads** page lists everything the add-on knows about, with progress, size, speed and ETA. Per item:
+
+- **Pause / Resume** the torrent.
+- **Play** opens the stream URL (works in a browser or VLC).
+- **Remove** takes it out of the torrent client and keeps the files. A finished file stays playable from Stremio.
+- **Delete files** deletes it from disk (after a confirmation). This goes through the torrent client while it still has the torrent, otherwise the add-on deletes the file itself (needs the read-write mount). It never touches anything outside the downloads folder.
+- **Re-download** an item that failed or was removed.
+- **✕ Forget** removes it from the list only.
+
+Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
 
 The token is the only auth, so treat the URL like a password.
 

@@ -29,7 +29,7 @@ Three pieces on Unraid:
 2. **Add-on + backend** (this repo): speaks the Stremio add-on protocol, tracks state, serves video over HTTP ranges, hosts the search UI.
 3. **Reverse proxy**: HTTPS in front (Nginx Proxy Manager); Stremio requires HTTPS for remote add-ons. The secret token in the URL is the only auth.
 
-Both containers mount the same host downloads folder at `/downloads` (read-only in the add-on).
+Both containers mount the same host downloads folder at `/downloads` (read-write in the add-on, so the web UI can delete files the torrent client no longer tracks).
 
 ## State machine (per Stremio ID, e.g. `tt0133093` or `tt0944947:1:2`)
 
@@ -78,11 +78,11 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
+- [x] Download management in the web UI and API (pause/resume, remove, delete files, re-download, play link, forget), season-pack aware
 - [x] Settings page: client choice, per-client connection fields + connection test, persisted in `settings.json`, applied at runtime, token rotation
 
 Still to build to meet the requirements above (not in the code yet):
 
-- [ ] Download management in the web UI and API (pause/resume, remove, delete files)
 - [ ] Pre-download a whole season or whole show from the web UI
 
 Not yet verified on the real setup:
@@ -96,7 +96,7 @@ Not yet verified on the real setup:
 1. **Torrent picker** (`finder.js`): currently a placeholder (Torrentio API, most seeders at ≤ `MAX_RES`). Replace with something better: Jackett/Prowlarr, own scoring (language, release group, size), optionally let the user choose from a list.
 2. **First-tap UX**: the first tap can hit the 45 s metadata wait and show a Stremio error; options: placeholder "downloading" video, or return a short status clip.
 3. **Seeking past the downloaded part** stalls 30 s then errors; consider an explicit message or a clamp.
-4. **Download management** (now a requirement, see Web interface): remove a download, delete finished files, free disk space.
+4. ~~**Download management**~~: done.
 5. ~~**Settings page**~~: done.
 6. **Season/show batch download** (now a requirement): queue many episodes at once, skipping ones already present.
 7. **Auth hardening**: rate limiting on `/play` (token rotation is done).

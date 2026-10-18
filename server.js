@@ -107,10 +107,32 @@ router.all('/play/:type/:id', async (req, res) => {
 // ---- Web UI + JSON API -------------------------------------------------------------------------
 router.get('/', (req, res) => res.type('html').send(fs.readFileSync(path.join(__dirname, 'ui.html'))));
 
-router.get('/api/downloads', (req, res) => {
-  const list = db.all().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(dl.view);
-  res.json(list);
+router.get('/api/downloads', async (req, res) => res.json(await dl.list()));
+
+// Per-item actions from the downloads page. :id is a Stremio ID (URL-encoded, episodes contain ':').
+const ACTIONS = {
+  pause: dl.pause,
+  resume: dl.resume,
+  remove: dl.removeFromClient,
+  'delete-files': dl.deleteFiles,
+  redownload: dl.redownload,
+};
+async function act(fn, req, res) {
+  if (!ID_RE.test(req.params.id)) return res.status(400).json({ error: 'bad id' });
+  try {
+    await fn(req.params.id);
+    const item = (await dl.list()).items.find((d) => d.id === req.params.id) || null;
+    res.json({ ok: true, item });
+  } catch (e) {
+    res.status(e.status || 502).json({ error: String(e.message) });
+  }
+}
+router.post('/api/downloads/:id/:action', (req, res) => {
+  const fn = ACTIONS[req.params.action];
+  if (!fn) return res.status(404).json({ error: 'unknown action' });
+  act(fn, req, res);
 });
+router.delete('/api/downloads/:id', (req, res) => act(dl.forget, req, res));
 
 router.post('/api/download', async (req, res) => {
   const { type, id } = req.body || {};
