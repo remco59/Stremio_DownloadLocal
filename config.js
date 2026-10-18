@@ -62,6 +62,12 @@ const defaults = {
   seekWaitMs: parseInt(env.SEEK_WAIT_MS || '8000', 10),
   stallMs: parseInt(env.STALL_MS || '30000', 10), // while playing: how long to wait for the next pieces before dropping the connection
   syncIntervalMs: parseInt(env.SYNC_INTERVAL_MS || '5000', 10),
+
+  // Abuse limits (0 = off), see security.js
+  playStartsPerIpPerMin: parseInt(env.PLAY_STARTS_PER_IP_PER_MIN || '10', 10),
+  playStartsPerMin: parseInt(env.PLAY_STARTS_PER_MIN || '30', 10),
+  apiWritesPerIpPerMin: parseInt(env.API_WRITES_PER_IP_PER_MIN || '120', 10),
+  tokenFailuresLockout: parseInt(env.TOKEN_FAILURES_LOCKOUT || '20', 10),
 };
 
 let saved = {};

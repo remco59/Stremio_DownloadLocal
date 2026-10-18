@@ -53,6 +53,13 @@ const FIELDS = [
   { key: 'seekWaitMs', group: 'Timeouts', label: 'Seek past the downloaded part: wait (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'stallMs', group: 'Timeouts', label: 'While playing: wait for missing pieces (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'syncIntervalMs', group: 'Timeouts', label: 'Client poll interval (ms)', type: 'int', min: 1000, max: 600000 },
+
+  { key: 'playStartsPerIpPerMin', group: 'Security', label: 'New downloads from Stremio per minute, per IP', type: 'int', min: 0, max: 10000,
+    help: '0 = no limit. Playing what is already downloading or downloaded is never limited.' },
+  { key: 'playStartsPerMin', group: 'Security', label: 'New downloads from Stremio per minute, everyone together', type: 'int', min: 0, max: 10000 },
+  { key: 'apiWritesPerIpPerMin', group: 'Security', label: 'Web UI actions per minute, per IP', type: 'int', min: 0, max: 100000 },
+  { key: 'tokenFailuresLockout', group: 'Security', label: 'Wrong URLs before an IP is locked out', type: 'int', min: 0, max: 100000,
+    help: 'Within 10 minutes. The lockout starts at 1 minute and doubles up to an hour. 0 = never.' },
 ];
 const BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));
 
