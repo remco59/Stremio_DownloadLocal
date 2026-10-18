@@ -10,7 +10,9 @@ Requirements that shaped the design:
 - qBittorrent stays a separate container; the add-on talks to its WebUI API.
 - Downloads can take hours. Come back the next day and Stremio shows the title as available locally; playback continues from there. Files stay on the server.
 - Partially downloaded files are playable up to the downloaded part.
-- A separate web page with a search bar can also trigger downloads (no Stremio needed).
+- The Stremio add-on is thin: per title/episode it shows one entry that is either a **download** button or a **watch local stream** button, depending on state.
+- The whole backend runs on the Unraid server, in one container, and connects to the existing qBittorrent container (no changes to that container).
+- That same container serves a **web interface** (no Stremio needed) to: manage downloads, change all settings, and search shows/movies to queue downloads in advance (single episode, a season, or a whole show).
 - Out of scope: watch history (Stremio does not expose it to add-ons).
 
 ## Architecture
@@ -49,7 +51,11 @@ Both containers mount the same host downloads folder at `/downloads` (read-only 
 
 **Come back later** → Stremio asks `/stream/...`; the add-on sees the record and shows the percentage or "Your server". Playing continues from the server.
 
-**Search UI** (`/<token>/`) → search via Cinemeta, pick movie or episode, hit Download; live list of downloads with progress.
+**Web interface** (`/<token>/`), served by the same container, three areas:
+
+1. **Add / pre-download**: search via Cinemeta, pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
+2. **Manage downloads**: live list with progress, status and size; per item: pause/resume, remove from qBittorrent, delete files from disk (with confirmation), re-download, open/play link.
+3. **Settings**: edit all settings in the UI and persist them in `DATA_DIR/settings.json` (env vars only provide the defaults). Covers: qBittorrent URL/user/password/category with a "test connection" button, path mapping, torrent source (Torrentio URL or Jackett/Prowlarr), max resolution and language/size preferences, timeouts, public URL, and token rotation. Changes apply without restarting the container.
 
 ## Decisions
 
@@ -57,6 +63,8 @@ Both containers mount the same host downloads folder at `/downloads` (read-only 
 - Add-on and qBittorrent kept as separate containers, so the downloader can be swapped without touching the add-on logic.
 - Piece-map gating instead of guessing from file size (qBittorrent files are sparse while downloading).
 - Secret token in the URL path for all routes (manifest, streams, UI, API).
+- Settings live in a JSON file in the data volume and override env vars, so the web UI can edit them at runtime.
+- "Whole show" downloads are just a batch of per-episode downloads, so each episode keeps its own state record and shows up correctly in Stremio.
 
 ## Status
 
@@ -65,8 +73,14 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Add-on manifest and stream endpoint
 - [x] qBittorrent client, state machine, sync loop
 - [x] Range streaming with piece-map gating
-- [x] Search/download web UI
+- [x] Search/download web UI (movies and single episodes only)
 - [x] Dockerfile + compose file
+
+Still to build to meet the requirements above (not in the code yet):
+
+- [ ] Download management in the web UI and API (pause/resume, remove, delete files)
+- [ ] Settings page with persisted settings and qBittorrent connection test (today: environment variables only)
+- [ ] Pre-download a whole season or whole show from the web UI
 
 Not yet verified on the real setup:
 
@@ -79,6 +93,8 @@ Not yet verified on the real setup:
 1. **Torrent picker** (`finder.js`): currently a placeholder (Torrentio API, most seeders at ≤ `MAX_RES`). Replace with something better: Jackett/Prowlarr, own scoring (language, release group, size), optionally let the user choose from a list.
 2. **First-tap UX**: the first tap can hit the 45 s metadata wait and show a Stremio error; options: placeholder "downloading" video, or return a short status clip.
 3. **Seeking past the downloaded part** stalls 30 s then errors; consider an explicit message or a clamp.
-4. **Housekeeping**: UI actions to remove a download, free disk space, delete finished files.
-5. **Auth hardening**: token rotation, rate limiting on `/play`.
-6. **Tests**: automated tests for range parsing and piece-map gating (currently verified by a manual mock run).
+4. **Download management** (now a requirement, see Web interface): remove a download, delete finished files, free disk space.
+5. **Settings page** (now a requirement): runtime-editable settings, see Web interface.
+6. **Season/show batch download** (now a requirement): queue many episodes at once, skipping ones already present.
+7. **Auth hardening**: token rotation, rate limiting on `/play`.
+8. **Tests**: automated tests for range parsing and piece-map gating (currently verified by a manual mock run).
