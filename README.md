@@ -212,6 +212,8 @@ These are the defaults for the settings page.
 | `MIN_SEEDERS` / `MIN_SIZE_MB` / `MAX_SIZE_GB` | `0` (off) | hard filters |
 | `PREFER_KEYWORDS` / `BLOCK_KEYWORDS` | `` / `cam, camrip, hdcam, telesync, hdts, telecine` | preferred / blocked words and release groups |
 | `CINEMETA_URL` | `https://v3-cinemeta.strem.io` | title/episode metadata (search, seasons) |
+| `CINEMETA_RETRY_MS` | `2000,4000,8000` | pauses between retries when Cinemeta answers with an error page or not at all (new searches often do) |
+| `CINEMETA_TIMEOUT_MS` | `15000` | how long one Cinemeta request may take; with the retries a search gives up after 45 s at most |
 | `WAIT_FOR_START_MS` | `15000` | first tap: how long `/play` waits before showing the status clip |
 | `SEEK_WAIT_MS` | `8000` | seek past the downloaded part: how long to wait before answering 503 |
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
