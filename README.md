@@ -4,21 +4,138 @@ Stremio add-on that adds one extra stream per title: **Download** (nothing local
 
 Downloads run in your own torrent client: **qBittorrent** (default) or **Transmission**.
 
-## Setup
+## Install
 
-1. **Torrent client**, one of:
-   - **qBittorrent** (linuxserver/qbittorrent, 4.x or 5.x): note the WebUI port and credentials. Mount your downloads share at `/downloads`.
-     qBittorrent 5.2+ refuses requests that arrive on another port than its own WebUI port (*Invalid Host header, port mismatch* in its log). So either map the same port on both sides (`WEBUI_PORT=8090` with `8090:8090`) and point the add-on at that, or untick *Enable Host header validation* in the WebUI options. The *Test connection* button says so too.
-     The linuxserver image starts with a temporary password (see the container log). Set your own under WebUI options.
-   - **Transmission** (linuxserver/transmission, **4.1 or newer**): note the RPC port (9091) and credentials, mount the downloads share at `/downloads`, and set `TORRENT_CLIENT=transmission` plus the `TR_*` vars in the add-on.
-     Transmission only downloads sequentially from 4.1 on. With an older version titles download in random order and only become playable once (almost) complete.
-     An *incomplete dir* is fine as long as the add-on can see it under the same path mapping. The linuxserver image uses `/downloads/incomplete` and `/downloads/complete`, which works as-is when both containers mount the same folder at `/downloads`.
-2. **Add-on**: copy this folder to Unraid, edit `docker-compose.yml`, then `docker compose up -d --build`.
-   Mount the **same** host download folder at `/downloads` in the add-on container (same path as in the torrent client, or set `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX`).
-   Mount it **read-write** if you want *Delete files* in the web UI to work for files the torrent client no longer tracks (read-only works for everything else).
-3. **Reverse proxy**: point an HTTPS host (Nginx Proxy Manager) at port 7000. Stremio needs HTTPS for remote add-ons.
-4. **Stremio**: Add-ons -> paste `https://<your-host>/<ADDON_TOKEN>/manifest.json`.
-5. **Web UI**: `https://<your-host>/<ADDON_TOKEN>/`, with search/download, the download list and **Settings**.
+Copy/paste install for a Docker host: Unraid (with the *Docker Compose Manager* plugin) or any Linux box with Docker and the compose plugin. Only step 1 needs editing. Run all steps in **the same terminal**, as later steps use the values from step 1.
+
+### 1. Your values
+
+Edit these, then paste the block:
+
+```sh
+APP_DIR=/mnt/user/appdata/stremio-local-addon    # add-on code (app/) and its data (data/)
+DOWNLOADS=/mnt/user/downloads/qbittorrent        # host folder the torrent client has mounted at /downloads
+PUBLIC_URL=https://stremio.example.com           # HTTPS host your reverse proxy will point at port 7000
+TORRENT_CLIENT=qbittorrent                       # or: transmission (4.1 or newer)
+CLIENT_URL=http://192.168.1.10:8080              # qBittorrent WebUI, or http://192.168.1.10:9091 for Transmission
+CLIENT_USER=admin
+CLIENT_PASS=changeme                             # avoid " and $ in here (or change it later in Settings)
+```
+
+### 2. Torrent client (skip if you already have one)
+
+qBittorrent (`PUID`/`PGID` 99/100 are Unraid's defaults; elsewhere use the output of `id -u` / `id -g`):
+
+```sh
+docker run -d --name qbittorrent --restart unless-stopped \
+  -e PUID=99 -e PGID=100 -e TZ=Europe/Amsterdam -e WEBUI_PORT=8080 \
+  -p 8080:8080 -p 6881:6881 -p 6881:6881/udp \
+  -v "$APP_DIR/../qbittorrent:/config" -v "$DOWNLOADS:/downloads" \
+  lscr.io/linuxserver/qbittorrent:latest
+sleep 10; docker logs qbittorrent 2>&1 | grep -i password
+```
+
+Log in at `http://<host-ip>:8080` with `admin` and the temporary password printed above, set your own password under *Tools → Options → Web UI*, and put it in `CLIENT_PASS` (paste the step 1 block again).
+
+Or Transmission:
+
+```sh
+docker run -d --name transmission --restart unless-stopped \
+  -e PUID=99 -e PGID=100 -e TZ=Europe/Amsterdam -e USER="$CLIENT_USER" -e PASS="$CLIENT_PASS" \
+  -p 9091:9091 -p 51413:51413 -p 51413:51413/udp \
+  -v "$APP_DIR/../transmission:/config" -v "$DOWNLOADS:/downloads" \
+  lscr.io/linuxserver/transmission:latest
+```
+
+### 3. Download the add-on
+
+```sh
+mkdir -p "$APP_DIR/app" "$APP_DIR/data"
+curl -fsSL https://github.com/remco59/Stremio_DownloadLocal/archive/refs/heads/main.tar.gz \
+  | tar xz --strip-components=1 -C "$APP_DIR/app"
+cd "$APP_DIR/app"
+```
+
+### 4. Write your config
+
+This creates a random token and a `docker-compose.override.yml` next to `docker-compose.yml` (compose merges the two). Run it once: running it again makes a new token, so you would have to reinstall the add-on in Stremio.
+
+```sh
+ADDON_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
+if [ "$TORRENT_CLIENT" = transmission ]; then P=TR; else P=QB; fi
+cat > docker-compose.override.yml <<EOF
+services:
+  stremio-local-addon:
+    environment:
+      ADDON_TOKEN: "$ADDON_TOKEN"
+      PUBLIC_URL: "$PUBLIC_URL"
+      TORRENT_CLIENT: "$TORRENT_CLIENT"
+      ${P}_URL: "$CLIENT_URL"
+      ${P}_USER: "$CLIENT_USER"
+      ${P}_PASS: "$CLIENT_PASS"
+    volumes:
+      - "$APP_DIR/data:/data"
+      - "$DOWNLOADS:/downloads:rw"
+EOF
+```
+
+The downloads folder is mounted read-write so *Delete files* in the web UI works; append `:ro` instead of `:rw` if you don't want that. Every other setting can be changed later in the web UI (see [Settings](#settings) and [Env vars](#env-vars)).
+
+### 5. Start it
+
+```sh
+docker compose up -d --build
+sleep 5; docker logs --tail 20 stremio-local-addon
+curl -fsS "http://localhost:7000/$ADDON_TOKEN/manifest.json" >/dev/null && echo "Add-on is running"
+echo "Stremio add-on URL: $PUBLIC_URL/$ADDON_TOKEN/manifest.json"
+echo "Web UI:             $PUBLIC_URL/$ADDON_TOKEN/"
+```
+
+Save the two URLs (the container log prints them too). Lost them? `grep ADDON_TOKEN /mnt/user/appdata/stremio-local-addon/app/docker-compose.override.yml` shows the token (use your `APP_DIR` if you changed it).
+
+### 6. HTTPS and Stremio
+
+Stremio only installs remote add-ons over HTTPS. In Nginx Proxy Manager, add a proxy host:
+
+- **Domain**: the host from `PUBLIC_URL`
+- **Forward**: `http`, the Docker host's IP, port `7000`
+- **SSL**: request a Let's Encrypt certificate, tick *Force SSL*
+
+Then open the web UI URL, go to **Settings** and click **Test connection** for your torrent client. In Stremio go to Add-ons, paste the add-on URL in the search box and install it.
+
+### Updating
+
+```sh
+cd /mnt/user/appdata/stremio-local-addon/app    # your APP_DIR + /app
+curl -fsSL https://github.com/remco59/Stremio_DownloadLocal/archive/refs/heads/main.tar.gz \
+  | tar xz --strip-components=1 -C .
+docker compose up -d --build
+```
+
+Your `docker-compose.override.yml` and everything in `data/` (settings, download list) are kept.
+
+### Without Docker
+
+Needs Node.js 20 or newer. Paste the step 1 block first, then:
+
+```sh
+mkdir -p "$APP_DIR/app" && cd "$APP_DIR/app"
+curl -fsSL https://github.com/remco59/Stremio_DownloadLocal/archive/refs/heads/main.tar.gz | tar xz --strip-components=1
+npm ci --omit=dev
+export ADDON_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32) DATA_DIR="$APP_DIR/data" PUBLIC_URL TORRENT_CLIENT
+if [ "$TORRENT_CLIENT" = transmission ]; then export TR_URL="$CLIENT_URL" TR_USER="$CLIENT_USER" TR_PASS="$CLIENT_PASS"; \
+else export QB_URL="$CLIENT_URL" QB_USER="$CLIENT_USER" QB_PASS="$CLIENT_PASS"; fi
+echo "Add-on URL: $PUBLIC_URL/$ADDON_TOKEN/manifest.json"
+node server.js
+```
+
+Here the torrent client's `/downloads` must be reachable on this machine under the same path; if it isn't, set `CLIENT_PATH_PREFIX=/downloads` and `LOCAL_PATH_PREFIX=<local path>`.
+
+### Torrent client notes
+
+- **qBittorrent** (linuxserver/qbittorrent, 4.x or 5.x): qBittorrent 5.2+ refuses requests that arrive on another port than its own WebUI port (*Invalid Host header, port mismatch* in its log, *login refused (401)* in *Test connection*). Map the same port on both sides (`WEBUI_PORT=8080` with `-p 8080:8080`, as in step 2), or untick *Enable Host header validation* in the WebUI options. *Keep incomplete torrents in* and *Append .!qB extension* both work.
+- **Transmission** (linuxserver/transmission) needs **4.1 or newer**: older versions don't download sequentially, so titles download in random order and only become playable once (almost) complete. *Test connection* warns about this. The linuxserver image's incomplete dir (`/downloads/incomplete`, `.part` files) and download dir (`/downloads/complete`) work as-is when both containers mount the same folder at `/downloads`.
+- The add-on must see the **same** host download folder at `/downloads` as the torrent client. If your client uses a different path inside its container, set `CLIENT_PATH_PREFIX` (client's path) and `LOCAL_PATH_PREFIX` (add-on's path).
 
 ## Playing
 
@@ -55,6 +172,8 @@ The **Downloads** page lists everything the add-on knows about, with progress, s
 - **✕ Forget** removes it from the list only.
 
 Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
+
+## Security
 
 The token is the only auth, so treat the URL like a password. On top of that:
 
