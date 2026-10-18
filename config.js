@@ -56,8 +56,11 @@ const defaults = {
   preferKeywords: env.PREFER_KEYWORDS || '',
   blockKeywords: env.BLOCK_KEYWORDS ?? 'cam, camrip, hdcam, telesync, hdts, telecine',
 
-  waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '45000', 10), // how long /play holds the request while waiting for torrent metadata
-  stallMs: parseInt(env.STALL_MS || '30000', 10), // how long a stream waits for the next pieces before giving up
+  // First tap: how long /play waits for the torrent before showing a "download started" clip instead.
+  waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '15000', 10),
+  // Seek past the downloaded part: how long to wait for that spot before answering 503.
+  seekWaitMs: parseInt(env.SEEK_WAIT_MS || '8000', 10),
+  stallMs: parseInt(env.STALL_MS || '30000', 10), // while playing: how long to wait for the next pieces before dropping the connection
   syncIntervalMs: parseInt(env.SYNC_INTERVAL_MS || '5000', 10),
 };
 

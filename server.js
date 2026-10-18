@@ -7,7 +7,8 @@ const dl = require('./downloads');
 const batch = require('./batch');
 const finder = require('./finder');
 const settings = require('./settings');
-const { serveFile } = require('./stream');
+const { serveFile, parseRange, availableUntil } = require('./stream');
+const { decide } = require('./play');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -49,16 +50,20 @@ router.get('/stream/:type/:id.json', (req, res) => {
 
   const rec = db.get(id);
   const url = `${baseUrl(req)}/play/${type}/${encodeURIComponent(id)}`;
+  // Only entries that play real video join the binge group: Stremio must never auto-play a "Download"
+  // entry for the next episode (that would start a download and show a status clip, episode after episode).
   const hints = { notWebReady: true, bingeGroup: 'local-download' };
+  const noBinge = { notWebReady: true };
   let stream;
 
   if (rec && rec.status === 'complete') {
     stream = { name: '🏠 Your server', description: `Watch from your server\n${rec.title || ''}`, url, behaviorHints: hints };
   } else if (rec && (rec.status === 'downloading' || rec.status === 'queued')) {
     const pct = Math.round((rec.progress || 0) * 100);
+    const playable = Math.floor((rec.playable || 0) * 100);
     stream = {
       name: `⏳ Your server ${pct}%`,
-      description: `Downloading... playable up to the downloaded part\n${rec.title || ''}`,
+      description: `${playable ? `Playable up to ${playable}%` : 'Downloading, not playable yet'}\n${rec.title || ''}`,
       url,
       behaviorHints: hints,
     };
@@ -67,13 +72,14 @@ router.get('/stream/:type/:id.json', (req, res) => {
       name: '⬇️ Download',
       description: 'Download and watch\nStarts a download on your server',
       url,
-      behaviorHints: hints,
+      behaviorHints: noBinge,
     };
   }
   res.json({ streams: [stream], cacheMaxAge: 0 });
 });
 
-// Play URL: starts the download if needed, waits for metadata, then serves ranges
+// Play URL: starts the download if needed, then plays the file as soon as its start is there. A first tap that
+// would take too long gets a short status clip instead (Stremio would otherwise show a playback error).
 router.all('/play/:type/:id', async (req, res) => {
   const { type, id } = req.params;
   if (!valid(type, id)) return res.status(400).send('bad id');
@@ -81,28 +87,59 @@ router.all('/play/:type/:id', async (req, res) => {
 
   let gone = false;
   res.on('close', () => (gone = true));
+  const since = Date.now();
 
   try {
     await dl.ensureDownload(type, id);
-    const deadline = Date.now() + cfg.waitForStartMs;
-    let rec = db.get(id);
-    while (rec && !rec.selected && rec.status !== 'error' && Date.now() < deadline && !gone) {
-      await sleep(1000);
-      rec = db.get(id);
+  } catch (e) {
+    console.error('[play]', id, e.message);
+    return clip(req, res, 'error');
+  }
+  try {
+    for (;;) {
+      if (gone) return;
+      const rec = db.get(id);
+      let start = 0;
+      let avail = null;
+      if (rec && rec.selected) {
+        const range = parseRange(req.headers.range, rec.fileSize);
+        if (!range) return res.status(416).set('Content-Range', `bytes */${rec.fileSize}`).end();
+        start = range.start;
+        try {
+          avail = await availableUntil(rec, start);
+        } catch {
+          /* client hiccup: treat as not there yet */
+        }
+      }
+      const next = decide({ rec, start, avail, elapsed: Date.now() - since, cfg });
+      if (next.action === 'serve') return await serveFile(req, res, rec);
+      if (next.action === 'clip') return clip(req, res, next.clip);
+      if (next.action === 'unavailable') {
+        return res
+          .status(503)
+          .set('Retry-After', '60')
+          .type('text')
+          .send('Not downloaded this far yet. Play from an earlier point, or wait for the download to get here.');
+      }
+      await sleep(500);
     }
-    if (gone) return;
-    if (!rec || !rec.selected) {
-      return res
-        .status(503)
-        .set('Retry-After', '30')
-        .send(rec && rec.error ? rec.error : 'Download started, still fetching torrent metadata. Try again in a minute.');
-    }
-    await serveFile(req, res, rec);
   } catch (e) {
     console.error('[play]', id, e.message);
     if (!res.headersSent) res.status(502).send(String(e.message));
     else res.destroy();
   }
+});
+
+// Status clips (clips/*.mp4, see scripts/make-clips.sh). Redirecting keeps the player's range requests on the
+// clip itself instead of mixing it up with the real file behind the same /play URL.
+const CLIPS = new Set(['started', 'metadata', 'error']);
+function clip(req, res, name) {
+  res.set('Cache-Control', 'no-store').redirect(302, `${baseUrl(req)}/clip/${name}.mp4`);
+}
+router.get('/clip/:name.mp4', (req, res) => {
+  if (!CLIPS.has(req.params.name)) return res.sendStatus(404);
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'clips', `${req.params.name}.mp4`));
 });
 
 // ---- Web UI + JSON API -------------------------------------------------------------------------

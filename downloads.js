@@ -84,6 +84,15 @@ async function ensureDownload(type, id, opts = {}) {
   return p;
 }
 
+/** Exclusive end (within the file) of the downloaded run starting at `pos`, given the piece map. `pos` if none. */
+function availableFrom(rec, have, pos) {
+  const ps = rec.pieceSize;
+  let p = Math.floor((rec.fileOffset + pos) / ps);
+  if (!have[p]) return pos;
+  while (p < have.length && have[p]) p++;
+  return Math.min(rec.fileSize, p * ps - rec.fileOffset);
+}
+
 /** Does a file name belong to season `s`, episode `e`? (S01E02, s1e2, 1x02) */
 function isEpisode(name, s, e) {
   const n = path.posix.basename(name);
@@ -114,7 +123,7 @@ async function selectFile(rec, files, t) {
 
   const { pieceSize } = await client.pieces(rec.infoHash);
   const fileOffset = files.slice(0, idx).reduce((s, f) => s + f.size, 0);
-  return db.update(rec.id, {
+  return syncPatch(rec, {
     selected: true,
     status: 'downloading',
     fileIndex: idx,
@@ -126,28 +135,39 @@ async function selectFile(rec, files, t) {
   });
 }
 
-// Records can be deleted (Delete files / Forget) while a round is running, so rounds only db.update().
+/**
+ * Applies a sync result to `rec` (the round's snapshot), unless a user action changed the record while the
+ * round was waiting on the client: Delete files / Forget (gone), Remove (status), a hand-picked torrent
+ * (info hash). Check and write happen in one synchronous step, so nothing can slip in between.
+ */
+function syncPatch(rec, patch) {
+  const cur = db.get(rec.id);
+  if (!cur || cur.infoHash !== rec.infoHash || cur.status !== rec.status) return null;
+  return db.update(rec.id, patch);
+}
+
 async function syncOnce() {
   const recs = db.all().filter((r) => r.infoHash && r.status !== 'error' && r.status !== 'missing');
   if (!recs.length) return;
 
   const infos = await client.info([...new Set(recs.map((r) => r.infoHash))]);
   const byHash = new Map(infos.map((t) => [t.hash, t]));
+  const haves = new Map(); // piece maps fetched this round (episodes of one pack share one)
 
   for (let rec of recs) {
     const t = byHash.get(rec.infoHash);
 
     if (rec.status === 'complete') {
       // Finished files stay playable even if the torrent is later removed from the client.
-      if (!t && !fs.existsSync(localPath(rec))) db.update(rec.id, { status: 'missing' });
+      if (!t && !fs.existsSync(localPath(rec))) syncPatch(rec, { status: 'missing' });
       continue;
     }
     if (!t) {
-      if (Date.now() - rec.createdAt > 60000) db.update(rec.id, { status: 'missing' });
+      if (Date.now() - rec.createdAt > 60000) syncPatch(rec, { status: 'missing' });
       continue;
     }
     if (t.error) {
-      db.update(rec.id, { status: 'error', error: t.error });
+      syncPatch(rec, { status: 'error', error: t.error });
       continue;
     }
 
@@ -164,7 +184,17 @@ async function syncOnce() {
     const f = files[rec.fileIndex];
     if (!f) continue;
     const progress = Math.round(f.progress * 1000) / 1000;
-    db.update(rec.id, { progress, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+    // How far it plays from the start (sequential download keeps this close to `progress`).
+    let playable = progress >= 1 ? 1 : rec.playable || 0;
+    if (progress < 1 && rec.fileSize) {
+      try {
+        if (!haves.has(rec.infoHash)) haves.set(rec.infoHash, (await client.pieces(rec.infoHash)).have);
+        playable = Math.round((availableFrom(rec, haves.get(rec.infoHash), 0) / rec.fileSize) * 1000) / 1000;
+      } catch {
+        /* keep the last value */
+      }
+    }
+    syncPatch(rec, { progress, playable, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
   }
 }
 
@@ -354,6 +384,7 @@ async function list() {
 }
 
 module.exports = {
+  availableFrom,
   isEpisode,
   ensureDownload,
   startSync,
