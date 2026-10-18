@@ -7,6 +7,8 @@ function createModel() {
     torrents: new Map(),
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
     metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
+    catalogFailures: 0, // the next N catalog searches get a 504 HTML page, like Cloudflare in front of Cinemeta
+    catalogCalls: 0,
     torznab: {}, // "tt123" or "tt123:1:2" -> [{ title, hash, size, seeders, magnet? }] served at /torznab/api
     torznabQueries: [], // query params of every Torznab request
     added: [], // normalized { magnet, label, sequential, raw } for every add call
@@ -103,6 +105,11 @@ function serve(model, handle) {
       const sm = /^\/stream\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (sm) return send(res, 200, model.torrentio[decodeURIComponent(sm[2])] || { streams: [] });
       if (/^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
+        model.catalogCalls++;
+        if (model.catalogFailures > 0) {
+          model.catalogFailures--;
+          return send(res, 504, '<!DOCTYPE html><html><body>Gateway time-out</body></html>', { 'Content-Type': 'text/html' });
+        }
         const type = url.pathname.split('/')[2];
         return send(res, 200, { metas: Object.values(model.metas).filter((m) => (m.type || 'series') === type) });
       }
