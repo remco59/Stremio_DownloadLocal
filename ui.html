@@ -311,8 +311,17 @@ function statusText(d) {
   if (d.status === 'missing') return 'Not downloaded (removed)';
   if (d.status === 'complete') return 'On your server' + (d.inClient ? '' : ' (removed from torrent client)');
   const parts = [d.paused ? `Paused at ${pct}%` : d.status === 'queued' ? 'Queued' : `Downloading ${pct}%`];
-  if (!d.paused && d.dlSpeed) parts.push(fmtBytes(d.dlSpeed) + '/s');
-  if (!d.paused && d.eta) parts.push(fmtEta(d.eta) + ' left');
+  if (d.paused) return parts.join(' · ');
+  // Why nothing arrives: the client's own queue, missing torrent info, or no one to download from.
+  if (d.clientState === 'queued') parts.push("waiting in the torrent client's queue");
+  else if (d.clientState === 'metadata') parts.push('fetching torrent info');
+  else if (d.clientState === 'checking') parts.push('checking files');
+  else if (d.inClient && !d.dlSpeed) parts.push(d.seeds === 0 ? 'no seeders connected' : 'stalled');
+  if (d.dlSpeed) parts.push(fmtBytes(d.dlSpeed) + '/s');
+  if (d.eta) parts.push(fmtEta(d.eta) + ' left');
+  const still = d.progressAt ? Math.floor((Date.now() - d.progressAt) / 1000) : 0;
+  if (still >= 120) parts.push(`no progress for ${fmtEta(still)}`);
+  if (d.tried) parts.push(`trying torrent ${d.tried + 1}`);
   return parts.join(' · ');
 }
 

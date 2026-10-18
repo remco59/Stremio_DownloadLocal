@@ -27,6 +27,12 @@ test('most seeders within the resolution cap', async () => {
   assert.match(pick.magnet, new RegExp(`^magnet:\\?xt=urn:btih:${h('c')}&dn=C%20720p`));
 });
 
+test('exclude skips torrents already tried', async () => {
+  streams('tt9', [['A 1080p\n👤 50', h('a')], ['B 1080p\n👤 5', h('b')]]);
+  assert.equal((await finder.resolve('movie', 'tt9', { exclude: [h('a')] })).infoHash, h('b'));
+  await assert.rejects(finder.resolve('movie', 'tt9', { exclude: [h('a'), h('b')] }), /No untried torrents left/);
+});
+
 test('preferPack picks a reasonably seeded season pack', async () => {
   streams('tt2:1:1', [['Show.S01E01.1080p\n👤 40', h('a')], ['Show.S01.1080p\n👤 12', h('b'), { fileIdx: 0 }]]);
   assert.equal((await finder.resolve('series', 'tt2:1:1')).infoHash, h('a'));

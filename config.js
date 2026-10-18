@@ -55,6 +55,8 @@ const defaults = {
   maxSizeGb: parseInt(env.MAX_SIZE_GB || '0', 10), // 0 = no maximum (season packs are exempt)
   preferKeywords: env.PREFER_KEYWORDS || '',
   blockKeywords: env.BLOCK_KEYWORDS ?? 'cam, camrip, hdcam, telesync, hdts, telecine',
+  // A download still at 0% after this many minutes (not paused or queued in the client) moves to the next best torrent.
+  stallSwitchMin: parseInt(env.STALL_SWITCH_MIN || '10', 10), // 0 = never
 
   // First tap: how long /play waits for the torrent before showing a "download started" clip instead.
   waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '15000', 10),

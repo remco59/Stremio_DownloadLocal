@@ -60,6 +60,7 @@ module.exports = function manageSuite({ client }) {
     assert.equal(d.paused, false);
     assert.equal(d.dlSpeed, 1234);
     assert.equal(d.eta, 60);
+    assert.equal(d.seeds, 3);
     assert.equal(d.shared, false);
   });
 

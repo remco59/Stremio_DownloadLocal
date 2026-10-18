@@ -160,6 +160,7 @@ module.exports = {
       size: t.size,
       dlSpeed: t.dlspeed,
       eta: t.eta,
+      seeds: t.num_seeds ?? null,
     }));
   },
 

@@ -135,7 +135,7 @@ module.exports = {
   async info(hashes) {
     const list = await get(hashes, [
       'hashString', 'name', 'status', 'error', 'errorString', 'downloadDir', 'percentDone',
-      'sizeWhenDone', 'rateDownload', 'eta', 'metadataPercentComplete',
+      'sizeWhenDone', 'rateDownload', 'eta', 'metadataPercentComplete', 'peersSendingToUs',
     ]);
     return list.map((t) => ({
       hash: t.hashString.toLowerCase(),
@@ -147,6 +147,7 @@ module.exports = {
       size: t.sizeWhenDone,
       dlSpeed: t.rateDownload,
       eta: t.eta,
+      seeds: t.peersSendingToUs ?? null,
     }));
   },
 
