@@ -38,6 +38,13 @@ class Store {
     return next;
   }
 
+  delete(id) {
+    if (!(id in this.data)) return false;
+    delete this.data[id];
+    this.save();
+    return true;
+  }
+
   save() {
     const tmp = this.file + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2));

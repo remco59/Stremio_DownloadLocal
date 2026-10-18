@@ -27,6 +27,10 @@
   .bar > div { height: 100%; background: var(--acc); }
   .complete .bar > div { background: var(--ok); }
   .error .s { color: var(--err); }
+  .paused .bar > div { background: var(--mut); }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .actions button, .actions .btn { padding: 5px 10px; font-size: 13px; }
+  a.btn { color: inherit; text-decoration: none; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; }
   .eps { margin: -2px 0 10px 8px; padding-left: 8px; border-left: 2px solid #2a2f3a; }
   .ep { display: flex; gap: 8px; align-items: center; padding: 5px 0; }
   nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #2a2f3a; }
@@ -185,23 +189,83 @@ async function search(e) {
 }
 $('#f').onsubmit = search;
 
-async function refresh() {
+const fmtBytes = (n) => {
+  if (!n && n !== 0) return '';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
+};
+const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m` : s >= 60 ? `${Math.round(s / 60)}m` : `${s}s`);
+
+function statusText(d) {
+  const pct = Math.round((d.progress || 0) * 100);
+  if (d.status === 'error') return 'Error: ' + (d.error || '');
+  if (d.status === 'missing') return 'Not downloaded (removed)';
+  if (d.status === 'complete') return 'On your server' + (d.inClient ? '' : ' (removed from torrent client)');
+  const parts = [d.paused ? `Paused at ${pct}%` : d.status === 'queued' ? 'Queued' : `Downloading ${pct}%`];
+  if (!d.paused && d.dlSpeed) parts.push(fmtBytes(d.dlSpeed) + '/s');
+  if (!d.paused && d.eta) parts.push(fmtEta(d.eta) + ' left');
+  return parts.join(' · ');
+}
+
+// Runs a per-item action and refreshes the list. `confirmText` asks first.
+async function action(d, name, method, confirmText) {
+  if (confirmText && !confirm(confirmText)) return;
   try {
-    const list = await api('api/downloads');
-    const box = $('#downloads');
-    box.replaceChildren();
-    if (!list.length) box.append(el('div', { className: 's', textContent: 'Nothing yet.' }));
-    list.forEach((d) => {
-      const pct = Math.round((d.progress || 0) * 100);
-      const status = d.status === 'error' ? 'Error: ' + (d.error || '') : d.status === 'complete' ? 'Complete' : d.status === 'missing' ? 'Removed from qBittorrent' : `${d.status} ${pct}%`;
-      box.append(
-        el('div', { className: 'item ' + d.status },
-          el('div', { className: 'grow' },
-            el('div', { className: 't', textContent: d.title || d.id }),
-            el('div', { className: 's', textContent: `${d.id} - ${status}` }),
-            el('div', { className: 'bar' }, el('div', { style: `width:${pct}%` })))));
-    });
-  } catch { /* ignore */ }
+    await api(`api/downloads/${encodeURIComponent(d.id)}${name ? '/' + name : ''}`, { method });
+  } catch (e) {
+    alert(`${name || 'forget'} failed: ${e.message}`);
+  }
+  refresh();
+}
+
+function itemButtons(d) {
+  const label = d.title || d.id;
+  const out = [];
+  const btn = (text, fn, title) => { const b = el('button', { type: 'button', textContent: text, title: title || '' }); b.onclick = fn; out.push(b); };
+  const active = d.status === 'queued' || d.status === 'downloading';
+  if (active && d.inClient) {
+    if (d.paused) btn('Resume', () => action(d, 'resume', 'POST'));
+    else btn('Pause', () => action(d, 'pause', 'POST'), d.shared ? 'Pauses the whole torrent (shared with other episodes)' : '');
+  }
+  if (d.status === 'complete' || d.status === 'downloading') {
+    out.push(el('a', { className: 'btn', textContent: 'Play', target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Open in the browser, or copy the link into VLC' }));
+  }
+  if (d.status === 'error' || d.status === 'missing') btn('Re-download', () => action(d, 'redownload', 'POST'));
+  if (d.inClient) {
+    btn('Remove', () => action(d, 'remove', 'POST',
+      `Remove "${label}" from the torrent client?\nFiles stay on disk${d.status === 'complete' ? ' and it stays playable' : ''}.`),
+      'Remove from the torrent client, keep files');
+  }
+  if (d.fileName || d.inClient) {
+    btn('Delete files', () => action(d, 'delete-files', 'POST',
+      `Permanently delete "${label}" from disk?\n${d.fileName || ''}\nThis cannot be undone.`));
+  }
+  btn('✕', () => action(d, '', 'DELETE', `Forget "${label}"? The torrent client and the files are not touched.`), 'Forget (remove from this list only)');
+  return out;
+}
+
+async function refresh() {
+  let data;
+  try {
+    data = await api('api/downloads');
+  } catch { return; }
+  const box = $('#downloads');
+  box.replaceChildren();
+  if (data.clientError) box.append(el('div', { className: 'msg err', textContent: 'Torrent client unreachable: ' + data.clientError }));
+  if (!data.items.length) box.append(el('div', { className: 's', textContent: 'Nothing yet. Search for something under Add.' }));
+  data.items.forEach((d) => {
+    const pct = Math.round((d.progress || 0) * 100);
+    const meta = [d.id, d.size ? fmtBytes(d.size) : '', statusText(d)].filter(Boolean).join(' · ');
+    box.append(
+      el('div', { className: 'item dl ' + d.status + (d.paused ? ' paused' : '') },
+        el('div', { className: 'grow' },
+          el('div', { className: 't', textContent: d.title || d.id }),
+          el('div', { className: 's', textContent: meta, title: d.fileName || '' }),
+          el('div', { className: 'bar' }, el('div', { style: `width:${pct}%` })),
+          el('div', { className: 'actions' }, ...itemButtons(d)))));
+  });
 }
 // ---- settings ----
 let current = null;

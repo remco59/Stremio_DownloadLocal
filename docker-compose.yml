@@ -24,4 +24,4 @@ services:
       MAX_RES: "1080"
     volumes:
       - /mnt/user/appdata/stremio-local-addon:/data
-      - /mnt/user/downloads/qbittorrent:/downloads:ro
+      - /mnt/user/downloads/qbittorrent:/downloads:rw   # rw so 'Delete files' in the web UI works
