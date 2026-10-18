@@ -1,0 +1,1 @@
+require('./suite')({ client: 'transmission' });

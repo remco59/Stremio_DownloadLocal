@@ -1,0 +1,29 @@
+name: real-clients
+
+# End-to-end against real qBittorrent / Transmission containers (npm run test:real). Slower than the unit
+# tests, so it only runs when the client code or these tests change, and on demand.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'clients/**'
+      - 'downloads.js'
+      - 'stream.js'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'test/real/**'
+      - '.github/workflows/real-clients.yml'
+
+jobs:
+  real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm ci
+      - run: npm run test:real

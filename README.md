@@ -7,11 +7,12 @@ Downloads run in your own torrent client: **qBittorrent** (default) or **Transmi
 ## Setup
 
 1. **Torrent client**, one of:
-   - **qBittorrent** (linuxserver/qbittorrent): note the WebUI port and credentials. Mount your downloads share at `/downloads`.
-     WebUI settings: if requests from the add-on get rejected, untick *Enable Host header validation* (or add the add-on's host to the allowed domains).
+   - **qBittorrent** (linuxserver/qbittorrent, 4.x or 5.x): note the WebUI port and credentials. Mount your downloads share at `/downloads`.
+     qBittorrent 5.2+ refuses requests that arrive on another port than its own WebUI port (*Invalid Host header, port mismatch* in its log). So either map the same port on both sides (`WEBUI_PORT=8090` with `8090:8090`) and point the add-on at that, or untick *Enable Host header validation* in the WebUI options. The *Test connection* button says so too.
+     The linuxserver image starts with a temporary password (see the container log). Set your own under WebUI options.
    - **Transmission** (linuxserver/transmission, **4.1 or newer**): note the RPC port (9091) and credentials, mount the downloads share at `/downloads`, and set `TORRENT_CLIENT=transmission` plus the `TR_*` vars in the add-on.
      Transmission only downloads sequentially from 4.1 on. With an older version titles download in random order and only become playable once (almost) complete.
-     An *incomplete dir* is fine as long as the add-on can see it under the same path mapping (e.g. `/downloads/incomplete`).
+     An *incomplete dir* is fine as long as the add-on can see it under the same path mapping. The linuxserver image uses `/downloads/incomplete` and `/downloads/complete`, which works as-is when both containers mount the same folder at `/downloads`.
 2. **Add-on**: copy this folder to Unraid, edit `docker-compose.yml`, then `docker compose up -d --build`.
    Mount the **same** host download folder at `/downloads` in the add-on container (same path as in the torrent client, or set `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX`).
    Mount it **read-write** if you want *Delete files* in the web UI to work for files the torrent client no longer tracks (read-only works for everything else).
@@ -114,6 +115,16 @@ npm test
 ```
 
 Tests use Node's built-in test runner and in-process mocks of the qBittorrent WebUI API and the Transmission RPC (`test/helpers/`), so no real client or network is needed. The end-to-end suite runs once per client. CI runs everything on every push and pull request.
+
+### Against real clients
+
+`npm run test:real` runs the whole flow against real torrent clients in Docker (needs Docker; pulls the linuxserver images):
+
+- qBittorrent 5.x and 4.x, and Transmission 4.1+, each downloading a generated video from the other client through a tiny local tracker: connection test, category/label, sequential download, file selection, playing while downloading (incomplete dir, `.!qB` / `.part`), pause/resume, completion, remove, delete files (directly and through the client).
+- Transmission 4.0: the connection test warns about the missing sequential download.
+- The add-on's own image next to a qBittorrent container, like `docker-compose.yml`: container-to-container connection, settings kept in `/data` across a restart, refusing to start without a token.
+
+If Docker Hub rate-limits the `node:20-alpine` base image, pull it from a mirror first (`docker pull mirror.gcr.io/library/node:20-alpine && docker tag mirror.gcr.io/library/node:20-alpine node:20-alpine`). `REAL_ADDON_IMAGE=<image>` skips the build and tests a prebuilt image instead.
 
 ### Adding a torrent client
 

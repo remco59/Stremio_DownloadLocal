@@ -88,11 +88,16 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 Still to build to meet the requirements above (not in the code yet):
 
 
-Not yet verified on the real setup:
+Verified against real clients in Docker (`npm run test:real`):
 
-- [ ] Run against a real qBittorrent (auth, Host header validation / CSRF, `torrents/add` form encoding)
-- [ ] Docker build on Unraid and HTTPS via Nginx Proxy Manager
-- [ ] Real playback in Stremio (desktop and mobile)
+- [x] qBittorrent 5.2 and 4.6: auth (5.2's 204 login, port-specific cookie, Host header validation), CSRF Referer, `torrents/add` multipart, category, sequential + first/last piece, file priorities, incomplete dir + `.!qB`, stop/start vs pause/resume, delete
+- [x] Transmission 4.1: RPC auth + session-id handshake, labels, `sequential_download`, wanted files, piece bitfield, incomplete dir + `.part`, `/downloads/complete` download dir, start/stop, remove with/without data; 4.0 gets the sequential-download warning
+- [x] The add-on's Docker image next to a qBittorrent container (compose layout), settings persisted in `/data`
+
+Only the owner can check (see issue #9):
+
+- [ ] Docker build/run on Unraid and HTTPS via Nginx Proxy Manager
+- [ ] Real playback in Stremio (desktop and mobile), with each client
 
 ## Next steps / open points
 
