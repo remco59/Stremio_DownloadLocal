@@ -55,7 +55,7 @@ Both containers mount the same host downloads folder at `/downloads` (read-only 
 
 1. **Add / pre-download**: search via Cinemeta, pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
 2. **Manage downloads**: live list with progress, status and size; per item: pause/resume, remove from qBittorrent, delete files from disk (with confirmation), re-download, open/play link.
-3. **Settings**: edit all settings in the UI and persist them in `DATA_DIR/settings.json` (env vars only provide the defaults). Covers: qBittorrent URL/user/password/category with a "test connection" button, path mapping, torrent source (Torrentio URL or Jackett/Prowlarr), max resolution and language/size preferences, timeouts, public URL, and token rotation. Changes apply without restarting the container.
+3. **Settings**: edit all settings in the UI and persist them in `DATA_DIR/settings.json` (env vars only provide the defaults). Covers: torrent client choice (qBittorrent / Transmission) with per-client URL/user/password/category or label and a "test connection" button, path mapping, torrent source (Torrentio URL or Jackett/Prowlarr), max resolution and language/size preferences, timeouts, public URL, and token rotation. Changes apply without restarting the container.
 
 ## Decisions
 
@@ -78,11 +78,11 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
+- [x] Settings page: client choice, per-client connection fields + connection test, persisted in `settings.json`, applied at runtime, token rotation
 
 Still to build to meet the requirements above (not in the code yet):
 
 - [ ] Download management in the web UI and API (pause/resume, remove, delete files)
-- [ ] Settings page with persisted settings and qBittorrent connection test (today: environment variables only)
 - [ ] Pre-download a whole season or whole show from the web UI
 
 Not yet verified on the real setup:
@@ -97,7 +97,7 @@ Not yet verified on the real setup:
 2. **First-tap UX**: the first tap can hit the 45 s metadata wait and show a Stremio error; options: placeholder "downloading" video, or return a short status clip.
 3. **Seeking past the downloaded part** stalls 30 s then errors; consider an explicit message or a clamp.
 4. **Download management** (now a requirement, see Web interface): remove a download, delete finished files, free disk space.
-5. **Settings page** (now a requirement): runtime-editable settings, see Web interface.
+5. ~~**Settings page**~~: done.
 6. **Season/show batch download** (now a requirement): queue many episodes at once, skipping ones already present.
-7. **Auth hardening**: token rotation, rate limiting on `/play`.
+7. **Auth hardening**: rate limiting on `/play` (token rotation is done).
 8. ~~**Tests**~~: done, see `test/` (`npm test`).

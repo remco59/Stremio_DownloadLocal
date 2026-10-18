@@ -94,6 +94,21 @@ function sequentialWarning(version) {
 }
 
 module.exports = {
+  label: 'Transmission',
+  // Settings-page fields for this client (see settings.js); `connection` maps them onto testConnection().
+  settings: {
+    fields: [
+      { key: 'trUrl', label: 'RPC URL', type: 'url',
+        help: 'e.g. http://192.168.1.10:9091 (/transmission/rpc is added if missing). Use 4.1+ to play while downloading.' },
+      { key: 'trUser', label: 'Username', type: 'text', optional: true, help: 'Empty if RPC authentication is off.' },
+      { key: 'trPass', label: 'Password', type: 'secret', optional: true },
+      { key: 'trLabel', label: 'Label', type: 'text', help: 'Label for torrents added by the add-on.' },
+      { key: 'trDownloadDir', label: 'Download dir', type: 'path', optional: true,
+        help: "As Transmission sees it. Empty = Transmission's default." },
+    ],
+    connection: { url: 'trUrl', user: 'trUser', pass: 'trPass' },
+  },
+
   partialSuffixes: ['.part'],
 
   /** Transmission's incomplete dir, if enabled (files live there until they complete). */

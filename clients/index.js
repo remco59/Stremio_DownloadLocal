@@ -18,6 +18,8 @@
 //   testConnection({ url, user, pass }) -> { ok, version?, warning?, error? }   (no args = saved settings)
 //   partialSuffixes: string[]        suffixes the client adds to incomplete files ('.!qB', '.part')
 //   partialDirs() -> string[]        extra client-side dirs incomplete files may live in
+//   label, settings: { fields, connection }   name and connection fields for the settings page;
+//                                    connection maps the field keys to testConnection()'s url/user/pass
 //
 // To add a client: implement the interface in clients/<name>.js and register it below.
 const cfg = require('../config');

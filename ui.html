@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Local Download</title>
 <style>
-  :root { --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --acc:#7b5cff; --ok:#3ecf8e; --err:#ff6b6b; }
+  :root { --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --acc:#7b5cff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f5b84b; }
   * { box-sizing: border-box; }
   body { font: 15px system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 16px; max-width: 760px; }
   h1 { font-size: 20px; margin: 0 0 12px; }
   h2 { font-size: 15px; color: var(--mut); margin: 24px 0 8px; font-weight: 600; }
-  form { display: flex; gap: 8px; }
+  #f { display: flex; gap: 8px; }
   input, select, button { font: inherit; color: inherit; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; padding: 9px 12px; }
   input { flex: 1; min-width: 0; }
   button { cursor: pointer; }
@@ -29,20 +29,58 @@
   .error .s { color: var(--err); }
   .eps { margin: -2px 0 10px 8px; padding-left: 8px; border-left: 2px solid #2a2f3a; }
   .ep { display: flex; gap: 8px; align-items: center; padding: 5px 0; }
+  nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #2a2f3a; }
+  nav a { color: var(--mut); text-decoration: none; padding: 8px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  nav a.on { color: var(--fg); border-color: var(--acc); }
+  #settingsForm { margin-bottom: 14px; }
+  fieldset { border: 1px solid #2a2f3a; border-radius: 10px; margin: 0 0 14px; padding: 10px 14px 14px; }
+  legend { color: var(--mut); padding: 0 6px; font-weight: 600; }
+  .field { display: grid; gap: 4px; margin-top: 10px; }
+  .field label { font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+  .field input, .field select { width: 100%; }
+  .field .help { color: var(--mut); font-size: 12px; }
+  .field.bad input, .field.bad select { border-color: var(--err); }
+  a.reset { color: var(--acc); font-size: 12px; cursor: pointer; margin-left: auto; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .msg { font-size: 13px; color: var(--mut); }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--err); }
+  .msg.warn { color: var(--warn); }
+  code { background: var(--card); padding: 2px 6px; border-radius: 6px; word-break: break-all; font-size: 13px; }
 </style>
 </head>
 <body>
 <h1>Download to server</h1>
+<nav>
+  <a href="#add" data-view="add">Add</a>
+  <a href="#downloads" data-view="downloads">Downloads</a>
+  <a href="#settings" data-view="settings">Settings</a>
+</nav>
 
+<section id="v-add">
 <div class="tabs">
   <button id="tMovie" class="on">Movies</button>
   <button id="tSeries">Series</button>
 </div>
 <form id="f"><input id="q" placeholder="Search title..." autocomplete="off"><button class="primary">Search</button></form>
 <div id="results"></div>
+</section>
 
-<h2>On your server</h2>
+<section id="v-downloads" hidden>
 <div id="downloads"></div>
+</section>
+
+<section id="v-settings" hidden>
+<form id="settingsForm" novalidate></form>
+<fieldset>
+  <legend>Stremio</legend>
+  <div class="field"><label>Install URL (paste into Stremio &rarr; Add-ons)</label><code id="manifestUrl"></code></div>
+  <div class="row">
+    <button type="button" id="rotate">Rotate token</button>
+    <span class="msg">Creates a new secret URL. The old one stops working; reinstall the add-on in Stremio.</span>
+  </div>
+</fieldset>
+</section>
 
 <script>
 const BASE = location.pathname.replace(/\/?$/, '/');
@@ -52,9 +90,25 @@ let type = 'movie';
 
 async function api(p, opts) {
   const r = await fetch(BASE + p, opts);
-  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  if (!r.ok) {
+    const text = await r.text();
+    let err;
+    try { err = Object.assign(new Error(JSON.parse(text).error), JSON.parse(text)); } catch { err = new Error(text.slice(0, 200)); }
+    throw err;
+  }
   return r.json();
 }
+const send = (method, p, body) => api(p, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+
+// ---- views ----
+function show() {
+  const v = (location.hash.slice(1) || 'add').split('?')[0];
+  const name = ['add', 'downloads', 'settings'].includes(v) ? v : 'add';
+  document.querySelectorAll('nav a').forEach((a) => a.classList.toggle('on', a.dataset.view === name));
+  document.querySelectorAll('section').forEach((x) => (x.hidden = x.id !== 'v-' + name));
+  if (name === 'settings') loadSettings();
+}
+window.addEventListener('hashchange', show);
 
 function setType(t) {
   type = t;
@@ -68,7 +122,7 @@ $('#tSeries').onclick = () => setType('series');
 async function startDownload(t, id, btn) {
   btn.disabled = true; btn.textContent = 'Queued...';
   try {
-    await api('api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: t, id }) });
+    await send('POST', 'api/download', { type: t, id });
     btn.textContent = 'Started';
   } catch (e) {
     btn.textContent = 'Failed'; btn.title = e.message; btn.disabled = false;
@@ -149,6 +203,138 @@ async function refresh() {
     });
   } catch { /* ignore */ }
 }
+// ---- settings ----
+let current = null;
+
+function fieldInput(f, value) {
+  if (f.options) {
+    const sel = el('select', { name: f.key });
+    f.options.forEach((o) => sel.append(el('option', { value: o.value, textContent: o.label })));
+    sel.value = value;
+    return sel;
+  }
+  const input = el('input', { name: f.key, value: value ?? '', autocomplete: 'off', spellcheck: false });
+  if (f.type === 'int') input.inputMode = 'numeric';
+  if (f.type === 'url') input.type = 'url';
+  if (f.type === 'secret') {
+    input.type = 'password';
+    input.autocomplete = 'new-password';
+    input.placeholder = current.secretsSet[f.key] ? '(saved; leave empty to keep)' : '(not set)';
+  }
+  return input;
+}
+
+// Connection test for one client, using what is in the form right now (blank password = saved one).
+function testButton(client, keys) {
+  const msg = el('span', { className: 'msg' });
+  const btn = el('button', { type: 'button', textContent: 'Test connection' });
+  btn.onclick = async () => {
+    btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Testing...';
+    try {
+      const r = await send('POST', 'api/settings/test-client', { client, values: formValues(keys) });
+      msg.className = 'msg ' + (!r.ok ? 'err' : r.warning ? 'warn' : 'ok');
+      msg.textContent = r.ok ? `Connected: ${r.version}` + (r.warning ? `. ${r.warning}` : '') : 'Failed: ' + r.error;
+    } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; }
+    btn.disabled = false;
+  };
+  return el('div', { className: 'row' }, btn, msg);
+}
+
+// Only the selected client's connection fields are shown; the others keep their values.
+function showClientGroups() {
+  const chosen = $('#settingsForm').elements.torrentClient.value;
+  document.querySelectorAll('fieldset[data-client]').forEach((fs) => (fs.hidden = fs.dataset.client !== chosen));
+}
+
+function renderSettings() {
+  const form = $('#settingsForm');
+  form.replaceChildren();
+  const groups = new Map();
+  for (const f of current.fields) {
+    if (!groups.has(f.group)) {
+      const fs = el('fieldset', {}, el('legend', { textContent: f.group }));
+      if (f.client) fs.dataset.client = f.client;
+      groups.set(f.group, fs);
+      form.append(fs);
+    }
+    const label = el('label', { textContent: f.label });
+    if (current.overridden.includes(f.key)) {
+      const reset = el('a', { className: 'reset', textContent: 'reset to default', title: 'Default: ' + (current.defaults[f.key] || '(empty)') });
+      reset.onclick = () => saveSettings({ [f.key]: null });
+      label.append(reset);
+    }
+    const box = el('div', { className: 'field', id: 'f-' + f.key }, label, fieldInput(f, current.values[f.key]));
+    if (f.help) box.append(el('div', { className: 'help', textContent: f.help }));
+    groups.get(f.group).append(box);
+  }
+  for (const [group, fs] of groups) {
+    if (!fs.dataset.client) continue;
+    const keys = current.fields.filter((f) => f.group === group).map((f) => f.key);
+    fs.append(testButton(fs.dataset.client, keys));
+  }
+  form.elements.torrentClient.onchange = showClientGroups;
+  showClientGroups();
+  const status = el('span', { className: 'msg', id: 'saveMsg' });
+  form.append(el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Save settings' }), status));
+  $('#manifestUrl').textContent = new URL('manifest.json', location.origin + BASE).href;
+}
+
+function formValues(keys) {
+  const out = {};
+  for (const k of keys) {
+    const input = $('#settingsForm').elements[k];
+    if (input) out[k] = input.value;
+  }
+  return out;
+}
+
+async function saveSettings(patch) {
+  document.querySelectorAll('.field.bad').forEach((x) => x.classList.remove('bad'));
+  const msg = $('#saveMsg');
+  try {
+    current = await send('PUT', 'api/settings', patch);
+    renderSettings();
+    $('#saveMsg').className = 'msg ok';
+    $('#saveMsg').textContent = 'Saved. Changes apply right away.';
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = e.message;
+    const bad = e.field && $('#f-' + e.field);
+    if (bad) { bad.classList.add('bad'); bad.closest('fieldset').hidden = false; }
+  }
+}
+
+$('#settingsForm').onsubmit = (e) => {
+  e.preventDefault();
+  const patch = {};
+  for (const f of current.fields) {
+    const v = $('#settingsForm').elements[f.key].value;
+    if (f.type === 'secret') { if (v !== '') patch[f.key] = v; continue; }
+    if (String(v) !== String(current.values[f.key] ?? '')) patch[f.key] = v; // ints too: the server parses and validates them (Number('abc') would turn into null = reset)
+  }
+  saveSettings(patch);
+};
+
+async function loadSettings() {
+  try {
+    current = await api('api/settings');
+    renderSettings();
+  } catch (e) {
+    $('#settingsForm').textContent = 'Could not load settings: ' + e.message;
+  }
+}
+
+$('#rotate').onclick = async () => {
+  if (!confirm('Create a new secret URL? The current URL (and the add-on installed in Stremio) stops working right away.')) return;
+  try {
+    const r = await send('POST', 'api/settings/rotate-token');
+    location.href = new URL(r.uiUrl).pathname + '#settings';
+  } catch (e) {
+    alert('Rotating failed: ' + e.message);
+  }
+};
+
+show();
 refresh();
 setInterval(refresh, 5000);
 </script>
