@@ -254,14 +254,19 @@ async function openPicker(type, id, label) {
   }));
 }
 
+let searchSeq = 0; // a slow search that finishes after a newer one must not overwrite its results
 async function search(e) {
   e.preventDefault();
   const q = $('#q').value.trim();
   if (!q) return;
+  const seq = ++searchSeq;
   const out = $('#results');
-  out.replaceChildren(el('div', { className: 's', textContent: 'Searching...' }));
+  const status = el('div', { className: 's', textContent: 'Searching...' });
+  out.replaceChildren(status);
+  const slow = setTimeout(() => (status.textContent = 'Searching... Cinemeta is slow for new searches, this can take up to 45 s'), 5000);
   try {
     const { metas = [] } = await api(`api/search?type=${type}&q=${encodeURIComponent(q)}`);
+    if (seq !== searchSeq) return;
     out.replaceChildren();
     metas.slice(0, 12).forEach((m) => {
       const id = m.imdb_id || m.id;
@@ -291,7 +296,9 @@ async function search(e) {
     });
     if (!metas.length) out.textContent = 'No results.';
   } catch (err) {
-    out.textContent = 'Search failed: ' + err.message;
+    if (seq === searchSeq) out.textContent = 'Search failed: ' + err.message;
+  } finally {
+    clearTimeout(slow);
   }
 }
 $('#f').onsubmit = search;

@@ -7,8 +7,12 @@ function createModel() {
     torrents: new Map(),
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
     metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
-    catalogFailures: 0, // the next N catalog searches get a 504 HTML page, like Cloudflare in front of Cinemeta
-    catalogCalls: 0,
+    // Cinemeta trouble, used up by the next search/meta requests: N times a 504 HTML page (Cloudflare giving up),
+    // then N times an answer that only comes after hangMs.
+    cinemetaFailures: 0,
+    cinemetaHangs: 0,
+    hangMs: 1000,
+    cinemetaCalls: 0,
     torznab: {}, // "tt123" or "tt123:1:2" -> [{ title, hash, size, seeders, magnet? }] served at /torznab/api
     torznabQueries: [], // query params of every Torznab request
     added: [], // normalized { magnet, label, sequential, raw } for every add call
@@ -105,12 +109,23 @@ function serve(model, handle) {
       const body = Buffer.concat(chunks);
       const sm = /^\/stream\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (sm) return send(res, 200, model.torrentio[decodeURIComponent(sm[2])] || { streams: [] });
-      if (/^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
-        model.catalogCalls++;
-        if (model.catalogFailures > 0) {
-          model.catalogFailures--;
+      const mm = /^\/meta\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
+      if (mm || /^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
+        model.cinemetaCalls++;
+        if (model.cinemetaFailures > 0) {
+          model.cinemetaFailures--;
           return send(res, 504, '<!DOCTYPE html><html><body>Gateway time-out</body></html>', { 'Content-Type': 'text/html' });
         }
+        if (model.cinemetaHangs > 0) {
+          model.cinemetaHangs--;
+          await new Promise((r) => setTimeout(r, model.hangMs));
+        }
+      }
+      if (mm) {
+        const meta = model.metas[decodeURIComponent(mm[2])];
+        return meta ? send(res, 200, { meta }) : send(res, 404, { meta: null });
+      }
+      if (/^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
         const type = url.pathname.split('/')[2];
         return send(res, 200, { metas: Object.values(model.metas).filter((m) => (m.type || 'series') === type) });
       }
@@ -120,11 +135,6 @@ function serve(model, handle) {
         if (q.apikey !== 'tz-key') return send(res, 200, '<error code="100" description="Incorrect user credentials"/>', { 'Content-Type': 'application/xml' });
         const key = [q.imdbid, q.season, q.ep].filter(Boolean).join(':');
         return send(res, 200, torznabXml(model.torznab[key] || []), { 'Content-Type': 'application/xml' });
-      }
-      const mm = /^\/meta\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
-      if (mm) {
-        const meta = model.metas[decodeURIComponent(mm[2])];
-        return meta ? send(res, 200, { meta }) : send(res, 404, { meta: null });
       }
       await handle(req, res, url, body, send);
     } catch (e) {
