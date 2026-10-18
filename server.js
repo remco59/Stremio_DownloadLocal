@@ -4,13 +4,13 @@ const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
 const dl = require('./downloads');
+const batch = require('./batch');
 const settings = require('./settings');
 const { serveFile } = require('./stream');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const CINEMETA = 'https://v3-cinemeta.strem.io';
 
 const manifest = {
   id: 'community.local.download-and-watch',
@@ -107,7 +107,7 @@ router.all('/play/:type/:id', async (req, res) => {
 // ---- Web UI + JSON API -------------------------------------------------------------------------
 router.get('/', (req, res) => res.type('html').send(fs.readFileSync(path.join(__dirname, 'ui.html'))));
 
-router.get('/api/downloads', async (req, res) => res.json(await dl.list()));
+router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list()), batchPending: batch.pending() }));
 
 // Per-item actions from the downloads page. :id is a Stremio ID (URL-encoded, episodes contain ':').
 const ACTIONS = {
@@ -174,9 +174,19 @@ router.post('/api/settings/rotate-token', (req, res) => {
   }
 });
 
+// Whole show (no season) or one season: queues every episode that is not on the server yet.
+router.post('/api/download/batch', async (req, res) => {
+  const { id, season } = req.body || {};
+  try {
+    res.json(await batch.queueBatch({ id, season: season == null ? undefined : season }));
+  } catch (e) {
+    res.status(e.status || 502).json({ error: String(e.message) });
+  }
+});
+
 async function cinemeta(p, res) {
   try {
-    const r = await fetch(`${CINEMETA}${p}`);
+    const r = await fetch(`${cfg.cinemetaUrl}${p}`);
     res.status(r.status).json(await r.json());
   } catch (e) {
     res.status(502).json({ error: String(e.message) });

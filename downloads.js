@@ -38,15 +38,18 @@ async function localCandidates(rec) {
   return [...new Set(out)];
 }
 
-/** Start (or reuse) a download for a Stremio ID. Safe to call repeatedly. */
-async function ensureDownload(type, id) {
+/**
+ * Start (or reuse) a download for a Stremio ID. Safe to call repeatedly.
+ * `opts` is passed to finder.resolve (season-pack preferences for batch downloads).
+ */
+async function ensureDownload(type, id, opts) {
   const existing = db.get(id);
   if (existing && existing.status !== 'error' && existing.status !== 'missing') return existing;
   if (inflight.has(id)) return inflight.get(id);
 
   const p = (async () => {
     try {
-      const pick = await finder.resolve(type, id);
+      const pick = await finder.resolve(type, id, opts);
       const rec = db.set(id, {
         id,
         type,

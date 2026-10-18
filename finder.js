@@ -13,8 +13,16 @@ const seeders = (t) => {
   return m ? parseInt(m[1], 10) : 0;
 };
 
-/** @returns {Promise<{infoHash:string, fileIdx:number|null, title:string, magnet:string}>} */
-async function resolve(type, id) {
+// Season packs: "S01" / "Season 1" / "Complete" without a single-episode marker like "S01E02".
+const isPack = (t) => /\b(s\d{1,2}(?!\s*e\d)|season\s*\d+|complete)\b/i.test(t) && !/\bs\d{1,2}\s*e\d{1,3}\b/i.test(t);
+
+/**
+ * @param {object} [opts]
+ * @param {string[]} [opts.preferHashes] torrents already used for sibling episodes: reuse one if it has this episode
+ * @param {boolean} [opts.preferPack] for batch downloads: favour a reasonably seeded season pack
+ * @returns {Promise<{infoHash:string, fileIdx:number|null, title:string, magnet:string}>}
+ */
+async function resolve(type, id, { preferHashes = [], preferPack = false } = {}) {
   const res = await fetch(`${cfg.torrentioUrl}/stream/${type}/${id}.json`, {
     headers: { 'User-Agent': 'stremio-local-addon/0.1' },
   });
@@ -25,7 +33,7 @@ async function resolve(type, id) {
     .filter((s) => s.infoHash)
     .map((s) => {
       const text = `${s.name || ''}\n${s.title || ''}`;
-      return { s, res: resolution(text), seeders: seeders(text) };
+      return { s, res: resolution(text), seeders: seeders(text), pack: isPack(s.title || '') };
     });
   if (!cands.length) throw new Error(`No torrents found for ${id}`);
 
@@ -33,7 +41,11 @@ async function resolve(type, id) {
   const pool = capped.length ? capped : cands;
   pool.sort((a, b) => b.seeders - a.seeders || b.res - a.res);
 
-  const best = pool[0].s;
+  // Same torrent as a sibling episode: keeps a season in one torrent (and one folder).
+  const reuse = pool.find((c) => preferHashes.includes(c.s.infoHash.toLowerCase()));
+  // A pack only wins if it is not much worse seeded than the best single release.
+  const pack = preferPack && pool.find((c) => c.pack && c.seeders >= Math.max(1, pool[0].seeders / 4));
+  const best = (reuse || pack || pool[0]).s;
   const title = (best.title || '').split('\n')[0];
   const trackers = (best.sources || []).filter((x) => x.startsWith('tracker:')).map((x) => x.slice(8));
   const magnet =
@@ -48,4 +60,4 @@ async function resolve(type, id) {
   };
 }
 
-module.exports = { resolve };
+module.exports = { resolve, isPack };

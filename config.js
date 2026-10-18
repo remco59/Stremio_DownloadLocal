@@ -37,6 +37,9 @@ const defaults = {
   clientPathPrefix: strip(env.CLIENT_PATH_PREFIX || env.QB_PATH_PREFIX || '/downloads'),
   localPathPrefix: strip(env.LOCAL_PATH_PREFIX || '/downloads'),
 
+  // Titles, seasons and episodes (search and season/show downloads)
+  cinemetaUrl: strip(env.CINEMETA_URL || 'https://v3-cinemeta.strem.io'),
+
   // Where to look up torrents (see finder.js)
   torrentioUrl: strip(env.TORRENTIO_URL || 'https://torrentio.strem.fun'),
   maxRes: parseInt(env.MAX_RES || '1080', 10),

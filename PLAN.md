@@ -74,16 +74,16 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Add-on manifest and stream endpoint
 - [x] qBittorrent client, state machine, sync loop
 - [x] Range streaming with piece-map gating
-- [x] Search/download web UI (movies and single episodes only)
+- [x] Search/download web UI
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
+- [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)
 - [x] Download management in the web UI and API (pause/resume, remove, delete files, re-download, play link, forget), season-pack aware
 - [x] Settings page: client choice, per-client connection fields + connection test, persisted in `settings.json`, applied at runtime, token rotation
 
 Still to build to meet the requirements above (not in the code yet):
 
-- [ ] Pre-download a whole season or whole show from the web UI
 
 Not yet verified on the real setup:
 
@@ -98,6 +98,6 @@ Not yet verified on the real setup:
 3. **Seeking past the downloaded part** stalls 30 s then errors; consider an explicit message or a clamp.
 4. ~~**Download management**~~: done.
 5. ~~**Settings page**~~: done.
-6. **Season/show batch download** (now a requirement): queue many episodes at once, skipping ones already present.
+6. ~~**Season/show batch download**~~: done.
 7. **Auth hardening**: rate limiting on `/play` (token rotation is done).
 8. ~~**Tests**~~: done, see `test/` (`npm test`).

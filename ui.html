@@ -134,22 +134,67 @@ async function startDownload(t, id, btn) {
   refresh();
 }
 
-function episodes(meta, box) {
+// Latest download list by ID, so open episode lists can show what is already on the server.
+let known = new Map();
+let pendingIds = new Set();
+const openLists = new Set(); // re-render callbacks of open episode lists
+
+function epState(id) {
+  const d = known.get(id);
+  if (!d) return pendingIds.has(id) ? { text: 'Looking for a torrent...', busy: true } : null;
+  const pct = Math.round((d.progress || 0) * 100);
+  if (d.status === 'complete') return { text: 'On server', busy: true, cls: 'ok' };
+  if (d.status === 'downloading' || d.status === 'queued') return { text: d.paused ? `Paused ${pct}%` : `${pct}%`, busy: true };
+  if (d.status === 'error') return { text: 'Failed', title: d.error, cls: 'err' };
+  return null; // missing: can be downloaded again
+}
+
+async function batchDownload(id, season, btn, msg) {
+  btn.disabled = true;
+  msg.className = 'msg'; msg.textContent = 'Queueing...';
+  try {
+    const r = await send('POST', 'api/download/batch', season ? { id, season } : { id });
+    const why = {};
+    r.skipped.forEach((x) => (why[x.reason] = (why[x.reason] || 0) + 1));
+    const skipped = Object.entries(why).map(([k, n]) => `${n} ${k}`).join(', ');
+    msg.className = 'msg ok';
+    msg.textContent = `Queued ${r.queued.length} episode${r.queued.length === 1 ? '' : 's'}` + (skipped ? ` · skipped: ${skipped}` : '');
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = e.message;
+  }
+  btn.disabled = false;
+  refresh();
+}
+
+function episodes(meta, box, seriesId) {
   const vids = (meta.videos || []).filter((v) => v.season > 0);
   const seasons = [...new Set(vids.map((v) => v.season))].sort((a, b) => a - b);
+  if (!seasons.length) return box.replaceChildren(el('div', { className: 's', textContent: 'No episodes found.' }));
   const sel = el('select');
   seasons.forEach((s) => sel.append(el('option', { value: s, textContent: 'Season ' + s })));
+  const msg = el('div', { className: 'msg' });
+  const seasonBtn = el('button', { type: 'button', textContent: 'Download season' });
+  const showBtn = el('button', { type: 'button', textContent: 'Download whole show', title: `All ${seasons.length} seasons, skipping what is already on the server` });
+  seasonBtn.onclick = () => batchDownload(seriesId, +sel.value, seasonBtn, msg);
+  showBtn.onclick = () => batchDownload(seriesId, null, showBtn, msg);
   const list = el('div');
+  const now = Date.now();
   const render = () => {
+    if (!box.isConnected) return openLists.delete(render);
     list.replaceChildren();
     vids.filter((v) => v.season === +sel.value).sort((a, b) => a.episode - b.episode).forEach((v) => {
-      const b = el('button', { textContent: 'Download' });
+      const st = epState(v.id);
+      const future = v.released && Date.parse(v.released) > now;
+      const b = el('button', { type: 'button', textContent: st && st.cls === 'err' ? 'Retry' : 'Download' });
+      b.disabled = !!(st && st.busy) || future;
       b.onclick = () => startDownload('series', v.id, b);
-      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), b));
+      const state = el('span', { className: 'msg ' + (st && st.cls ? st.cls : ''), textContent: future ? 'Not released yet' : st ? st.text : '', title: (st && st.title) || '' });
+      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), state, b));
     });
   };
   sel.onchange = render;
-  box.replaceChildren(sel, list);
+  box.replaceChildren(el('div', { className: 'row' }, sel, seasonBtn, showBtn), msg, list);
+  openLists.add(render);
   render();
 }
 
@@ -171,7 +216,7 @@ async function search(e) {
         if (type === 'movie') return startDownload('movie', id, btn);
         epBox.hidden = !epBox.hidden;
         if (!epBox.hidden && !epBox.children.length) {
-          try { episodes((await api(`api/meta/series/${id}`)).meta || {}, epBox); }
+          try { episodes((await api(`api/meta/series/${id}`)).meta || {}, epBox, id); }
           catch (err) { epBox.textContent = err.message; }
         }
       };
@@ -251,8 +296,12 @@ async function refresh() {
   try {
     data = await api('api/downloads');
   } catch { return; }
+  known = new Map(data.items.map((d) => [d.id, d]));
+  pendingIds = new Set(data.batchPending || []);
+  openLists.forEach((render) => render());
   const box = $('#downloads');
   box.replaceChildren();
+  if (pendingIds.size) box.append(el('div', { className: 'msg', textContent: `Looking for torrents for ${pendingIds.size} more episode${pendingIds.size === 1 ? '' : 's'}...` }));
   if (data.clientError) box.append(el('div', { className: 'msg err', textContent: 'Torrent client unreachable: ' + data.clientError }));
   if (!data.items.length) box.append(el('div', { className: 's', textContent: 'Nothing yet. Search for something under Add.' }));
   data.items.forEach((d) => {

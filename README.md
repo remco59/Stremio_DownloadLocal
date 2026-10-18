@@ -19,6 +19,10 @@ Downloads run in your own torrent client: **qBittorrent** (default) or **Transmi
 4. **Stremio**: Add-ons -> paste `https://<your-host>/<ADDON_TOKEN>/manifest.json`.
 5. **Web UI**: `https://<your-host>/<ADDON_TOKEN>/`, with search/download, the download list and **Settings**.
 
+## Pre-downloading series
+
+Search a series under **Add**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
+
 ## Managing downloads
 
 The **Downloads** page lists everything the add-on knows about, with progress, size, speed and ETA. Per item:
@@ -57,6 +61,7 @@ These are the defaults for the settings page.
 | `CLIENT_PATH_PREFIX` / `LOCAL_PATH_PREFIX` | `/downloads` | path remap between containers (`QB_PATH_PREFIX` still works) |
 | `TORRENTIO_URL` | `https://torrentio.strem.fun` | torrent lookup (placeholder, see `finder.js`) |
 | `MAX_RES` | `1080` | skip releases above this resolution |
+| `CINEMETA_URL` | `https://v3-cinemeta.strem.io` | title/episode metadata (search, seasons) |
 | `WAIT_FOR_START_MS` | `45000` | how long `/play` waits for torrent metadata |
 | `STALL_MS` | `30000` | how long a stream waits for missing pieces before dropping the connection |
 | `SYNC_INTERVAL_MS` | `5000` | qBittorrent poll interval |

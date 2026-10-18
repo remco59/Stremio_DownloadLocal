@@ -6,6 +6,7 @@ function createModel() {
   const model = {
     torrents: new Map(),
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
+    metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
     added: [], // normalized { magnet, label, sequential, raw } for every add call
     calls: [], // "METHOD /path" or RPC method names
     onAdd: null, // (hash, added) => void - create the torrent in reaction to an add
@@ -60,7 +61,7 @@ function createModel() {
   return model;
 }
 
-/** Serves `handle(req, res, url, body)` plus the Torrentio-style endpoint for `model`. */
+/** Serves `handle(req, res, url, body)` plus the Torrentio- and Cinemeta-style endpoints for `model`. */
 function serve(model, handle) {
   const send = (res, status, body, headers = {}) => {
     const isText = typeof body === 'string';
@@ -76,6 +77,15 @@ function serve(model, handle) {
       const body = Buffer.concat(chunks);
       const sm = /^\/stream\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (sm) return send(res, 200, model.torrentio[decodeURIComponent(sm[2])] || { streams: [] });
+      if (/^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
+        const type = url.pathname.split('/')[2];
+        return send(res, 200, { metas: Object.values(model.metas).filter((m) => (m.type || 'series') === type) });
+      }
+      const mm = /^\/meta\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
+      if (mm) {
+        const meta = model.metas[decodeURIComponent(mm[2])];
+        return meta ? send(res, 200, { meta }) : send(res, 404, { meta: null });
+      }
       await handle(req, res, url, body, send);
     } catch (e) {
       send(res, 500, String(e.stack || e));
