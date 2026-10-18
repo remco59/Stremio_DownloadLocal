@@ -43,7 +43,7 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
   const app = require('../../server');
   const dl = require('../../downloads');
   const db = require('../../db');
-  const timer = dl.startSync();
+  const stopSync = dl.startSync();
 
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
@@ -61,7 +61,7 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
     db,
     dl,
     async close() {
-      clearInterval(timer);
+      stopSync();
       server.closeAllConnections();
       await new Promise((r) => server.close(r));
       await qb.close();

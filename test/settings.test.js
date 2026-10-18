@@ -136,6 +136,22 @@ test('switching the client applies without a restart', async () => {
   assert.equal((await json('GET', '/api/settings')).body.values.torrentClient, 'qbittorrent');
 });
 
+test('poll interval changes apply to the running sync loop', async () => {
+  // Something to sync, so every round asks the client for torrent info.
+  env.db.set('tt0000888', { id: 'tt0000888', type: 'movie', infoHash: '9'.repeat(40), status: 'downloading', createdAt: Date.now() });
+  const polls = () => env.mock.calls.filter((c) => c.endsWith('/torrents/info')).length;
+  await waitFor(() => polls() > 0);
+
+  await json('PUT', '/api/settings', { syncIntervalMs: 60000 });
+  await new Promise((r) => setTimeout(r, 100)); // let the round already scheduled at the old 50 ms run
+  const before = polls();
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(polls(), before, 'no polls at the new 60 s interval');
+
+  await json('PUT', '/api/settings', { syncIntervalMs: null });
+  assert.equal((await json('GET', '/api/settings')).body.values.syncIntervalMs, 50);
+});
+
 test('token rotation: the old URL stops working, the new one works', async () => {
   assert.equal((await call('POST', '/api/settings/rotate-token', { token: 'short' })).status, 400);
 

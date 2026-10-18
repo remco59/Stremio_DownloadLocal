@@ -148,19 +148,23 @@ async function syncOnce() {
   }
 }
 
+/** Polls the torrent client forever; the interval is re-read from settings each round. Returns a stop function. */
 function startSync() {
-  let running = false;
-  return setInterval(async () => {
-    if (running) return;
-    running = true;
+  let timer = null;
+  let stopped = false;
+  const tick = async () => {
     try {
       await syncOnce();
     } catch (e) {
       console.error('[sync]', e.message);
-    } finally {
-      running = false;
     }
-  }, cfg.syncIntervalMs);
+    if (!stopped) timer = setTimeout(tick, cfg.syncIntervalMs);
+  };
+  timer = setTimeout(tick, cfg.syncIntervalMs);
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+  };
 }
 
 const view = (r) => ({
