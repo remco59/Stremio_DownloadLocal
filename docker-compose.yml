@@ -8,12 +8,18 @@ services:
     environment:
       ADDON_TOKEN: "change-me-to-a-long-random-string"   # 16+ chars, letters/digits/-/_
       PUBLIC_URL: "https://stremio.example.com"           # the HTTPS URL you expose via your reverse proxy
+      TORRENT_CLIENT: "qbittorrent"                       # or "transmission" (4.1+, see README)
       QB_URL: "http://192.168.1.10:8090"                  # your qBittorrent WebUI
       QB_USER: "admin"
       QB_PASS: "changeme"
       QB_CATEGORY: "stremio"
+      # Transmission instead of qBittorrent:
+      # TR_URL: "http://192.168.1.10:9091/transmission/rpc"
+      # TR_USER: "admin"
+      # TR_PASS: "changeme"
+      # TR_LABEL: "stremio"
       # Same host folder mounted at /downloads in BOTH containers -> leave these as-is
-      QB_PATH_PREFIX: "/downloads"
+      CLIENT_PATH_PREFIX: "/downloads"
       LOCAL_PATH_PREFIX: "/downloads"
       MAX_RES: "1080"
     volumes:
