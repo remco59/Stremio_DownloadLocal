@@ -40,16 +40,19 @@ async function localCandidates(rec) {
 
 /**
  * Start (or reuse) a download for a Stremio ID. Safe to call repeatedly.
- * `opts` is passed to finder.resolve (season-pack preferences for batch downloads).
+ * `opts.pick` is a torrent chosen by hand in the web UI: it replaces the current torrent if that differs
+ * (the old one is removed from the client, its files stay). Other opts go to finder.resolve.
  */
-async function ensureDownload(type, id, opts) {
+async function ensureDownload(type, id, opts = {}) {
   const existing = db.get(id);
-  if (existing && existing.status !== 'error' && existing.status !== 'missing') return existing;
+  const replace = opts.pick && existing && ACTIVE(existing) && existing.infoHash !== opts.pick.infoHash;
+  if (existing && ACTIVE(existing) && !replace) return existing;
   if (inflight.has(id)) return inflight.get(id);
 
   const p = (async () => {
     try {
-      const pick = await finder.resolve(type, id, opts);
+      if (replace) await removeFromClient(id);
+      const pick = opts.pick || (await finder.resolve(type, id, opts));
       const rec = db.set(id, {
         id,
         type,
@@ -81,11 +84,23 @@ async function ensureDownload(type, id, opts) {
   return p;
 }
 
+/** Does a file name belong to season `s`, episode `e`? (S01E02, s1e2, 1x02) */
+function isEpisode(name, s, e) {
+  const n = path.posix.basename(name);
+  return new RegExp(`(?:^|[^a-z0-9])(?:s0*${s}[ ._-]?e0*${e}|0*${s}x0*${e})(?![0-9])`, 'i').test(n);
+}
+
 async function selectFile(rec, files, t) {
   let idx = Number.isInteger(rec.fileIdx) && files[rec.fileIdx] ? rec.fileIdx : -1;
   if (idx < 0) {
     const all = files.map((f, i) => ({ f, i }));
-    const vids = all.filter((x) => VIDEO.test(x.f.name));
+    let vids = all.filter((x) => VIDEO.test(x.f.name));
+    // Episode inside a season pack without a known file index: find it by name.
+    const [, season, episode] = rec.id.split(':');
+    if (episode) {
+      const match = vids.filter((x) => isEpisode(x.f.name, season, episode));
+      if (match.length) vids = match;
+    }
     idx = (vids.length ? vids : all).sort((a, b) => b.f.size - a.f.size)[0].i;
   }
 
@@ -339,6 +354,7 @@ async function list() {
 }
 
 module.exports = {
+  isEpisode,
   ensureDownload,
   startSync,
   syncOnce,

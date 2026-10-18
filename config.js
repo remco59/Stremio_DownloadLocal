@@ -40,9 +40,21 @@ const defaults = {
   // Titles, seasons and episodes (search and season/show downloads)
   cinemetaUrl: strip(env.CINEMETA_URL || 'https://v3-cinemeta.strem.io'),
 
-  // Where to look up torrents (see finder.js)
+  // Where to look up torrents (see finder.js and sources/): torrentio | torznab | both
+  sources: env.SOURCES || 'torrentio',
   torrentioUrl: strip(env.TORRENTIO_URL || 'https://torrentio.strem.fun'),
+  torznabUrls: env.TORZNAB_URLS || '', // Jackett/Prowlarr Torznab URLs, comma or space separated
+  torznabApiKey: env.TORZNAB_APIKEY || '',
+
+  // How to choose between torrents (see finder.js score())
   maxRes: parseInt(env.MAX_RES || '1080', 10),
+  preferredRes: parseInt(env.PREFERRED_RES || '0', 10), // 0 = no preference
+  languages: env.LANGUAGES || '', // preferred language codes, e.g. "nl, multi"
+  minSeeders: parseInt(env.MIN_SEEDERS || '0', 10),
+  minSizeMb: parseInt(env.MIN_SIZE_MB || '0', 10), // 0 = no minimum
+  maxSizeGb: parseInt(env.MAX_SIZE_GB || '0', 10), // 0 = no maximum (season packs are exempt)
+  preferKeywords: env.PREFER_KEYWORDS || '',
+  blockKeywords: env.BLOCK_KEYWORDS ?? 'cam, camrip, hdcam, telesync, hdts, telecine',
 
   waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '45000', 10), // how long /play holds the request while waiting for torrent metadata
   stallMs: parseInt(env.STALL_MS || '30000', 10), // how long a stream waits for the next pieces before giving up

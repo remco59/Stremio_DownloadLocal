@@ -78,6 +78,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
+- [x] Torrent picker: Torrentio and/or Jackett/Prowlarr (Torznab), filters + scoring from settings, manual pick in the web UI
 - [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)
 - [x] Download management in the web UI and API (pause/resume, remove, delete files, re-download, play link, forget), season-pack aware
 - [x] Settings page: client choice, per-client connection fields + connection test, persisted in `settings.json`, applied at runtime, token rotation
@@ -93,7 +94,7 @@ Not yet verified on the real setup:
 
 ## Next steps / open points
 
-1. **Torrent picker** (`finder.js`): currently a placeholder (Torrentio API, most seeders at ≤ `MAX_RES`). Replace with something better: Jackett/Prowlarr, own scoring (language, release group, size), optionally let the user choose from a list.
+1. ~~**Torrent picker**~~: done (Torrentio + Jackett/Prowlarr, scoring, manual pick).
 2. **First-tap UX**: the first tap can hit the 45 s metadata wait and show a Stremio error; options: placeholder "downloading" video, or return a short status clip.
 3. **Seeking past the downloaded part** stalls 30 s then errors; consider an explicit message or a clamp.
 4. ~~**Download management**~~: done.
