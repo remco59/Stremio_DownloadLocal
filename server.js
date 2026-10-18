@@ -9,6 +9,7 @@ const finder = require('./finder');
 const settings = require('./settings');
 const { serveFile, parseRange, availableUntil } = require('./stream');
 const { decide } = require('./play');
+const security = require('./security');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -26,17 +27,31 @@ const manifest = {
 };
 
 const app = express();
-app.set('trust proxy', true);
+// Only a reverse proxy on a private/loopback address may set X-Forwarded-For (Nginx Proxy Manager on the Docker
+// network). Trusting any proxy would let clients pick their own IP and dodge the per-IP limits.
+app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Headers', '*');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Referrer-Policy', 'no-referrer'); // the token is in every URL: never leak it via Referer
   if (req.method === 'OPTIONS') return res.sendStatus(204);
+  const locked = security.lockedFor(req.ip);
+  if (locked) return res.status(429).set('Retry-After', String(Math.ceil(locked / 1000))).type('text').send('Too many requests');
   next();
 });
 
 const router = express.Router();
-router.use(express.json());
+router.use(express.json({ limit: '32kb' }));
+
+// Per-IP limit on everything that changes something.
+router.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD') return next();
+  const r = security.takeApiWrite(req.ip);
+  if (r.ok) return next();
+  res.status(429).set('Retry-After', String(Math.ceil(r.retryMs / 1000))).json({ error: 'Too many requests, try again in a minute' });
+});
 
 const baseUrl = (req) => `${cfg.publicUrl || `${req.protocol}://${req.get('host')}`}/${cfg.token}`;
 
@@ -84,6 +99,13 @@ router.all('/play/:type/:id', async (req, res) => {
   const { type, id } = req.params;
   if (!valid(type, id)) return res.status(400).send('bad id');
   if (req.method !== 'GET' && req.method !== 'HEAD') return res.sendStatus(405);
+
+  // Starting a new download is rate limited; playing what is already there is not.
+  const known = db.get(id);
+  if (!known || known.status === 'error' || known.status === 'missing') {
+    const r = security.takePlayStart(req.ip);
+    if (!r.ok) return res.status(429).set('Retry-After', String(Math.ceil(r.retryMs / 1000))).type('text').send('Too many new downloads, try again in a minute');
+  }
 
   let gone = false;
   res.on('close', () => (gone = true));
@@ -143,7 +165,21 @@ router.get('/clip/:name.mp4', (req, res) => {
 });
 
 // ---- Web UI + JSON API -------------------------------------------------------------------------
-router.get('/', (req, res) => res.type('html').send(fs.readFileSync(path.join(__dirname, 'ui.html'))));
+const UI_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' https: data:", // posters come from Cinemeta's image hosts
+  "connect-src 'self'",
+  "media-src 'self'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+router.get('/', (req, res) => {
+  res.set({ 'Content-Security-Policy': UI_CSP, 'X-Frame-Options': 'DENY', 'Cache-Control': 'no-store' });
+  res.type('html').send(fs.readFileSync(path.join(__dirname, 'ui.html')));
+});
 
 router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list()), batchPending: batch.pending() }));
 
@@ -259,7 +295,22 @@ router.get('/api/meta/:type/:id', (req, res) => {
 });
 
 // The token is read per request so a rotation from the settings page applies immediately.
-app.use('/:token', (req, res, next) => (req.params.token === cfg.token ? router(req, res, next) : next()));
+app.use('/:token', (req, res, next) => {
+  if (!security.tokenOk(req.params.token)) return next();
+  security.noteSuccess(req.ip);
+  router(req, res, next);
+});
+
+// Anything else: a plain 404 that does not echo the path, and a strike towards the wrong-token lockout.
+const HARMLESS = new Set(['/favicon.ico', '/robots.txt', '/apple-touch-icon.png']);
+app.use((req, res) => {
+  if (!HARMLESS.has(req.path)) security.noteFailure(req.ip);
+  res.status(404).type('text').send('Not found');
+});
+// Errors (e.g. a JSON body that is too large or malformed) without stack traces.
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+  res.status(err.status || 500).type('text').send(err.status && err.status < 500 ? err.message : 'Server error');
+});
 
 module.exports = app;
 

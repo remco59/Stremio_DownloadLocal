@@ -55,7 +55,12 @@ The **Downloads** page lists everything the add-on knows about, with progress, s
 
 Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
 
-The token is the only auth, so treat the URL like a password.
+The token is the only auth, so treat the URL like a password. On top of that:
+
+- The token is compared in constant time. Wrong URLs get a plain `404 Not found`, and an IP that keeps guessing (20 misses in 10 minutes by default) is locked out for a minute, doubling up to an hour.
+- New downloads started from Stremio are limited per IP (10/min) and in total (30/min), and web UI actions per IP (120/min). Playing what is already there is never limited. All limits are under Settings → Security (0 = off).
+- The client IP is only taken from `X-Forwarded-For` when the request comes from a private or loopback address (your reverse proxy), so clients cannot fake it.
+- The web UI sends a strict Content-Security-Policy and `Referrer-Policy: no-referrer`, so the token never leaks via the `Referer` header, e.g. when posters load.
 
 ## Settings
 
@@ -90,7 +95,10 @@ These are the defaults for the settings page.
 | `WAIT_FOR_START_MS` | `15000` | first tap: how long `/play` waits before showing the status clip |
 | `SEEK_WAIT_MS` | `8000` | seek past the downloaded part: how long to wait before answering 503 |
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
-| `SYNC_INTERVAL_MS` | `5000` | qBittorrent poll interval |
+| `SYNC_INTERVAL_MS` | `5000` | torrent client poll interval |
+| `PLAY_STARTS_PER_IP_PER_MIN` / `PLAY_STARTS_PER_MIN` | `10` / `30` | new downloads from Stremio per minute (0 = off) |
+| `API_WRITES_PER_IP_PER_MIN` | `120` | web UI actions per minute (0 = off) |
+| `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs within 10 minutes before an IP is locked out (0 = off) |
 
 ## How it works
 

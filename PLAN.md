@@ -78,6 +78,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Dockerfile + compose file
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
+- [x] Auth hardening: constant-time token check, plain 404s, rate limits for new downloads and UI actions, wrong-token lockout, security headers, body size limits
 - [x] Playback UX: first tap plays or shows a status clip, clean 503 when seeking past the downloaded part, "playable up to NN%" in Stremio
 - [x] Torrent picker: Torrentio and/or Jackett/Prowlarr (Torznab), filters + scoring from settings, manual pick in the web UI
 - [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)
@@ -101,5 +102,5 @@ Not yet verified on the real setup:
 4. ~~**Download management**~~: done.
 5. ~~**Settings page**~~: done.
 6. ~~**Season/show batch download**~~: done.
-7. **Auth hardening**: rate limiting on `/play` (token rotation is done).
+7. ~~**Auth hardening**~~: done (constant-time token check, rate limits, wrong-token lockout, CSP/no-referrer, body limits).
 8. ~~**Tests**~~: done, see `test/` (`npm test`).

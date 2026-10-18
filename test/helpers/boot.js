@@ -38,6 +38,11 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
     WAIT_FOR_START_MS: '3000',
     STALL_MS: '300',
     SYNC_INTERVAL_MS: '50',
+    // Limits off unless a test turns them on (suites fire many requests from one IP).
+    PLAY_STARTS_PER_IP_PER_MIN: '0',
+    PLAY_STARTS_PER_MIN: '0',
+    API_WRITES_PER_IP_PER_MIN: '0',
+    TOKEN_FAILURES_LOCKOUT: '0',
     ...env,
   });
 
@@ -53,6 +58,7 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
 
   return {
     TOKEN,
+    app,
     client,
     mockUrl,
     origin,
