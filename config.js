@@ -28,9 +28,9 @@ const config = {
   torrentioUrl: strip(env.TORRENTIO_URL || 'https://torrentio.strem.fun'),
   maxRes: parseInt(env.MAX_RES || '1080', 10),
 
-  waitForStartMs: 45000, // how long /play holds the request while waiting for torrent metadata
-  stallMs: 30000, // how long a stream waits for the next pieces before giving up
-  syncIntervalMs: 5000,
+  waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '45000', 10), // how long /play holds the request while waiting for torrent metadata
+  stallMs: parseInt(env.STALL_MS || '30000', 10), // how long a stream waits for the next pieces before giving up
+  syncIntervalMs: parseInt(env.SYNC_INTERVAL_MS || '5000', 10),
 };
 
 if (!/^[A-Za-z0-9_-]{16,}$/.test(config.token)) {

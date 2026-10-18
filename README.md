@@ -25,9 +25,21 @@ The token is the only auth, so treat the URL like a password.
 | `QB_PATH_PREFIX` / `LOCAL_PATH_PREFIX` | `/downloads` | path remap between containers |
 | `TORRENTIO_URL` | `https://torrentio.strem.fun` | torrent lookup (placeholder, see `finder.js`) |
 | `MAX_RES` | `1080` | skip releases above this resolution |
+| `WAIT_FOR_START_MS` | `45000` | how long `/play` waits for torrent metadata |
+| `STALL_MS` | `30000` | how long a stream waits for missing pieces before dropping the connection |
+| `SYNC_INTERVAL_MS` | `5000` | qBittorrent poll interval |
 
 ## How it works
 
 - `/stream/...` checks `state.json`: no record -> Download, downloading -> NN%, complete -> Your server.
 - `/play/...` starts the download if needed (sequential mode, only the needed file), waits for metadata, then serves HTTP ranges. Reads are gated by qBittorrent's piece map, so the player only gets bytes that really exist and buffers for the rest.
 - A 5 s sync loop keeps progress current and marks entries `missing` if the torrent and file are gone, which brings the Download button back.
+
+## Development
+
+```sh
+npm install
+npm test
+```
+
+Tests use Node's built-in test runner and an in-process mock of the qBittorrent WebUI API (`test/helpers/mock-qb.js`), so no real qBittorrent or network is needed. CI runs them on every push and pull request.

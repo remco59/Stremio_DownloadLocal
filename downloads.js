@@ -134,7 +134,7 @@ async function syncOnce() {
 
 function startSync() {
   let running = false;
-  setInterval(async () => {
+  return setInterval(async () => {
     if (running) return;
     running = true;
     try {
@@ -156,4 +156,4 @@ const view = (r) => ({
   error: r.error || null,
 });
 
-module.exports = { ensureDownload, startSync, localPath, view };
+module.exports = { ensureDownload, startSync, syncOnce, localPath, view };
