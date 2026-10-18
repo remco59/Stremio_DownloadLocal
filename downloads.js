@@ -99,7 +99,7 @@ async function selectFile(rec, files, t) {
 
   const { pieceSize } = await client.pieces(rec.infoHash);
   const fileOffset = files.slice(0, idx).reduce((s, f) => s + f.size, 0);
-  return db.set(rec.id, {
+  return db.update(rec.id, {
     selected: true,
     status: 'downloading',
     fileIndex: idx,
@@ -111,6 +111,7 @@ async function selectFile(rec, files, t) {
   });
 }
 
+// Records can be deleted (Delete files / Forget) while a round is running, so rounds only db.update().
 async function syncOnce() {
   const recs = db.all().filter((r) => r.infoHash && r.status !== 'error' && r.status !== 'missing');
   if (!recs.length) return;
@@ -123,15 +124,15 @@ async function syncOnce() {
 
     if (rec.status === 'complete') {
       // Finished files stay playable even if the torrent is later removed from the client.
-      if (!t && !fs.existsSync(localPath(rec))) db.set(rec.id, { status: 'missing' });
+      if (!t && !fs.existsSync(localPath(rec))) db.update(rec.id, { status: 'missing' });
       continue;
     }
     if (!t) {
-      if (Date.now() - rec.createdAt > 60000) db.set(rec.id, { status: 'missing' });
+      if (Date.now() - rec.createdAt > 60000) db.update(rec.id, { status: 'missing' });
       continue;
     }
     if (t.error) {
-      db.set(rec.id, { status: 'error', error: t.error });
+      db.update(rec.id, { status: 'error', error: t.error });
       continue;
     }
 
@@ -144,10 +145,11 @@ async function syncOnce() {
     if (!Array.isArray(files) || !files.length) continue;
 
     if (!rec.selected) rec = await selectFile(rec, files, t);
+    if (!rec) continue; // deleted while we were busy
     const f = files[rec.fileIndex];
     if (!f) continue;
     const progress = Math.round(f.progress * 1000) / 1000;
-    db.set(rec.id, { progress, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+    db.update(rec.id, { progress, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
   }
 }
 
@@ -214,7 +216,7 @@ async function removeFromClient(id) {
     if (others.length) await dropFile(rec, others);
     else await client.remove(rec.infoHash, { deleteFiles: false });
   }
-  if (rec.status !== 'complete') db.set(id, { status: 'missing' });
+  if (rec.status !== 'complete') db.update(id, { status: 'missing' });
   return db.get(id);
 }
 
