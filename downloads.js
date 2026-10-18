@@ -349,10 +349,14 @@ function forget(id) {
   db.delete(id);
 }
 
+/** The file a record plays, without the torrent's folders: the episode itself inside a season pack. */
+const fileLabel = (r) => (r.fileName ? path.posix.basename(r.fileName.replace(/\\/g, '/')) : null);
+
 const view = (r, t) => ({
   id: r.id,
   type: r.type,
   title: r.title,
+  label: fileLabel(r),
   status: r.status,
   progress: r.progress || 0,
   error: r.error || null,
@@ -393,6 +397,7 @@ module.exports = {
   localPath,
   localCandidates,
   view,
+  fileLabel,
   list,
   pause,
   resume,

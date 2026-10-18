@@ -14,6 +14,8 @@ const security = require('./security');
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The episode's own file name once it is known; the torrent name (a whole season pack, say) until then.
+const label = (rec) => dl.fileLabel(rec) || rec.title || '';
 
 const manifest = {
   id: 'community.local.download-and-watch',
@@ -72,13 +74,13 @@ router.get('/stream/:type/:id.json', (req, res) => {
   let stream;
 
   if (rec && rec.status === 'complete') {
-    stream = { name: '🏠 Your server', description: `Watch from your server\n${rec.title || ''}`, url, behaviorHints: hints };
+    stream = { name: '🏠 Your server', description: `Watch from your server\n${label(rec)}`, url, behaviorHints: hints };
   } else if (rec && (rec.status === 'downloading' || rec.status === 'queued')) {
     const pct = Math.round((rec.progress || 0) * 100);
     const playable = Math.floor((rec.playable || 0) * 100);
     stream = {
       name: `⏳ Your server ${pct}%`,
-      description: `${playable ? `Playable up to ${playable}%` : 'Downloading, not playable yet'}\n${rec.title || ''}`,
+      description: `${playable ? `Playable up to ${playable}%` : 'Downloading, not playable yet'}\n${label(rec)}`,
       url,
       behaviorHints: hints,
     };

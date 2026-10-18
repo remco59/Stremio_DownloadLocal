@@ -109,6 +109,7 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
     await waitFor(() => env.db.get(ID).progress > 0);
     const [s] = await stream();
     assert.equal(s.name, `⏳ Your server ${Math.round((until / MOVIE.size) * 100)}%`);
+    assert.match(s.description, /\nThe\.Matrix\.1999\.1080p\.mkv$/, 'the file name, not the torrent name or its folder');
     assert.ok(t);
   });
 

@@ -140,6 +140,7 @@ module.exports = function manageSuite({ client }) {
     const t = env.mock.torrents.get(hash);
     assert.deepEqual(t.files.map((f) => f.priority), [1, 1, 0]);
     assert.equal((await item(e1)).shared, true);
+    assert.equal((await item(e2)).label, 'E02.mkv', 'the episode file, not the pack name');
 
     assert.equal((await act(e1, 'delete-files')).status, 200);
     assert.equal(env.mock.torrents.has(hash), true, 'torrent stays for episode 2');

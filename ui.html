@@ -328,7 +328,7 @@ async function action(d, name, method, confirmText) {
 }
 
 function itemButtons(d) {
-  const label = d.title || d.id;
+  const label = d.label || d.title || d.id;
   const out = [];
   const btn = (text, fn, title) => { const b = el('button', { type: 'button', textContent: text, title: title || '' }); b.onclick = fn; out.push(b); };
   const active = d.status === 'queued' || d.status === 'downloading';
@@ -372,7 +372,7 @@ async function refresh() {
     box.append(
       el('div', { className: 'item dl ' + d.status + (d.paused ? ' paused' : '') },
         el('div', { className: 'grow' },
-          el('div', { className: 't', textContent: d.title || d.id }),
+          el('div', { className: 't', textContent: d.label || d.title || d.id, title: d.title || '' }),
           el('div', { className: 's', textContent: meta, title: d.fileName || '' }),
           el('div', { className: 'bar' }, el('div', { style: `width:${pct}%` })),
           el('div', { className: 'actions' }, ...itemButtons(d)))));
