@@ -40,3 +40,27 @@ test('update() only patches existing records', () => {
   env.db.set('tt2000002', { status: 'queued' });
   assert.equal(env.db.update('tt2000002', { status: 'missing' }).status, 'missing');
 });
+
+test('a download removed during a sync round stays removed', async () => {
+  const id = 'tt2000003';
+  const hash = '6'.repeat(40);
+  env.mock.addTorrent({ hash, files: [{ name: 'R.mkv', size: 2048 }] });
+  env.db.set(id, {
+    id, type: 'movie', status: 'downloading', selected: true, infoHash: hash, fileIndex: 0,
+    fileName: 'R.mkv', fileSize: 2048, fileOffset: 0, pieceSize: 16384, savePath: '/downloads', createdAt: Date.now(),
+  });
+  const client = require('../clients');
+  const files = client.files;
+  // "Remove" lands while the round waits for the file list.
+  client.files = async (h) => {
+    const out = await files(h);
+    env.db.update(id, { status: 'missing' });
+    return out;
+  };
+  try {
+    await env.dl.syncOnce();
+  } finally {
+    client.files = files;
+  }
+  assert.equal(env.db.get(id).status, 'missing');
+});

@@ -72,6 +72,7 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
     const [s] = await stream();
     assert.match(s.name, /Download/);
     assert.equal(s.url, `${env.base}/play/movie/${ID}`);
+    assert.equal(s.behaviorHints.bingeGroup, undefined, 'never auto-played as the next episode');
   });
 
   test('queueing picks the best <= MAX_RES torrent and selects only the needed file', async () => {
@@ -150,6 +151,7 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
     await waitFor(() => env.db.get(ID).status === 'complete');
     const [s] = await stream();
     assert.equal(s.name, '🏠 Your server');
+    assert.equal(s.behaviorHints.bingeGroup, 'local-download');
 
     const r = await rawGet(`/play/movie/${ID}`);
     assert.equal(r.status, 200);
@@ -190,10 +192,13 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
     assert.deepEqual(r.body, data);
   });
 
-  test('/play reports a lookup failure without hanging', async () => {
-    const r = await get('/play/movie/tt0000404');
-    assert.equal(r.status, 502);
-    assert.match(await r.text(), /No torrents found/);
+  test('/play turns a lookup failure into the error clip', async () => {
+    const r = await get('/play/movie/tt0000404', { redirect: 'manual' });
+    assert.equal(r.status, 302);
+    assert.equal(r.headers.get('location'), `${env.base}/clip/error.mp4`);
     assert.equal(env.db.get('tt0000404').status, 'error');
+    const c = await fetch(r.headers.get('location'));
+    assert.equal(c.status, 200);
+    assert.equal(c.headers.get('content-type'), 'video/mp4');
   });
 };

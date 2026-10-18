@@ -48,8 +48,10 @@ const FIELDS = [
   { key: 'blockKeywords', group: 'Torrent choice', label: 'Blocked words / release groups', type: 'text', optional: true,
     help: 'Comma separated. Releases containing any of these are never picked.' },
 
-  { key: 'waitForStartMs', group: 'Timeouts', label: 'Wait for torrent metadata (ms)', type: 'int', min: 1000, max: 600000 },
-  { key: 'stallMs', group: 'Timeouts', label: 'Wait for missing pieces (ms)', type: 'int', min: 1000, max: 600000 },
+  { key: 'waitForStartMs', group: 'Timeouts', label: 'First tap: wait before showing the status clip (ms)', type: 'int', min: 1000, max: 600000,
+    help: 'If the start of the file is there by then it plays right away; otherwise Stremio shows a short "download started" clip.' },
+  { key: 'seekWaitMs', group: 'Timeouts', label: 'Seek past the downloaded part: wait (ms)', type: 'int', min: 1000, max: 600000 },
+  { key: 'stallMs', group: 'Timeouts', label: 'While playing: wait for missing pieces (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'syncIntervalMs', group: 'Timeouts', label: 'Client poll interval (ms)', type: 'int', min: 1000, max: 600000 },
 ];
 const BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));

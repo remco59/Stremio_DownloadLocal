@@ -6,7 +6,7 @@ const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
 const client = require('./clients');
-const { localCandidates } = require('./downloads');
+const { localCandidates, availableFrom } = require('./downloads');
 
 const MIME = {
   '.mkv': 'video/x-matroska',
@@ -31,12 +31,7 @@ async function havePieces(hash) {
 /** Exclusive end offset (within the file) of the contiguous downloaded run starting at `pos`. Returns `pos` if nothing is available. */
 async function availableUntil(rec, pos) {
   if (rec.status === 'complete') return rec.fileSize;
-  const have = await havePieces(rec.infoHash);
-  const ps = rec.pieceSize;
-  let p = Math.floor((rec.fileOffset + pos) / ps);
-  if (!have[p]) return pos;
-  while (p < have.length && have[p]) p++;
-  return Math.min(rec.fileSize, p * ps - rec.fileOffset);
+  return availableFrom(rec, await havePieces(rec.infoHash), pos);
 }
 
 async function openFile(rec) {
