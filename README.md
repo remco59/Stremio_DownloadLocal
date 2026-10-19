@@ -153,13 +153,13 @@ Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Set
 - **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders.
 - **Score**: seeders, then bonuses for the preferred resolution, a preferred language (`nl`, `en`, `multi`, ...; from release names and Torrentio's flags), preferred words / release groups, and season packs for batch downloads. Releases above the max resolution are only used when nothing else exists.
 
-The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode under **Add**, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
+The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode in a **Discover** search, on a title's details page, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
 
 Jackett: use the *all indexers* Torznab URL (`http://jackett:9117/api/v2.0/indexers/all/results/torznab/`) and its API key. Prowlarr has one URL per indexer (`http://prowlarr:9696/<id>/api`); list several separated by commas.
 
 ## Pre-downloading series
 
-Search a series under **Add**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
+Search a series under **Discover**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
 
 ## Managing downloads
 
@@ -186,6 +186,19 @@ On the main page a movie has **Play** right there; everything else for a title s
 - **Series:** the same show details plus how many episodes are on the server, **Download missing episodes** and **Delete show**. Below that, season tabs (with *on the server / total* per season), **Download missing episodes** and **Delete season** per season, and every episode with its thumbnail, air date and summary. Each episode shows whether it is on the server, downloading, failed or not released yet, with **Play** or **Download** and a **⋯** menu for the rest (choose another torrent, pause, remove from the torrent client, forget, delete).
 
 Titles on the **Downloads** page link to the same details page. Deleting always asks first and works like *Delete files* on the Downloads page, including for season packs. A season or show delete only removes finished episodes; ones still downloading are left alone.
+
+## Discover
+
+The **Discover** page suggests movies and series to download next. Stremio does not share watch history with add-ons, so the add-on learns from what is on your server: the genres, directors, writers and cast of everything you downloaded. Recent downloads count more than old ones, a show with many episodes more than a single movie, and titles you played in the web player more than ones you only downloaded. Candidates come from Cinemeta's popular, top rated and new-this-year catalogs (also per favourite genre) and are ranked against that, in rows:
+
+- **Movies for you** / **Series for you**: the best fits overall, with why (*From Christopher Nolan*, *With Emily Blunt*, or the genres you like).
+- **Because you have ...**: titles close to the ones that weigh most in your library.
+- **New movies / series for you**: this year's releases that fit.
+- **Top rated** in your favourite genres.
+
+Titles already on the server (or failed or removed there) and ones not released yet never show, and each title shows in one row only. Movies have a **Download** button on the poster; click a poster for the full details page with **Download**, **Choose a torrent** or, for a show, **Download whole show** and per-season and per-episode downloads. **✕** (*Not interested*) hides a title for good; **Show them again** at the bottom brings hidden titles back (stored in `DATA_DIR/discover.json`). With nothing on the server yet, the page shows what is popular and top rated.
+
+The search box at the top finds any movie or series on Cinemeta; its results replace the suggestions until the box is emptied.
 
 ## Watching in the browser
 

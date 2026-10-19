@@ -53,7 +53,7 @@ Both containers mount the same host downloads folder at `/downloads` (read-write
 
 **Web interface** (`/`, behind a username/password login), served by the same container, three areas:
 
-1. **Add / pre-download**: search via Cinemeta, pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
+1. **Discover / pre-download**: recommendations scored against a taste profile of what is on the server (genres and people of every download, Cinemeta catalogs as candidates), and search via Cinemeta: pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
 2. **Manage downloads**: live list with progress, status and size; per item: pause/resume, remove from qBittorrent, delete files from disk (with confirmation), re-download, open/play link.
 3. **Settings**: edit all settings in the UI and persist them in `DATA_DIR/settings.json` (env vars only provide the defaults). Covers: torrent client choice (qBittorrent / Transmission) with per-client URL/user/password/category or label and a "test connection" button, path mapping, torrent source (Torrentio URL or Jackett/Prowlarr), max resolution and language/size preferences, timeouts, public URL, and token rotation. Changes apply without restarting the container.
 

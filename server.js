@@ -13,6 +13,7 @@ const security = require('./security');
 const auth = require('./auth');
 const player = require('./player');
 const subtitles = require('./subtitles');
+const discover = require('./discover');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -441,6 +442,30 @@ router.post('/api/download/batch', async (req, res) => {
   } catch (e) {
     res.status(e.status || 502).json({ error: String(e.message) });
   }
+});
+
+// Discover: recommendations from what is on the server. ?played= lists the Stremio IDs the web player has a
+// position for (kept in the browser), which count as watched.
+router.get('/api/discover', async (req, res) => {
+  const played = String(req.query.played || '').split(',').filter((id) => ID_RE.test(id)).slice(0, 500);
+  try {
+    res.json(await discover.recommend({ played }));
+  } catch (e) {
+    res.status(e.status || 502).json({ error: String(e.message) });
+  }
+});
+// "Not interested": { id } hides a title from Discover; DELETE shows every hidden title again.
+router.post('/api/discover/hidden', (req, res) => {
+  try {
+    discover.hide(String((req.body || {}).id || ''));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(e.status || 500).json({ error: String(e.message) });
+  }
+});
+router.delete('/api/discover/hidden', (req, res) => {
+  discover.unhideAll();
+  res.json({ ok: true });
 });
 
 // Cinemeta sits behind Cloudflare, which gives up on a query Cinemeta has not cached yet after ~6 s and sends a
