@@ -111,6 +111,9 @@ test('stream entry says how far it plays', async () => {
   await waitFor(() => env.db.get(id)?.playable > 0);
   const s = (await (await fetch(`${env.base}/stream/movie/${id}.json`)).json()).streams[0];
   assert.match(s.description, /^Playable up to 25%/);
+  // The web UI shows the same on the downloads page.
+  const item = (await (await fetch(`${env.base}/api/downloads`)).json()).items.find((d) => d.id === id);
+  assert.equal(item.playable, 0.25);
 });
 
 test('clips support ranges; unknown clips 404', async () => {

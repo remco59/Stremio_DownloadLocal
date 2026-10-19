@@ -398,6 +398,8 @@ const view = (r, t) => ({
   label: fileLabel(r),
   status: r.status,
   progress: r.progress || 0,
+  // How far it plays from the start (what Stremio shows as "Playable up to N%").
+  playable: r.status === 'complete' ? 1 : r.playable || 0,
   progressAt: r.progressAt || null,
   tried: (r.tried || []).length,
   error: r.error || null,

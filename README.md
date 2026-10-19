@@ -152,7 +152,7 @@ Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Set
 - **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders.
 - **Score**: seeders, then bonuses for the preferred resolution, a preferred language (`nl`, `en`, `multi`, ...; from release names and Torrentio's flags), preferred words / release groups, and season packs for batch downloads. Releases above the max resolution are only used when nothing else exists.
 
-The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or **...** next to an episode. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
+The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode under **Add**, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
 
 Jackett: use the *all indexers* Torznab URL (`http://jackett:9117/api/v2.0/indexers/all/results/torznab/`) and its API key. Prowlarr has one URL per indexer (`http://prowlarr:9696/<id>/api`); list several separated by commas.
 
@@ -162,14 +162,16 @@ Search a series under **Add**, open **Episodes**, and download a single episode,
 
 ## Managing downloads
 
-The **Downloads** page lists everything the add-on knows about, with progress, size, speed and ETA. Per item:
+The web UI opens on the **Downloads** page. It lists everything the add-on knows about in three groups: *Needs attention* (failed or removed), *Downloading* and *On your server*. Episodes are grouped per show, and titles, episode names and posters come from Cinemeta. Each item shows its size, speed and ETA, and how far it already plays from the start (the bright part of the bar). Per item:
 
+- **Play** opens the stream URL (works in a browser or VLC). It shows up once the start of the file is there.
 - **Pause / Resume** the torrent.
-- **Play** opens the stream URL (works in a browser or VLC).
-- **Remove** takes it out of the torrent client and keeps the files. A finished file stays playable from Stremio.
-- **Delete files** deletes it from disk (after a confirmation). This goes through the torrent client while it still has the torrent, otherwise the add-on deletes the file itself (needs the read-write mount). It never touches anything outside the downloads folder.
-- **Re-download** an item that failed or was removed.
-- **✕ Forget** removes it from the list only.
+- **Try again / Download again** an item that failed or was removed.
+- Under **More**:
+  - **Choose another torrent** opens the torrent picker.
+  - **Remove from torrent client** takes it out of the torrent client and keeps the files. A finished file stays playable from Stremio.
+  - **Forget** removes it from the list only.
+  - **Delete files** deletes it from disk (after a confirmation). This goes through the torrent client while it still has the torrent, otherwise the add-on deletes the file itself (needs the read-write mount). It never touches anything outside the downloads folder.
 
 Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
 
