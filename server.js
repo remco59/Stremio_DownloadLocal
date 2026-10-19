@@ -106,8 +106,9 @@ addon.get('/stream/:type/:id.json', (req, res) => {
   res.json({ streams: [stream], cacheMaxAge: 0 });
 });
 
-// Play URL: starts the download if needed, then plays the file as soon as its start is there. A first tap that
-// would take too long gets a short status clip instead (Stremio would otherwise show a playback error).
+// Play URL: starts the download if needed (answering with a status clip right away), then plays the file as soon
+// as its start is there. A tap that would take too long gets a short status clip instead (Stremio would otherwise
+// show a playback error).
 addon.all('/play/:type/:id', async (req, res) => {
   const { type, id } = req.params;
   if (!valid(type, id)) return res.status(400).send('bad id');
@@ -115,7 +116,8 @@ addon.all('/play/:type/:id', async (req, res) => {
 
   // Starting a new download is rate limited; playing what is already there is not.
   const known = db.get(id);
-  if (!known || known.status === 'error' || known.status === 'missing') {
+  const isNew = !known || known.status === 'error' || known.status === 'missing';
+  if (isNew) {
     const r = security.takePlayStart(req.ip);
     if (!r.ok) return res.status(429).set('Retry-After', String(Math.ceil(r.retryMs / 1000))).type('text').send('Too many new downloads, try again in a minute');
   }
@@ -124,6 +126,13 @@ addon.all('/play/:type/:id', async (req, res) => {
   res.on('close', () => (gone = true));
   const since = Date.now();
 
+  if (isNew) {
+    // New download: the torrent search and the client round trip can take most of a minute, so do not make
+    // Stremio wait for them. Show the status clip now; the next tap finds the record (or the error) in place.
+    // A title whose last attempt failed is retried the same way, and shows that failure meanwhile.
+    dl.ensureDownload(type, id).catch((e) => console.error('[play]', id, e.message));
+    return clip(req, res, known && known.status === 'error' ? 'error' : 'started');
+  }
   try {
     await dl.ensureDownload(type, id);
   } catch (e) {

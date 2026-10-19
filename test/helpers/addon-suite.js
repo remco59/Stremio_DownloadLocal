@@ -187,17 +187,26 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
       env.mock.completeAll(h);
     };
 
+    // First tap: the "download started" clip right away, the search and the add carry on in the background.
+    const first = await get(`/play/movie/${id}`, { redirect: 'manual' });
+    assert.equal(first.status, 302);
+    assert.equal(first.headers.get('location'), `${env.base}/clip/started.mp4`);
+    await waitFor(() => env.db.get(id)?.infoHash === hash);
+
     const r = await rawGet(`/play/movie/${id}`);
     assert.equal(r.status, 200);
     assert.equal(r.headers['content-type'], 'video/mp4');
     assert.deepEqual(r.body, data);
   });
 
-  test('/play turns a lookup failure into the error clip', async () => {
+  test('/play shows the started clip at once; a lookup failure shows the error clip on the next tap', async () => {
+    const first = await get('/play/movie/tt0000404', { redirect: 'manual' });
+    assert.equal(first.status, 302);
+    assert.equal(first.headers.get('location'), `${env.base}/clip/started.mp4`);
+    await waitFor(() => env.db.get('tt0000404')?.status === 'error');
     const r = await get('/play/movie/tt0000404', { redirect: 'manual' });
     assert.equal(r.status, 302);
     assert.equal(r.headers.get('location'), `${env.base}/clip/error.mp4`);
-    assert.equal(env.db.get('tt0000404').status, 'error');
     const c = await fetch(r.headers.get('location'));
     assert.equal(c.status, 200);
     assert.equal(c.headers.get('content-type'), 'video/mp4');

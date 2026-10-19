@@ -70,8 +70,19 @@ const queue = (id) =>
   env.api(`/api/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'movie', id }) });
 const play = (id, headers = {}) => fetch(`${env.base}/play/movie/${id}`, { headers, redirect: 'manual' });
 
+test('tap on a title not looked up yet: the "download started" clip at once, the download starts in the background', async () => {
+  const { id, hash } = await title({ pieces: 3 });
+  const t0 = Date.now();
+  const r = await play(id);
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), `${env.base}/clip/started.mp4`);
+  assert.ok(Date.now() - t0 < 300, 'does not wait for the search');
+  await waitFor(() => env.db.get(id)?.infoHash === hash);
+});
+
 test('first tap without metadata: the "looking for the torrent" clip', async () => {
   const { id } = await title({ metadata: false });
+  await queue(id);
   const r = await play(id);
   assert.equal(r.status, 302);
   assert.equal(r.headers.get('location'), `${env.base}/clip/metadata.mp4`);
@@ -79,6 +90,7 @@ test('first tap without metadata: the "looking for the torrent" clip', async () 
 
 test('first tap with nothing downloaded yet: the "download started" clip', async () => {
   const { id } = await title({ pieces: 0 });
+  await queue(id);
   const r = await play(id);
   assert.equal(r.status, 302);
   assert.equal(r.headers.get('location'), `${env.base}/clip/started.mp4`);
@@ -86,6 +98,7 @@ test('first tap with nothing downloaded yet: the "download started" clip', async
 
 test('first tap with the start downloaded: plays right away', async () => {
   const { id } = await title({ pieces: 3 });
+  await queue(id);
   const t0 = Date.now();
   const r = await play(id, { Range: 'bytes=0-1023' });
   assert.equal(r.status, 206);
