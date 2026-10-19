@@ -24,7 +24,7 @@
   h1, h2, h3 { text-wrap: balance; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   .i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-  .i-more, .i-play { fill: currentColor; }
+  .i-more, .i-play, .i-pause { fill: currentColor; }
 
   /* header + nav */
   header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 16px; }
@@ -256,7 +256,7 @@
   button.danger-solid:hover { background: #ad3131; border-color: #ad3131; }
   button.del { color: var(--err); }
   button.del:hover { border-color: rgba(255, 107, 107, .5); }
-  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
+  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 150; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
   .toast { padding: 10px 16px; border-radius: 999px; background: #262b36; border: 1px solid var(--line-hi); font-size: 14px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8); animation: toast-in .3s cubic-bezier(.16, 1, .3, 1); transition: opacity .3s, transform .3s; }
   .toast.err { background: #3a1c20; border-color: #6b2a31; color: #ffd0d0; }
   .toast.out { opacity: 0; transform: translateY(6px); }
@@ -361,6 +361,80 @@
   .msg.ok { color: var(--ok); }
   .msg.err { color: var(--err); }
   .msg.warn { color: var(--warn); }
+
+  /* player */
+  body.watching { overflow: hidden; }
+  .watch { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: grid; user-select: none; -webkit-user-select: none; --cue: 100%; }
+  .watch video { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .watch video::cue { background: rgba(0, 0, 0, .55); color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.3; }
+  .watch.cue-s video::cue { font-size: 75%; }
+  .watch.cue-l video::cue { font-size: 135%; }
+  .watch.cue-xl video::cue { font-size: 170%; }
+  .watch.idle { cursor: none; }
+  .w-layer { grid-area: 1 / 1; position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+  .w-layer > * { pointer-events: auto; }
+  .w-top, .w-bottom { padding: 14px 18px; transition: opacity .25s; }
+  .w-top { display: flex; gap: 12px; align-items: center; background: linear-gradient(rgba(0, 0, 0, .75), transparent); padding-bottom: 36px; }
+  .w-bottom { position: relative; background: linear-gradient(transparent, rgba(0, 0, 0, .8)); padding-top: 40px; }
+  .watch.idle .w-top, .watch.idle .w-bottom { opacity: 0; pointer-events: none; }
+  .w-title { flex: 1; min-width: 0; display: grid; }
+  .w-title strong { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .w-title span { font-size: 13px; color: #b9bfcb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .watch button.w-i { background: none; border: 0; color: #fff; width: 42px; height: 42px; padding: 0; border-radius: 50%; flex: none; }
+  .watch button.w-i:hover { background: rgba(255, 255, 255, .14); }
+  .watch button.w-i .i { width: 22px; height: 22px; }
+  .watch button.w-i[aria-pressed="true"] { color: var(--acc-hi); }
+  .watch button.w-txt { background: rgba(255, 255, 255, .12); border: 0; color: #fff; }
+  .watch button.w-txt:hover { background: rgba(255, 255, 255, .2); }
+  .w-ctrls { display: flex; gap: 4px; align-items: center; margin-top: 6px; }
+  .w-time { font-size: 14px; font-variant-numeric: tabular-nums; color: #dfe2e8; margin-left: 8px; white-space: nowrap; }
+  .w-spacer { flex: 1; }
+  .w-vol { display: flex; align-items: center; }
+  .w-vol input { width: 84px; accent-color: #fff; padding: 0; border: 0; background: none; }
+  .w-seek { position: relative; height: 22px; display: flex; align-items: center; cursor: pointer; touch-action: none; border-radius: 4px; }
+  .w-track { position: relative; width: 100%; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .22); transition: height .15s; }
+  .w-seek:hover .w-track, .w-seek.drag .w-track, .w-seek:focus-visible .w-track { height: 6px; }
+  .w-track > div { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; }
+  .w-avail { right: 0; left: auto !important; background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .08) 0 4px, transparent 4px 8px), rgba(0, 0, 0, .35); }
+  .w-buf { background: rgba(255, 255, 255, .38); }
+  .w-pos { background: var(--acc-hi); }
+  .w-knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .6); transform: scale(0); transition: transform .15s; }
+  .w-seek:hover .w-knob, .w-seek.drag .w-knob, .w-seek:focus-visible .w-knob { transform: none; }
+  .w-tip { position: absolute; bottom: 24px; transform: translateX(-50%); padding: 3px 7px; border-radius: 5px; background: rgba(15, 17, 21, .92); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
+  .w-center { grid-area: 1 / 1; position: relative; z-index: 2; place-self: center; display: grid; justify-items: center; gap: 14px; text-align: center; max-width: min(480px, calc(100vw - 32px)); pointer-events: none; }
+  .w-center > * { pointer-events: auto; }
+  .w-big { width: 72px; height: 72px; border-radius: 50%; background: rgba(15, 17, 21, .6) !important; border: 0; display: grid; place-items: center; color: #fff; padding: 0; }
+  .w-big:hover { background: var(--acc) !important; }
+  .w-big .i { width: 32px; height: 32px; margin-left: 4px; }
+  .w-spin { width: 46px; height: 46px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .2); border-top-color: #fff; animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .w-msg { background: rgba(15, 17, 21, .9); border: 1px solid var(--line-hi); border-radius: 12px; padding: 18px 20px; display: grid; gap: 12px; justify-items: center; }
+  .w-msg p { margin: 0; color: #cfd3db; font-size: 14px; }
+  .w-msg strong { font-size: 16px; }
+  .w-msg .row { margin: 0; justify-content: center; }
+  .w-note { position: absolute; left: 18px; bottom: calc(100% - 30px); display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 999px; background: rgba(15, 17, 21, .88); font-size: 13px; }
+  .w-note button { background: none; border: 0; padding: 0; color: var(--acc-hi); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; min-height: 0; }
+  .w-state { font-size: 12px; color: #b9bfcb; margin-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .w-panel { position: absolute; right: 14px; bottom: 84px; width: min(340px, calc(100vw - 28px)); max-height: calc(100% - 150px); overflow-y: auto; background: rgba(24, 27, 34, .97); border: 1px solid var(--line-hi); border-radius: 12px; padding: 8px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .9); scrollbar-width: thin; }
+  .w-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--mut); margin: 8px 10px 4px; font-weight: 600; }
+  .w-panel .opt { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 0 8px; align-items: center; width: 100%; background: none; border: 0; border-radius: 7px; padding: 8px 10px; text-align: left; white-space: normal; justify-content: stretch; font-size: 14px; color: var(--fg); }
+  .w-panel .opt:hover { background: #2b303b; }
+  .w-panel .opt .i { width: 16px; height: 16px; visibility: hidden; color: var(--acc-hi); }
+  .w-panel .opt[aria-pressed="true"] .i { visibility: visible; }
+  .w-panel .opt small { grid-column: 2; color: var(--mut); font-size: 12px; overflow-wrap: anywhere; }
+  .w-panel .msg { padding: 4px 10px 8px; }
+  .w-panel hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+  .w-adj { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 14px; }
+  .w-adj .seg button { padding: 5px 9px; }
+  .w-adj output { align-self: center; font-variant-numeric: tabular-nums; min-width: 52px; text-align: center; font-size: 13px; }
+  @media (max-width: 600px) {
+    .w-top, .w-bottom { padding-left: 10px; padding-right: 10px; }
+    .w-vol input, .w-hide-sm { display: none; }
+    .w-time { font-size: 13px; margin-left: 2px; }
+    .watch button.w-i { width: 40px; height: 40px; }
+    .w-panel { right: 8px; bottom: 76px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .w-top, .w-bottom, .w-knob, .w-track { transition: none; } .w-spin { animation-duration: 2.5s; } }
 </style>
 </head>
 <body>
@@ -467,6 +541,41 @@
 </dialog>
 <div id="toasts" aria-hidden="true"></div>
 
+<div id="watch" class="watch" hidden role="dialog" aria-modal="true" aria-labelledby="wTitle">
+  <video id="wv" playsinline preload="auto"></video>
+  <div class="w-center"><div class="w-spin" id="wSpin" hidden></div><button type="button" class="w-big" id="wBig" hidden aria-label="Play"></button><div class="w-msg" id="wMsg" role="alert" hidden></div></div>
+  <div class="w-layer">
+    <div class="w-top">
+      <button type="button" class="w-i" id="wBack" aria-label="Close player" title="Close (Esc)"></button>
+      <div class="w-title"><strong id="wTitle"></strong><span id="wSub"></span></div>
+      <button type="button" class="w-txt" id="wNext" hidden></button>
+      <button type="button" class="w-i" id="wLink" aria-label="Copy the stream URL (for VLC)" title="Copy the stream URL (for VLC)"></button>
+    </div>
+    <div class="w-bottom" id="wBottom">
+      <div class="w-note" id="wNote" hidden></div>
+      <div class="w-seek" id="wSeek" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0">
+        <div class="w-track"><div class="w-buf" id="wBuf"></div><div class="w-pos" id="wPos"></div><div class="w-avail" id="wAvail" hidden></div></div>
+        <div class="w-knob" id="wKnob"></div>
+        <div class="w-tip" id="wTip" hidden></div>
+      </div>
+      <div class="w-ctrls">
+        <button type="button" class="w-i" id="wPlay" aria-label="Play" title="Play (k)"></button>
+        <button type="button" class="w-i w-hide-sm" id="wRew" aria-label="Back 10 seconds" title="Back 10 s (←)"></button>
+        <button type="button" class="w-i w-hide-sm" id="wFwd" aria-label="Forward 10 seconds" title="Forward 10 s (→)"></button>
+        <div class="w-vol"><button type="button" class="w-i" id="wMute" aria-label="Mute" title="Mute (m)"></button><input type="range" id="wVol" min="0" max="1" step="0.05" aria-label="Volume"></div>
+        <span class="w-time" id="wTime">0:00</span>
+        <span class="w-state" id="wState"></span>
+        <span class="w-spacer"></span>
+        <button type="button" class="w-i" id="wAudio" aria-label="Audio track" aria-haspopup="true" aria-expanded="false" title="Audio track"></button>
+        <button type="button" class="w-i" id="wSubs" aria-label="Subtitles" aria-haspopup="true" aria-expanded="false" title="Subtitles (c)"></button>
+        <button type="button" class="w-i w-hide-sm" id="wPip" aria-label="Picture in picture" title="Picture in picture" hidden></button>
+        <button type="button" class="w-i" id="wFs" aria-label="Full screen" title="Full screen (f)"></button>
+      </div>
+    </div>
+    <div class="w-panel" id="wPanel" role="dialog" hidden></div>
+  </div>
+</div>
+
 <dialog id="picker" aria-labelledby="pickTitle">
   <div class="dlg-head"><h2 id="pickTitle"></h2><button type="button" id="pickClose"><span class="lbl">Close</span></button></div>
   <div id="pickBody"></div>
@@ -498,6 +607,17 @@ const ICONS = {
   list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.75" cy="6.5" r=".9"/><circle cx="4.75" cy="12" r=".9"/><circle cx="4.75" cy="17.5" r=".9"/>',
   back: '<path d="M14.5 6l-6 6 6 6"/>',
   check: '<path d="M5.5 12.5l4 4 9-9"/>',
+  pause: '<rect x="6.5" y="5" width="3.6" height="14" rx="1"/><rect x="13.9" y="5" width="3.6" height="14" rx="1"/>',
+  rew: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v3.5H8"/><path d="M10 10v5M12.5 10h2.2v5h-2.2z"/>',
+  fwd: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v3.5H16"/><path d="M9.5 10v5M12 10h2.2v5H12z"/>',
+  vol: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+  mute: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>',
+  audio: '<path d="M4.5 13.5v-1.5a7.5 7.5 0 0 1 15 0v1.5"/><rect x="3.5" y="13.5" width="4" height="6" rx="1.5"/><rect x="16.5" y="13.5" width="4" height="6" rx="1.5"/>',
+  cc: '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M10.5 10.3a2.3 2.3 0 1 0 0 3.4M17 10.3a2.3 2.3 0 1 0 0 3.4"/>',
+  pip: '<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11.5" width="6.5" height="5" rx="1"/>',
+  fs: '<path d="M4 9V4.5h4.5M15.5 4.5H20V9M20 15v4.5h-4.5M8.5 19.5H4V15"/>',
+  fsexit: '<path d="M8.5 4v4.5H4M20 8.5h-4.5V4M15.5 20v-4.5H20M4 15.5h4.5V20"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -581,9 +701,15 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- views ----
 const VIEWS = ['downloads', 'library', 'add', 'settings'];
-// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages.
+// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages; #watch/<type>/<id> the player.
+const watchHref = (type, id) => `#watch/${type}/${encodeURIComponent(id)}`;
 function route() {
   const [v, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  if (v === 'watch') {
+    let id = '';
+    try { id = decodeURIComponent(tt || ''); } catch { /* bad link */ }
+    if ((type === 'movie' || type === 'series') && /^tt\d+(:\d+:\d+)?$/.test(id)) return { view: 'watch', type: null, tt: null, watch: { type, id } };
+  }
   const view = VIEWS.includes(v) ? v : 'downloads';
   const detail = view === 'library' && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
   return { view, type: detail ? type : null, tt: detail ? tt : null };
@@ -595,6 +721,8 @@ let navigated = false; // whether Back can use the browser history
 
 function show() {
   const r = route();
+  if (r.watch) return openWatch(r.watch.type, r.watch.id); // over whatever page was showing
+  closeWatch(false);
   document.querySelectorAll('nav a').forEach((a) => {
     if (a.dataset.view === r.view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -804,12 +932,7 @@ function renderActs(card) {
   const box = $('.acts', card);
   const hadFocus = box.contains(document.activeElement);
   const out = a.primary.map((k) => {
-    if (k === 'play') {
-      const link = el('a', { className: d.status === 'complete' ? 'btn primary' : 'btn', target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Opens in the browser; or copy the link into VLC' },
-        icon('play'), el('span', { className: 'lbl', textContent: 'Play' }));
-      link.setAttribute('aria-label', `Play ${n.full}`);
-      return link;
-    }
+    if (k === 'play') return playLink(d, n.full, d.status === 'complete' ? 'btn primary' : 'btn');
     const A = ACTS[k];
     const label = k === 'redownload' && d.status === 'missing' ? 'Download again' : A.label;
     const b = button(label, { cls: k === 'redownload' ? 'primary' : '', title: k === 'pause' && d.shared ? 'Pauses the whole season pack (other episodes share it)' : '' });
@@ -1002,13 +1125,13 @@ function renderDownloads() {
   const b = $('#dlBad');
   b.hidden = !by.attention.length;
   b.replaceChildren(String(by.attention.length), el('span', { className: 'sr-only', textContent: ' need attention' }));
-  document.title = by.active.length ? `(${by.active.length}) ${APP}` : APP;
+  if (!W.open) document.title = by.active.length ? `(${by.active.length}) ${APP}` : APP;
 }
 let renderQueued = false;
 function renderSoon() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); renderLibrary(); renderDetail(); openLists.forEach((f) => f()); });
+  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); renderLibrary(); renderDetail(); openLists.forEach((f) => f()); watchTitle(); });
 }
 
 function noticeFinished(items) {
@@ -1045,6 +1168,8 @@ async function refresh() {
   renderDownloads();
   renderLibrary();
   renderDetail();
+  watchTitle();
+  if (W.open) renderTime();
 }
 
 // ---- library: everything on the server, as a grid or a list; each title opens its details page ----
@@ -1114,7 +1239,7 @@ function moreMenu(label, entries) {
 }
 
 function playLink(d, label, cls) {
-  const a = el('a', { className: cls, target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Opens in the browser; or copy the link into VLC' },
+  const a = el('a', { className: cls, href: watchHref(d.type, d.id), title: 'Play here, with subtitles and audio track choice' },
     icon('play'), el('span', { className: 'lbl', textContent: 'Play' }));
   a.setAttribute('aria-label', `Play ${label}`);
   return a;
@@ -2022,6 +2147,807 @@ $('#rotate').onclick = async () => {
     msg.textContent = 'Rotating failed: ' + e.message;
   }
 };
+
+// ---- player: plays a download in the page, with audio track and subtitle choice ----
+// Files the browser plays as they are (MP4/WebM with codecs it knows) use the /play URL and seek natively.
+// Everything else goes through ffmpeg on the server (api/player/.../stream.mp4): a stream that starts at a given
+// time, so a seek outside what is buffered starts a new stream there. The timeline is always the file's own:
+// `W.offset` (where the current stream starts) + the video element's time.
+const wv = $('#wv');
+const W = { open: false, key: null, seq: 0 };
+const langNames = (() => { try { return new Intl.DisplayNames(['en'], { type: 'language' }); } catch { return null; } })();
+const langName = (c) => { if (!c) return ''; try { return langNames?.of(c) || c; } catch { return c; } };
+const fmtTime = (s) => {
+  s = Math.max(0, Math.floor(s || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+};
+const store = {
+  get(k, def) { try { const v = localStorage.getItem('ldw-' + k); return v == null ? def : JSON.parse(v); } catch { return def; } },
+  set(k, v) { try { localStorage.setItem('ldw-' + k, JSON.stringify(v)); } catch { /* memory only */ } },
+};
+const can = (mime) => !!mime && (wv.canPlayType(mime) !== '' || !!(window.MediaSource && MediaSource.isTypeSupported(mime)));
+// Container the server converts to: MP4 (H.264/AAC) where the browser plays that, else WebM (VP9/Opus).
+const streamFormat = () => (can('video/mp4; codecs="avc1.640028, mp4a.40.2"') ? 'mp4' : 'webm');
+const MIMES = { mp4: 'video/mp4', webm: 'video/webm' };
+
+['#wBack:back', '#wLink:link', '#wPlay:play', '#wBig:play', '#wRew:rew', '#wFwd:fwd', '#wMute:vol', '#wAudio:audio', '#wSubs:cc', '#wPip:pip', '#wFs:fs']
+  .forEach((x) => { const [sel, ico] = x.split(':'); $(sel).append(icon(ico)); });
+const setIcon = (b, name) => { if (!b.querySelector('.i-' + name)) b.replaceChildren(icon(name)); };
+
+const absTime = () => (W.offset || 0) + (wv.currentTime || 0);
+const duration = () => (W.info && W.info.duration) || (Number.isFinite(wv.duration) ? wv.duration : 0);
+const itemOf = () => known.get(W.id) || null;
+// While downloading: how far it plays (by bytes downloaded from the start; close enough to time for a seek limit).
+function playableUntil() {
+  const d = itemOf();
+  const dur = duration();
+  if (!d || d.status === 'complete' || !dur) return dur;
+  return Math.max(0, (d.playable || 0) * dur - Math.max(10, dur * 0.02));
+}
+
+function watchNames() {
+  const d = itemOf() || { id: W.id, type: W.type, title: '' };
+  const n = names(d);
+  if (W.type === 'series' && n.show) return { title: n.show, sub: n.title };
+  return { title: n.title, sub: n.year || '' };
+}
+
+function openWatch(type, id) {
+  const key = `${type}/${id}`;
+  if (W.open && W.key === key) return;
+  closeWatch(false);
+  Object.assign(W, {
+    open: true, key, type, id, info: null, noFfmpeg: false, offset: 0, mode: null, audio: null, sub: null, burn: null,
+    cues: [], delay: 0, online: null, onlineAll: false, panel: null, triedStream: false, lastSave: 0, ended: false, cueLine: null,
+  });
+  W.track = W.track || wv.addTextTrack('subtitles', 'Subtitles');
+  W.track.mode = 'showing';
+  clearCues();
+  document.body.classList.add('watching');
+  for (const x of document.querySelectorAll('header.top, main')) x.inert = true; // the player is all there is
+  $('#watch').hidden = false;
+  $('#watch').className = 'watch cue-' + store.get('sub-size', 'm');
+  wv.volume = store.get('vol', 1);
+  wv.muted = store.get('muted', false);
+  $('#wVol').value = String(wv.volume);
+  $('#wPip').hidden = !document.pictureInPictureEnabled;
+  setMsg(null);
+  watchTitle();
+  renderControls();
+  spin(true);
+  $('#wPlay').focus();
+  wake();
+  loadInfo();
+}
+
+function watchTitle() {
+  if (!W.open) return;
+  const n = watchNames();
+  setText($('#wTitle'), n.title);
+  setText($('#wSub'), n.sub);
+  document.title = `${n.sub ? `${n.title} ${n.sub.split(' · ')[0]}` : n.title} · ${APP}`;
+  const next = nextEpisode();
+  const nb = $('#wNext');
+  nb.hidden = !next;
+  if (next) {
+    setText(nb, `Next: ${epCode(...next.id.split(':').slice(1))}`);
+    nb.onclick = () => playNext(next);
+  }
+}
+
+// The next episode of the show that plays (finished, or downloading and playable), if any.
+function nextEpisode() {
+  if (W.type !== 'series' || !W.id.includes(':')) return null;
+  const [show, s, e] = W.id.split(':');
+  const after = (d) => { const [ds, de] = epNum(d); return ds > +s || (ds === +s && de > +e); };
+  return [...known.values()]
+    .filter((d) => d.id.startsWith(show + ':') && after(d) && (d.status === 'complete' || (d.status === 'downloading' && d.playable > 0.02)))
+    .sort((a, b) => { const [as, ae] = epNum(a); const [bs, be] = epNum(b); return as - bs || ae - be; })[0] || null;
+}
+function playNext(d) {
+  location.replace(`#watch/${d.type}/${encodeURIComponent(d.id)}`);
+}
+
+async function loadInfo() {
+  const seq = ++W.seq;
+  let info = null;
+  try {
+    info = await api(`api/player/${W.type}/${encodeURIComponent(W.id)}`);
+  } catch (e) {
+    if (seq !== W.seq) return;
+    if (e.ffmpeg === false) W.noFfmpeg = true;
+    else {
+      spin(false);
+      return setMsg({ title: "Can't play this", text: e.message, retry: () => { setMsg(null); spin(true); loadInfo(); } });
+    }
+  }
+  if (seq !== W.seq) return;
+  W.info = info;
+  pickTracks();
+  renderControls();
+  const saved = store.get('pos:' + W.id, null);
+  const dur = duration();
+  let start = 0;
+  if (saved && saved.t > 30 && (!dur || saved.t < dur - 60) && saved.t < playableUntil()) {
+    start = saved.t;
+    note(`Resumed at ${fmtTime(start)}`, 'Start over', () => { note(null); seekTo(0); });
+  }
+  await load(start);
+  if (W.sub && W.sub.kind === 'text') loadSub(W.sub);
+}
+
+// Audio: the language picked last time, else the file's default. Subtitles: the language picked last time
+// (online if the file has none), else forced subtitles in the audio's language.
+function pickTracks() {
+  const info = W.info;
+  if (!info) return;
+  const audioLang = store.get('audio-lang', '');
+  const a = (audioLang && info.audio.find((x) => x.lang === audioLang)) || info.audio.find((x) => x.default) || info.audio[0];
+  W.audio = a ? a.index : null;
+  const subLang = store.get('sub-lang', '');
+  const text = info.subtitles.filter((s) => s.kind === 'text');
+  let sub = null;
+  if (subLang && subLang !== 'off') sub = text.find((s) => s.lang === subLang && !s.forced) || text.find((s) => s.lang === subLang) || null;
+  if (!sub && subLang !== 'off') sub = text.find((s) => s.forced && (!a || !a.lang || s.lang === a.lang)) || null;
+  W.sub = sub;
+  if (!sub && subLang && subLang !== 'off' && info.online) {
+    loadOnline().then(() => {
+      if (!W.sub && W.online) {
+        const o = W.online.find((x) => x.lang === subLang);
+        if (o) chooseSub(o, false);
+      }
+    });
+  }
+}
+
+// Starts playback at `t` seconds into the file, picking how: the file as it is, or a stream from ffmpeg.
+// `paused`: load there but do not start playing (a seek while paused).
+async function load(t, { paused = false } = {}) {
+  const seq = ++W.seq;
+  const info = W.info;
+  W.ended = false;
+  setMsg(null);
+  spin(true);
+  let src;
+  let offset = 0;
+  const direct = !info || (info.direct && can(info.direct.mime) && W.audio === info.direct.audio && W.burn == null && !W.triedStream);
+  if (direct) {
+    W.mode = 'direct';
+    src = `play/${W.type}/${encodeURIComponent(W.id)}`;
+  } else {
+    W.mode = 'stream';
+    const fmt = streamFormat();
+    const copy = W.burn == null && !!info.video && !!info.video.codecString && can(`${MIMES[fmt]}; codecs="${info.video.codecString}"`);
+    offset = t;
+    if (copy && t > 0) {
+      try {
+        offset = (await api(`api/player/${W.type}/${encodeURIComponent(W.id)}/keyframe?t=${t.toFixed(3)}`)).t;
+      } catch { /* start where asked */ }
+      if (seq !== W.seq) return;
+    }
+    const q = new URLSearchParams({ t: offset.toFixed(3) });
+    if (W.audio != null) q.set('audio', W.audio);
+    if (copy) q.set('copy', '1');
+    if (W.burn != null) q.set('burn', W.burn);
+    src = `api/player/${W.type}/${encodeURIComponent(W.id)}/stream.${fmt}?${q}`;
+  }
+  W.offset = offset;
+  W.pendingSeek = W.mode === 'direct' && t > 0 ? t : null;
+  wv.src = src;
+  rebuildCues();
+  if (paused) {
+    wv.addEventListener('loadeddata', () => seq === W.seq && spin(false), { once: true });
+    return renderControls();
+  }
+  try {
+    await wv.play();
+  } catch (e) {
+    if (seq === W.seq && e.name === 'NotAllowedError') { spin(false); renderControls(); } // autoplay blocked: wait for a click
+  }
+}
+
+wv.addEventListener('loadedmetadata', () => {
+  if (W.pendingSeek != null) { wv.currentTime = W.pendingSeek; W.pendingSeek = null; }
+  placeCues();
+  renderControls();
+});
+wv.addEventListener('waiting', () => W.open && spin(true));
+wv.addEventListener('seeking', () => W.open && spin(true));
+wv.addEventListener('playing', () => { spin(false); setMsg(null); renderControls(); wake(); });
+wv.addEventListener('canplay', () => wv.paused && spin(false));
+wv.addEventListener('pause', () => { renderControls(); wake(); savePos(true); });
+wv.addEventListener('play', renderControls);
+wv.addEventListener('volumechange', () => {
+  $('#wVol').value = String(wv.muted ? 0 : wv.volume);
+  store.set('vol', wv.volume);
+  store.set('muted', wv.muted);
+  renderControls();
+});
+wv.addEventListener('timeupdate', () => { renderTime(); savePos(); });
+wv.addEventListener('progress', renderTime);
+wv.addEventListener('error', () => {
+  if (!W.open || !wv.getAttribute('src')) return;
+  const at = absTime() || W.pendingSeek || 0;
+  // The browser said it plays the file but does not after all: let the server convert it instead.
+  if (W.mode === 'direct' && W.info && !W.triedStream) {
+    W.triedStream = true;
+    return load(at);
+  }
+  spin(false);
+  const d = itemOf();
+  const far = d && d.status !== 'complete' && at >= playableUntil() - 10;
+  if (W.noFfmpeg && !far) {
+    return setMsg({ title: "This browser can't play this file", text: 'Install ffmpeg on the server to have it converted, or copy the stream URL (top right) into VLC.' });
+  }
+  setMsg({
+    title: far ? 'Not downloaded this far yet' : 'Playback stopped',
+    text: far ? 'Play from an earlier point, or wait for the download to get here.' : 'The stream broke off. Try again from here.',
+    retry: () => load(at),
+  });
+});
+wv.addEventListener('ended', () => {
+  const at = absTime();
+  const dur = duration();
+  // A converted stream that ends early: the download has not got further yet, or the conversion stopped.
+  if (W.mode === 'stream' && dur && at < dur - 5) {
+    const d = itemOf();
+    spin(false);
+    return setMsg({
+      title: d && d.status !== 'complete' ? 'Caught up with the download' : 'Playback stopped',
+      text: d && d.status !== 'complete' ? 'Wait a moment for more to download, then continue.' : 'The stream ended early. Try again from here.',
+      retry: () => load(at),
+      retryLabel: 'Continue',
+    });
+  }
+  W.ended = true;
+  store.set('pos:' + W.id, null);
+  const next = nextEpisode();
+  setMsg({ title: 'Finished', text: next ? `Up next: ${names(next).full}` : '', actions: [
+    next ? ['Play next episode', () => playNext(next), true] : null,
+    ['Watch again', () => seekTo(0)],
+    ['Close', () => closeWatch()],
+  ] });
+});
+
+// Remembers where you are (per item), so the player picks up there next time.
+function savePos(now) {
+  if (!W.open || !wv.getAttribute('src') || W.ended) return;
+  const t = absTime();
+  if (!now && Date.now() - W.lastSave < 5000) return;
+  W.lastSave = Date.now();
+  const dur = duration();
+  store.set('pos:' + W.id, t > 30 && (!dur || t < dur - 120) ? { t: Math.round(t), at: Date.now() } : null);
+}
+
+function seekTo(t) {
+  if (!W.open) return;
+  const dur = duration();
+  const limit = playableUntil();
+  if (dur) t = Math.min(t, dur - 0.5);
+  if (limit < dur && t > limit) {
+    t = Math.max(0, limit);
+    note(`Downloaded up to ${fmtTime(limit)} so far`);
+  }
+  t = Math.max(0, t);
+  const play = !wv.paused || W.ended || !$('#wMsg').hidden; // a seek while paused stays paused
+  setMsg(null);
+  W.ended = false;
+  if (W.mode === 'direct') {
+    if (wv.readyState) wv.currentTime = t;
+    else W.pendingSeek = t;
+    if (play && wv.paused) wv.play().catch(() => {});
+    return renderTime();
+  }
+  // Inside what this stream already buffered: just move there. Otherwise a new stream from there.
+  const rel = t - W.offset;
+  for (let i = 0; i < wv.buffered.length; i++) {
+    if (rel >= wv.buffered.start(i) && rel <= wv.buffered.end(i) - 0.5) {
+      wv.currentTime = rel;
+      if (play && wv.paused) wv.play().catch(() => {});
+      return renderTime();
+    }
+  }
+  load(t, { paused: !play });
+  renderTime(t);
+}
+
+// ---- subtitles: cues are added by the page itself, shifted to the current stream and by the chosen delay ----
+function clearCues() {
+  const t = W.track;
+  if (!t || !t.cues) return;
+  for (const c of [...t.cues]) t.removeCue(c);
+}
+function addCue(c) {
+  const shift = (W.delay || 0) - (W.offset || 0);
+  if (c.end + shift <= 0) return;
+  try {
+    const cue = new VTTCue(Math.max(0, c.start + shift), c.end + shift, c.text);
+    placeCue(cue);
+    W.track.addCue(cue);
+  } catch { /* malformed cue */ }
+}
+// Subtitles sit at the bottom of the picture (not in black bars around it), and above the controls while those
+// show. Positions are a percentage of the player's height.
+function placeCue(cue) {
+  if (W.cueLine == null) return;
+  cue.snapToLines = false;
+  cue.line = W.cueLine;
+  cue.lineAlign = 'end';
+}
+function placeCues(controls = !$('#watch').classList.contains('idle')) {
+  const box = $('#watch');
+  const h = box.clientHeight;
+  const w = box.clientWidth;
+  if (!h || !w) return;
+  const pic = wv.videoWidth && wv.videoHeight ? Math.min(h, (w * wv.videoHeight) / wv.videoWidth) : h;
+  let bottom = (h + pic) / 2 - pic * 0.05;
+  if (controls) bottom = Math.min(bottom, h - Math.max(0, ($('#wBottom').offsetHeight || 100) - 24));
+  const line = Math.round(Math.max(40, (bottom / h) * 100) * 10) / 10;
+  if (line === W.cueLine || !W.track) return;
+  W.cueLine = line;
+  for (const c of W.track.cues || []) placeCue(c);
+  // Browsers do not move a cue that is already showing: put those back in to have them drawn again.
+  for (const c of [...(W.track.activeCues || [])]) { W.track.removeCue(c); W.track.addCue(c); }
+}
+function rebuildCues() {
+  clearCues();
+  for (const c of W.cues || []) addCue(c);
+}
+const vttTime = (s) => {
+  const m = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/.exec(s);
+  return m ? (+m[1] || 0) * 3600 + +m[2] * 60 + +m[3] + +m[4].padEnd(3, '0') / 1000 : null;
+};
+function vttBlocks(text, sink) {
+  for (const block of text.split(/\n{2,}/)) {
+    const lines = block.split('\n');
+    const i = lines.findIndex((l) => l.includes('-->'));
+    if (i < 0) continue;
+    const [a, b] = lines[i].split('-->');
+    const start = vttTime(a);
+    const end = vttTime(b);
+    const body = lines.slice(i + 1).join('\n').trim();
+    if (start != null && end != null && body) sink({ start, end, text: body });
+  }
+}
+
+async function loadSub(s) {
+  W.subAbort?.abort();
+  W.cues = [];
+  clearCues();
+  if (!s || s.kind !== 'text') return;
+  const ctl = new AbortController();
+  W.subAbort = ctl;
+  const url = s.source === 'online' ? `api/subtitles/${W.type}/${encodeURIComponent(W.id)}/${s.key}.vtt` : `api/player/${W.type}/${encodeURIComponent(W.id)}/subtitles/${s.key}.vtt`;
+  W.subLoading = true;
+  renderPanel();
+  try {
+    const r = await fetch(BASE + url, { signal: ctl.signal });
+    if (!r.ok) {
+      let msg = r.statusText;
+      try { msg = (await r.json()).error || msg; } catch { /* plain text */ }
+      throw new Error(msg);
+    }
+    // Embedded subtitles arrive while the server reads through the file: add cues as they come.
+    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = '';
+    const add = (c) => { W.cues.push(c); addCue(c); };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value.replace(/\r\n?/g, '\n');
+      const cut = buf.lastIndexOf('\n\n');
+      if (cut >= 0) { vttBlocks(buf.slice(0, cut), add); buf = buf.slice(cut + 2); }
+    }
+    vttBlocks(buf, add);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    note(`Subtitles failed: ${e.message}`);
+  } finally {
+    if (W.subAbort === ctl) { W.subLoading = false; renderPanel(); }
+  }
+}
+
+async function loadOnline() {
+  if (W.online || W.onlineBusy || !(W.noFfmpeg || (W.info && W.info.online))) return;
+  W.onlineBusy = true;
+  W.onlineError = null;
+  renderPanel();
+  try {
+    W.online = (await api(`api/subtitles/${W.type}/${encodeURIComponent(W.id)}`)).subtitles.map((s) => ({ ...s, source: 'online', kind: 'text' }));
+  } catch (e) {
+    W.onlineError = e.message;
+  }
+  W.onlineBusy = false;
+  renderPanel();
+}
+
+function chooseSub(s, remember = true) {
+  const wasBurn = W.burn;
+  W.sub = s;
+  W.burn = s && s.kind === 'image' ? s.index : null;
+  if (remember) store.set('sub-lang', s ? s.lang || '' : 'off');
+  if (s && s.kind === 'image') loadSub(null);
+  else loadSub(s);
+  if (W.burn !== wasBurn) load(absTime()); // burning in (or no longer) needs a new stream
+  renderControls();
+}
+function chooseAudio(a) {
+  if (W.audio === a.index) return;
+  W.audio = a.index;
+  if (a.lang) store.set('audio-lang', a.lang);
+  load(absTime());
+  renderControls();
+}
+
+const CODECS = { ac3: 'AC-3', eac3: 'E-AC-3', truehd: 'TrueHD', dts: 'DTS', aac: 'AAC', mp3: 'MP3', opus: 'Opus', flac: 'FLAC', vorbis: 'Vorbis' };
+const chans = (n) => (n === 1 ? 'Mono' : n === 2 ? 'Stereo' : n === 6 ? '5.1' : n === 8 ? '7.1' : n ? `${n} ch` : '');
+const audioLabel = (a, i) => ({ main: langName(a.lang) || `Track ${i + 1}`, sub: [a.title, chans(a.channels), CODECS[a.codec] || a.codec.toUpperCase()].filter(Boolean).join(' · ') });
+const subLabel = (s) => ({
+  main: [langName(s.lang) || (s.source === 'online' ? s.lang : '') || 'Unknown language', s.forced ? '(forced)' : '', s.sdh ? '(SDH)' : ''].filter(Boolean).join(' '),
+  sub: [s.title || s.label, s.source === 'file' ? 'file' : '', s.kind === 'image' ? 'image subtitles, burned in (uses more server CPU)' : ''].filter(Boolean).join(' · '),
+});
+
+function option(checked, main, sub, onPick, title) {
+  const b = el('button', { type: 'button', className: 'opt', title: title || '' }, icon('check'), el('span', { textContent: main }), sub ? el('small', { textContent: sub }) : null);
+  b.setAttribute('aria-pressed', String(!!checked));
+  b.onclick = onPick;
+  return b;
+}
+
+function togglePanel(which) {
+  W.panel = W.panel === which ? null : which;
+  if (W.panel === 'subs') loadOnline();
+  renderPanel();
+  if (W.panel) $('#wPanel').querySelector('.opt[aria-pressed="true"], button')?.focus();
+}
+
+function renderPanel() {
+  const p = $('#wPanel');
+  $('#wAudio').setAttribute('aria-expanded', String(W.panel === 'audio'));
+  $('#wSubs').setAttribute('aria-expanded', String(W.panel === 'subs'));
+  p.hidden = !W.panel;
+  if (!W.panel) return;
+  const focusKey = document.activeElement && p.contains(document.activeElement) ? document.activeElement.dataset.k : null;
+  const out = [];
+  const info = W.info;
+  if (W.panel === 'audio') {
+    p.setAttribute('aria-label', 'Audio track');
+    out.push(el('h3', { textContent: 'Audio' }));
+    if (!info) out.push(el('p', { className: 'msg', textContent: W.noFfmpeg ? 'Install ffmpeg on the server to switch audio tracks.' : 'Loading...' }));
+    else if (!info.audio.length) out.push(el('p', { className: 'msg', textContent: 'This file has no audio.' }));
+    else info.audio.forEach((a, i) => { const l = audioLabel(a, i); out.push(option(W.audio === a.index, l.main, l.sub, () => { chooseAudio(a); togglePanel(null); })); });
+  } else {
+    p.setAttribute('aria-label', 'Subtitles');
+    out.push(el('h3', { textContent: 'Subtitles' }));
+    out.push(option(!W.sub, 'Off', '', () => { chooseSub(null); togglePanel(null); }));
+    const local = info ? info.subtitles : [];
+    local.forEach((s) => { const l = subLabel(s); out.push(option(W.sub && W.sub.key === s.key, l.main, l.sub, () => { chooseSub(s); togglePanel(null); })); });
+    if (W.noFfmpeg) out.push(el('p', { className: 'msg', textContent: 'Install ffmpeg on the server for the subtitles inside the file.' }));
+    if (W.noFfmpeg || (info && info.online)) {
+      out.push(el('h3', { textContent: 'Online' }));
+      if (W.onlineBusy) out.push(el('p', { className: 'msg', textContent: 'Looking for subtitles...' }));
+      else if (W.onlineError) {
+        const b = el('button', { type: 'button', className: 'link', textContent: 'Try again' });
+        b.onclick = () => loadOnline();
+        out.push(el('p', { className: 'msg' }, `Could not get online subtitles: ${W.onlineError}. `, b));
+      } else if (W.online && !W.online.length) out.push(el('p', { className: 'msg', textContent: 'None found.' }));
+      else if (W.online) {
+        // Your languages first (browser, earlier picks), a few per language; the rest behind "All languages".
+        const mine = [store.get('sub-lang', ''), ...navigator.languages.map((l) => l.split('-')[0]), 'en'].filter((l) => l && l !== 'off');
+        const rank = (l) => { const i = mine.indexOf(l); return i < 0 ? 99 : i; };
+        const byLang = new Map();
+        for (const s of W.online) { if (!byLang.has(s.lang)) byLang.set(s.lang, []); byLang.get(s.lang).push(s); }
+        const langs = [...byLang.keys()].sort((a, b) => rank(a) - rank(b) || langName(a).localeCompare(langName(b)));
+        const shown = W.onlineAll ? langs : langs.filter((l) => rank(l) < 99);
+        for (const l of shown) {
+          byLang.get(l).slice(0, W.onlineAll ? 10 : 5).forEach((s, i) => {
+            const name = `${langName(s.lang) || s.lang || 'Unknown'} ${i + 1}`;
+            out.push(option(W.sub && W.sub.key === s.key, name, '', () => { chooseSub(s); togglePanel(null); }, s.label));
+          });
+        }
+        if (!W.onlineAll && shown.length < langs.length) {
+          const b = el('button', { type: 'button', className: 'opt' }, el('span'), el('span', { textContent: `All languages (${langs.length})` }));
+          b.dataset.k = 'all';
+          b.onclick = () => { W.onlineAll = true; renderPanel(); };
+          out.push(b);
+        }
+      }
+    }
+    if (W.subLoading) out.push(el('p', { className: 'msg', textContent: 'Loading subtitles...' }));
+    out.push(el('hr'));
+    const delay = el('output', { textContent: `${W.delay > 0 ? '+' : ''}${W.delay.toFixed(1)} s` });
+    const step = (d) => { W.delay = Math.round((W.delay + d) * 10) / 10; rebuildCues(); renderPanel(); };
+    const earlier = el('button', { type: 'button', textContent: '−0.5' });
+    const later = el('button', { type: 'button', textContent: '+0.5' });
+    earlier.dataset.k = 'earlier';
+    later.dataset.k = 'later';
+    earlier.onclick = () => step(-0.5);
+    later.onclick = () => step(0.5);
+    attrs(earlier, { 'aria-label': 'Show subtitles half a second earlier' });
+    attrs(later, { 'aria-label': 'Show subtitles half a second later' });
+    out.push(el('div', { className: 'w-adj' }, el('span', { textContent: 'Delay' }), el('div', { className: 'seg' }, earlier, delay, later)));
+    const size = store.get('sub-size', 'm');
+    const sizes = el('div', { className: 'seg', role: 'group' }, ...[['s', 'S'], ['m', 'M'], ['l', 'L'], ['xl', 'XL']].map(([v, t]) => {
+      const b = el('button', { type: 'button', textContent: t });
+      b.dataset.k = 'size-' + v;
+      attrs(b, { 'aria-pressed': String(size === v), 'aria-label': `Subtitle size ${t}` });
+      b.onclick = () => { store.set('sub-size', v); $('#watch').className = 'watch cue-' + v; renderPanel(); };
+      return b;
+    }));
+    out.push(el('div', { className: 'w-adj' }, el('span', { textContent: 'Size' }), sizes));
+  }
+  out.forEach((b, i) => { if (b.tagName === 'BUTTON' && !b.dataset.k) b.dataset.k = 'o' + i; });
+  p.replaceChildren(...out);
+  if (focusKey) p.querySelector(`[data-k="${focusKey}"]`)?.focus();
+}
+
+// ---- controls ----
+function renderControls() {
+  if (!W.open) return;
+  const playing = !wv.paused && !!wv.getAttribute('src');
+  setIcon($('#wPlay'), playing ? 'pause' : 'play');
+  $('#wPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  $('#wBig').hidden = playing || !wv.getAttribute('src') || !$('#wMsg').hidden || !$('#wSpin').hidden;
+  setIcon($('#wMute'), wv.muted || wv.volume === 0 ? 'mute' : 'vol');
+  $('#wMute').setAttribute('aria-label', wv.muted ? 'Unmute' : 'Mute');
+  const fs = !!document.fullscreenElement;
+  setIcon($('#wFs'), fs ? 'fsexit' : 'fs');
+  $('#wFs').setAttribute('aria-label', fs ? 'Exit full screen' : 'Full screen');
+  $('#wSubs').setAttribute('aria-pressed', String(!!W.sub));
+  $('#wAudio').hidden = !!W.info && W.info.audio.length < 2;
+  renderTime();
+  renderPanel();
+}
+
+function renderTime(at) {
+  if (!W.open) return;
+  const dur = duration();
+  const t = at ?? absTime();
+  setText($('#wTime'), dur ? `${fmtTime(t)} / ${fmtTime(dur)}` : fmtTime(t));
+  const pct = (x) => (dur ? `${Math.min(100, Math.max(0, (x / dur) * 100))}%` : '0%');
+  $('#wPos').style.width = pct(t);
+  $('#wKnob').style.left = pct(t);
+  let bufEnd = t;
+  for (let i = 0; i < wv.buffered.length; i++) {
+    const s = W.offset + wv.buffered.start(i);
+    const e = W.offset + wv.buffered.end(i);
+    if (t >= s - 1 && t <= e + 1) bufEnd = Math.max(bufEnd, e);
+  }
+  $('#wBuf').style.width = pct(bufEnd);
+  const limit = playableUntil();
+  const avail = $('#wAvail');
+  avail.hidden = !dur || limit >= dur;
+  if (!avail.hidden) avail.style.width = `${100 - (limit / dur) * 100}%`;
+  const seek = $('#wSeek');
+  seek.setAttribute('aria-valuemax', String(Math.round(dur)));
+  seek.setAttribute('aria-valuenow', String(Math.round(t)));
+  seek.setAttribute('aria-valuetext', `${fmtTime(t)} of ${fmtTime(dur)}`);
+  const d = itemOf();
+  setText($('#wState'), d && d.status !== 'complete' && dur ? `Downloading ${Math.round((d.progress || 0) * 100)}% · plays up to ${fmtTime(limit)}` : '');
+}
+
+function spin(on) {
+  $('#wSpin').hidden = !on;
+  $('#wBig').hidden = true;
+  if (!on) renderControls();
+}
+
+// A message in the middle of the player. `retry`: a "Try again" button; `actions`: [label, fn, primary].
+function setMsg(m) {
+  const box = $('#wMsg');
+  box.hidden = !m;
+  if (!m) return;
+  spin(false);
+  const acts = (m.actions || [m.retry ? [m.retryLabel || 'Try again', m.retry, true] : null, ['Close', () => closeWatch()]]).filter(Boolean).map(([label, fn, primary]) => {
+    const b = button(label, { cls: primary ? 'primary' : '' });
+    b.onclick = fn;
+    return b;
+  });
+  box.replaceChildren(el('strong', { textContent: m.title }), m.text ? el('p', { textContent: m.text }) : null, el('div', { className: 'row' }, ...acts));
+  wake(true);
+  acts[0]?.focus({ preventScroll: true });
+}
+
+// A short note above the seek bar (toasts would be hidden behind the player, and in full screen).
+function note(text, action, fn) {
+  const n = $('#wNote');
+  clearTimeout(W.noteTimer);
+  n.hidden = !text;
+  if (!text) return;
+  let b = null;
+  if (action) {
+    b = el('button', { type: 'button', textContent: action });
+    b.onclick = fn;
+  }
+  n.replaceChildren(...[el('span', { textContent: text }), b].filter(Boolean));
+  announce(text);
+  W.noteTimer = setTimeout(() => (n.hidden = true), action ? 9000 : 4000);
+}
+
+// Controls hide after 3 s of playing without moving the mouse; any input brings them back.
+function wake(stay) {
+  if (!W.open) return;
+  $('#watch').classList.remove('idle');
+  placeCues(true);
+  clearTimeout(W.idleTimer);
+  if (stay) return;
+  W.idleTimer = setTimeout(() => {
+    if (wv.paused || W.panel || !$('#wMsg').hidden || $('#wSeek').classList.contains('drag')) return;
+    $('#watch').classList.add('idle');
+    placeCues(false);
+  }, 3000);
+}
+window.addEventListener('resize', () => W.open && placeCues());
+
+function togglePlay() {
+  if (!wv.getAttribute('src')) return;
+  if (wv.paused) {
+    if (W.ended) return seekTo(0);
+    wv.play().catch(() => {});
+  } else wv.pause();
+}
+
+function toggleFs() {
+  const box = $('#watch');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else if (box.requestFullscreen) box.requestFullscreen().catch(() => {});
+  else if (wv.webkitEnterFullscreen) wv.webkitEnterFullscreen(); // iPhone: the system player (subtitles still show)
+}
+document.addEventListener('fullscreenchange', renderControls);
+
+function closeWatch(nav = true) {
+  if (!W.open) return;
+  savePos(true);
+  W.open = false;
+  W.seq++;
+  W.subAbort?.abort();
+  W.panel = null;
+  clearTimeout(W.idleTimer);
+  wv.pause();
+  wv.removeAttribute('src');
+  wv.load(); // closes the connection, which stops the server's conversion
+  clearCues();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => {});
+  $('#watch').hidden = true;
+  document.body.classList.remove('watching');
+  for (const x of document.querySelectorAll('header.top, main')) x.inert = false;
+  document.title = APP;
+  renderDownloads();
+  if (nav && route().watch) {
+    if (navigated) history.back();
+    else location.replace(W.type === 'series' || W.type === 'movie' ? detailHref(W.type, W.id.split(':')[0]) : '#downloads');
+  }
+}
+
+$('#wBack').onclick = () => closeWatch();
+$('#wPlay').onclick = togglePlay;
+$('#wBig').onclick = togglePlay;
+$('#wRew').onclick = () => seekTo(absTime() - 10);
+$('#wFwd').onclick = () => seekTo(absTime() + 10);
+$('#wMute').onclick = () => { wv.muted = !wv.muted; if (!wv.muted && !wv.volume) wv.volume = 0.5; };
+$('#wVol').oninput = () => { wv.volume = Number($('#wVol').value); wv.muted = wv.volume === 0; };
+$('#wAudio').onclick = () => togglePanel('audio');
+$('#wSubs').onclick = () => togglePanel('subs');
+$('#wFs').onclick = toggleFs;
+$('#wPip').onclick = () => (document.pictureInPictureElement ? document.exitPictureInPicture() : wv.requestPictureInPicture()).catch(() => {});
+$('#wLink').onclick = async () => {
+  const url = new URL(`play/${W.type}/${encodeURIComponent(W.id)}`, location.href.split('#')[0]).href;
+  try {
+    await navigator.clipboard.writeText(url);
+    note('Stream URL copied: paste it into VLC (Media → Open Network Stream)');
+  } catch {
+    note(url);
+  }
+};
+// A click on the picture: play/pause (mouse), or show the controls first (touch).
+wv.addEventListener('click', (e) => {
+  if (W.swallowClick) { W.swallowClick = false; return; } // that click closed a menu
+  if (e.pointerType === 'touch' && $('#watch').classList.contains('idle')) return wake();
+  togglePlay();
+});
+wv.addEventListener('dblclick', toggleFs);
+$('#watch').addEventListener('pointermove', () => wake());
+$('#watch').addEventListener('pointerdown', () => wake());
+$('#watch').addEventListener('focusin', () => wake());
+
+// Seek bar: click or drag (the time shows while dragging, the jump happens on release), arrow keys.
+(() => {
+  const seek = $('#wSeek');
+  const tip = $('#wTip');
+  const at = (e) => {
+    const r = seek.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    return { f, t: f * duration() };
+  };
+  const showTip = (e) => {
+    if (!duration()) return;
+    const { f, t } = at(e);
+    tip.hidden = false;
+    tip.style.left = `${f * 100}%`;
+    setText(tip, fmtTime(t) + (t > playableUntil() ? ' · not downloaded yet' : ''));
+  };
+  seek.addEventListener('pointermove', (e) => {
+    showTip(e);
+    if (seek.classList.contains('drag')) renderTime(at(e).t);
+  });
+  seek.addEventListener('pointerleave', () => { if (!seek.classList.contains('drag')) tip.hidden = true; });
+  seek.addEventListener('pointerdown', (e) => {
+    if (!duration()) return;
+    seek.setPointerCapture(e.pointerId);
+    seek.classList.add('drag');
+    showTip(e);
+    renderTime(at(e).t);
+  });
+  const end = (e) => {
+    if (!seek.classList.contains('drag')) return;
+    seek.classList.remove('drag');
+    tip.hidden = true;
+    seekTo(at(e).t);
+    wake();
+  };
+  seek.addEventListener('pointerup', end);
+  seek.addEventListener('pointercancel', () => { seek.classList.remove('drag'); tip.hidden = true; renderTime(); });
+  seek.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -10, ArrowRight: 10, PageDown: -60, PageUp: 60 }[e.key];
+    if (step) { e.preventDefault(); e.stopPropagation(); seekTo(absTime() + step); }
+    else if (e.key === 'Home') { e.preventDefault(); seekTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); seekTo(duration() - 10); }
+  });
+})();
+
+document.addEventListener('keydown', (e) => {
+  if (!W.open || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ($('#ask').open) return;
+  const inPanel = !!e.target.closest?.('.w-panel');
+  wake();
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (W.panel) { const was = W.panel; togglePanel(null); return $(was === 'audio' ? '#wAudio' : '#wSubs').focus(); }
+    if (!$('#wNote').hidden) return note(null);
+    if (document.fullscreenElement) return; // the browser leaves full screen itself
+    return closeWatch();
+  }
+  if (e.target.matches?.('input, select, textarea') || (inPanel && (e.key === ' ' || e.key === 'Enter'))) return;
+  if (e.target.matches?.('button') && (e.key === ' ' || e.key === 'Enter')) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const acts = {
+    ' ': togglePlay, k: togglePlay,
+    ArrowLeft: () => seekTo(absTime() - 10), j: () => seekTo(absTime() - 10),
+    ArrowRight: () => seekTo(absTime() + 10), l: () => seekTo(absTime() + 10),
+    ArrowUp: () => { wv.muted = false; wv.volume = Math.min(1, wv.volume + 0.1); },
+    ArrowDown: () => { wv.volume = Math.max(0, wv.volume - 0.1); },
+    m: () => { wv.muted = !wv.muted; },
+    f: toggleFs,
+    c: () => {
+      const subs = W.info ? W.info.subtitles.filter((s) => s.kind === 'text') : [];
+      if (W.sub) { W.lastSub = W.sub; chooseSub(null); note('Subtitles off'); }
+      else {
+        const s = W.lastSub || subs[0] || (W.online && W.online[0]);
+        if (s) { chooseSub(s); note(`Subtitles: ${subLabel(s).main}`); }
+      }
+    },
+  };
+  if (inPanel && (k === 'ArrowUp' || k === 'ArrowDown')) {
+    e.preventDefault();
+    const opts = [...$('#wPanel').querySelectorAll('button')];
+    const i = opts.indexOf(document.activeElement);
+    opts[(i + (k === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length]?.focus();
+    return;
+  }
+  if (acts[k]) { e.preventDefault(); acts[k](); }
+});
+// Clicks outside the open menu close it.
+$('#watch').addEventListener('pointerdown', (e) => {
+  if (W.panel && !e.target.closest('.w-panel, #wAudio, #wSubs')) {
+    W.panel = null;
+    W.swallowClick = e.target === wv;
+    renderPanel();
+  }
+});
 
 fillManifestUrls();
 show();

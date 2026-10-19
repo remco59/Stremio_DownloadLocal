@@ -6,6 +6,7 @@ const cfg = require('./config');
 const db = require('./db');
 const client = require('./clients');
 const finder = require('./finder');
+const { sidecarIndexes } = require('./subtitles');
 
 const VIDEO = /\.(mkv|mp4|m4v|avi|mov|webm|ts)$/i;
 const inflight = new Map();
@@ -68,6 +69,7 @@ async function ensureDownload(type, id, opts = {}) {
         tried: opts.tried || [],
         fileIndex: null,
         fileName: null,
+        subFiles: null,
         fileSize: null,
         fileOffset: null,
         pieceSize: null,
@@ -101,6 +103,9 @@ function isEpisode(name, s, e) {
   return new RegExp(`(?:^|[^a-z0-9])(?:s0*${s}[ ._-]?e0*${e}|0*${s}x0*${e})(?![0-9])`, 'i').test(n);
 }
 
+/** File indexes a record needs from its torrent: the video and its subtitle files. */
+const wantedBy = (r) => [r.fileIndex, ...(r.subFiles || []).map((f) => f.index)];
+
 async function selectFile(rec, files, t) {
   let idx = Number.isInteger(rec.fileIdx) && files[rec.fileIdx] ? rec.fileIdx : -1;
   if (idx < 0) {
@@ -115,11 +120,13 @@ async function selectFile(rec, files, t) {
     idx = (vids.length ? vids : all).sort((a, b) => b.f.size - a.f.size)[0].i;
   }
 
-  // Only download the file we need - but keep files other records (same season pack) rely on.
-  const wanted = new Set([idx]);
+  // Only download the file we need, plus subtitle files that come with it (for the web player) - but keep
+  // files other records (same season pack) rely on.
+  const subFiles = sidecarIndexes(files, idx).map((i) => ({ index: i, name: files[i].name }));
+  const wanted = new Set([idx, ...subFiles.map((f) => f.index)]);
   for (const r of db.all()) {
     if (r.id !== rec.id && r.infoHash === rec.infoHash && r.selected && r.fileIndex != null &&
-        r.status !== 'error' && r.status !== 'missing') wanted.add(r.fileIndex);
+        r.status !== 'error' && r.status !== 'missing') wantedBy(r).forEach((i) => wanted.add(i));
   }
   await client.setWanted(rec.infoHash, [...wanted], files.length);
 
@@ -129,6 +136,7 @@ async function selectFile(rec, files, t) {
     selected: true,
     status: 'downloading',
     fileIndex: idx,
+    subFiles,
     fileName: files[idx].name,
     fileSize: files[idx].size,
     fileOffset,
@@ -308,7 +316,7 @@ async function removeFromClient(id) {
 async function dropFile(rec, others) {
   if (rec.fileIndex == null) return;
   const files = await client.files(rec.infoHash);
-  if (files && files.length) await client.setWanted(rec.infoHash, others.map((r) => r.fileIndex), files.length);
+  if (files && files.length) await client.setWanted(rec.infoHash, others.flatMap(wantedBy), files.length);
 }
 
 /** True if `p` is inside the local downloads dir (symlinks resolved), so we never delete anything else. */
@@ -328,7 +336,9 @@ function insideDownloads(p) {
 async function unlinkLocal(rec) {
   let deleted = 0;
   if (!rec.fileName) return deleted; // never got as far as picking a file
-  for (const p of await localCandidates(rec)) {
+  const paths = await localCandidates(rec);
+  for (const f of rec.subFiles || []) paths.push(...(await localCandidates({ ...rec, fileName: f.name })));
+  for (const p of paths) {
     let st;
     try {
       st = fs.lstatSync(p);

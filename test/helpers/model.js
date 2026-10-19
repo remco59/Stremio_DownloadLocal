@@ -6,6 +6,7 @@ function createModel() {
   const model = {
     torrents: new Map(),
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
+    subtitles: {}, // Stremio ID -> [{ id, lang, text }], a subtitles add-on at /subtitles/:type/:id.json (files at /subfile/:id)
     metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
     // Cinemeta trouble, used up by the next search/meta requests: N times a 504 HTML page (Cloudflare giving up),
     // then N times an answer that only comes after hangMs.
@@ -109,6 +110,19 @@ function serve(model, handle) {
       const body = Buffer.concat(chunks);
       const sm = /^\/stream\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (sm) return send(res, 200, model.torrentio[decodeURIComponent(sm[2])] || { streams: [] });
+      const subm = /^\/subtitles\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
+      if (subm) {
+        const host = `http://${req.headers.host}`;
+        const list = model.subtitles[decodeURIComponent(subm[2])] || [];
+        return send(res, 200, { subtitles: list.map((x) => ({ id: x.id, lang: x.lang, url: `${host}/subfile/${x.id}`, subtitleFileName: `${x.id}.srt` })) });
+      }
+      const subf = /^\/subfile\/(.+)$/.exec(url.pathname);
+      if (subf) {
+        const x = Object.values(model.subtitles).flat().find((y) => String(y.id) === subf[1]);
+        if (!x) return send(res, 404, 'Not Found');
+        res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+        return res.end(x.text);
+      }
       const mm = /^\/meta\/(movie|series)\/(.+)\.json$/.exec(url.pathname);
       if (mm || /^\/catalog\/(movie|series)\/top\/search=/.test(url.pathname)) {
         model.cinemetaCalls++;

@@ -84,6 +84,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)
 - [x] Download management in the web UI and API (pause/resume, remove, delete files, re-download, play link, forget), season-pack aware
 - [x] Settings page: client choice, per-client connection fields + connection test, persisted in `settings.json`, applied at runtime, token rotation
+- [x] Player in the web UI: audio track choice, subtitles (embedded, files from the torrent, online via a Stremio subtitles add-on), seeking with on-the-fly ffmpeg remux/conversion (`player.js`, `subtitles.js`)
 
 Still to build to meet the requirements above (not in the code yet):
 

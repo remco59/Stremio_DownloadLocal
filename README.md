@@ -116,7 +116,7 @@ Your `docker-compose.override.yml` and everything in `data/` (settings, download
 
 ### Without Docker
 
-Needs Node.js 20 or newer. Paste the step 1 block first, then:
+Needs Node.js 20 or newer, and ffmpeg for the web player's audio tracks, subtitles and conversions (optional). Paste the step 1 block first, then:
 
 ```sh
 mkdir -p "$APP_DIR/app" && cd "$APP_DIR/app"
@@ -164,7 +164,7 @@ Search a series under **Add**, open **Episodes**, and download a single episode,
 
 The web UI opens on the **Downloads** page. It lists everything the add-on knows about in three groups: *Needs attention* (failed or removed), *Downloading* and *On your server*. Episodes are grouped per show, and titles, episode names and posters come from Cinemeta. Each item shows its size, speed and ETA, and how far it already plays from the start (the bright part of the bar). Per item:
 
-- **Play** opens the stream URL (works in a browser or VLC). It shows up once the start of the file is there.
+- **Play** opens the [player](#watching-in-the-browser). It shows up once the start of the file is there.
 - **Pause / Resume** the torrent.
 - **Try again / Download again** an item that failed or was removed.
 - Under **More**:
@@ -185,6 +185,19 @@ On the main page a movie has **Play** right there; everything else for a title s
 - **Series:** the same show details plus how many episodes are on the server, **Download missing episodes** and **Delete show**. Below that, season tabs (with *on the server / total* per season), **Download missing episodes** and **Delete season** per season, and every episode with its thumbnail, air date and summary. Each episode shows whether it is on the server, downloading, failed or not released yet, with **Play** or **Download** and a **⋯** menu for the rest (choose another torrent, pause, remove from the torrent client, forget, delete).
 
 Titles on the **Downloads** page link to the same details page. Deleting always asks first and works like *Delete files* on the Downloads page, including for season packs. A season or show delete only removes finished episodes; ones still downloading are left alone.
+
+## Watching in the browser
+
+**Play** anywhere in the web UI opens a full-screen player, so a download can be watched without Stremio, also while it is still downloading.
+
+- **Audio** (headphones icon): every audio track in the file, with language, title (*Commentary*), channels and codec. The choice is remembered per language.
+- **Subtitles** (CC icon): the subtitle tracks inside the file, subtitle files that came with the torrent (`.srt`, `.ass`, `.vtt` next to the video or in a `Subs/` folder; these are now downloaded along with the video), and **online** subtitles from a Stremio subtitles add-on (OpenSubtitles v3 by default, *Settings → Player*). Your browser's languages are listed first. **Delay** shifts them in half-second steps, **Size** has four steps. The language you pick is remembered, and forced subtitles in the audio's language are switched on by themselves. Image subtitles (Blu-ray PGS, DVD) are drawn onto the picture by the server.
+- Seek bar with hover time, ±10 s, volume, full screen, picture-in-picture, and **Next episode** for series. It picks up where you stopped last time.
+- Keyboard: Space/K play-pause, ←/→ (J/L) 10 s, ↑/↓ volume, M mute, F full screen, C subtitles on/off, Esc close.
+- While downloading, the seek bar shows how far it plays; seeking past that stops at the downloaded part.
+- The link icon (top right) copies the plain stream URL, for VLC or another player.
+
+How it plays: an MP4 or WebM the browser can play as it is streams straight from the file. Anything else (MKV, HEVC in browsers without it, AC-3/DTS audio, another audio track, image subtitles) goes through **ffmpeg** on the server: the video is copied when the browser can play its codec, otherwise converted to H.264 (or VP9 for browsers without H.264) at up to 1080p (*Settings → Player*); audio becomes stereo AAC/Opus. Copying costs next to nothing; converting video takes real CPU (a 1080p HEVC file needs a few modern cores; there is no hardware acceleration). ffmpeg is in the Docker image; without it the player plays only what the browser plays itself, with online subtitles. Safari (iPhone/iPad) only plays files it supports as they are; use another browser there for the rest, or VLC.
 
 ## Security
 
@@ -232,6 +245,9 @@ These are the defaults for the settings page.
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
 | `STALL_SWITCH_MIN` | `10` | a download still at 0% after this many minutes (not paused or queued in the client) moves to the next best untried torrent; `0` = never |
 | `SYNC_INTERVAL_MS` | `5000` | torrent client poll interval |
+| `SUBTITLES_URL` | `https://opensubtitles-v3.strem.io` | Stremio subtitles add-on for the player's online subtitles; empty = off |
+| `PLAYER_MAX_HEIGHT` | `1080` | max resolution when the player has to convert video |
+| `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | env only: where the player finds ffmpeg |
 | `PLAY_STARTS_PER_IP_PER_MIN` / `PLAY_STARTS_PER_MIN` | `10` / `30` | new downloads from Stremio per minute (0 = off) |
 | `API_WRITES_PER_IP_PER_MIN` | `120` | web UI actions per minute (0 = off) |
 | `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs within 10 minutes before an IP is locked out (0 = off) |
@@ -249,7 +265,7 @@ npm install
 npm test
 ```
 
-Tests use Node's built-in test runner and in-process mocks of the qBittorrent WebUI API and the Transmission RPC (`test/helpers/`), so no real client or network is needed. The end-to-end suite runs once per client. CI runs everything on every push and pull request.
+Tests use Node's built-in test runner and in-process mocks of the qBittorrent WebUI API and the Transmission RPC (`test/helpers/`), so no real client or network is needed. The end-to-end suite runs once per client. The player tests (`test/player.test.js`) run real ffmpeg on a generated video and are skipped when ffmpeg is not installed. CI runs everything on every push and pull request.
 
 ### Against real clients
 

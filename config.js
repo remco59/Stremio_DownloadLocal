@@ -68,6 +68,11 @@ const defaults = {
   stallMs: parseInt(env.STALL_MS || '30000', 10), // while playing: how long to wait for the next pieces before dropping the connection
   syncIntervalMs: parseInt(env.SYNC_INTERVAL_MS || '5000', 10),
 
+  // Web player (see player.js): a Stremio subtitles add-on for online subtitles (empty = off), and the
+  // max height when video has to be converted for the browser.
+  subtitlesUrl: strip(env.SUBTITLES_URL ?? 'https://opensubtitles-v3.strem.io'),
+  playerMaxHeight: parseInt(env.PLAYER_MAX_HEIGHT || '1080', 10),
+
   // Abuse limits (0 = off), see security.js
   playStartsPerIpPerMin: parseInt(env.PLAY_STARTS_PER_IP_PER_MIN || '10', 10),
   playStartsPerMin: parseInt(env.PLAY_STARTS_PER_MIN || '30', 10),
@@ -85,6 +90,9 @@ try {
 const config = {
   port: parseInt(env.PORT || '7000', 10),
   dataDir,
+  // Used by the web player; without them it only plays files the browser can play as they are.
+  ffmpegPath: env.FFMPEG_PATH || 'ffmpeg',
+  ffprobePath: env.FFPROBE_PATH || 'ffprobe',
   settingsFile,
   ...defaults,
 };
