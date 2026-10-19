@@ -33,6 +33,7 @@
   nav a { color: var(--mut); text-decoration: none; padding: 9px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 7px; align-items: center; }
   nav a:hover { color: var(--fg); }
   nav a[aria-current="page"] { color: var(--fg); border-color: var(--acc-hi); }
+  @media (max-width: 420px) { nav { gap: 0; } nav a { padding: 9px 8px; } }
   .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line); color: var(--fg); text-align: center; font-variant-numeric: tabular-nums; }
   .count.bad { background: #4a1f24; color: #ffc2c2; }
 
@@ -289,7 +290,37 @@
     .kv dd { margin-bottom: 8px; }
   }
 
-  /* add */
+  /* discover */
+  .disc-head { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; margin: 26px 0 0; }
+  .disc-head h2 { font-size: 18px; margin: 0; }
+  #discSum { margin: 2px 0 0; }
+  #discGenres { margin-top: 10px; }
+  .drow { margin-top: 24px; }
+  .drow-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .drow-head h3 { font-size: 15px; margin: 0; }
+  .drow-nav { display: none; gap: 4px; }
+  .drow-nav button { width: 32px; height: 32px; padding: 0; border-radius: 50%; }
+  .drow-nav .lbl { display: none; }
+  @media (hover: hover) and (pointer: fine) { .drow-nav { display: flex; } }
+  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: 150px; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding: 0 4px; padding: 4px 4px 12px; margin: 0 -4px; scrollbar-width: thin; }
+  .strip > .tile { scroll-snap-align: start; }
+  .tile-why { font-size: 12px; color: var(--acc-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .badge.ok { color: var(--ok); }
+  .strip .badge { max-width: calc(100% - 50px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile-over .hide-btn { position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 50%; background: rgba(15, 17, 21, .78); border-color: transparent; color: #c6cbd5; backdrop-filter: blur(6px); }
+  .tile-over .hide-btn:hover { background: rgba(15, 17, 21, .92); color: var(--fg); }
+  .fab[aria-busy="true"] { cursor: progress; opacity: .7; }
+  @media (hover: hover) {
+    .tile-over .hide-btn { opacity: 0; transform: translateY(3px); transition: opacity .18s, transform .18s; }
+    .tile:hover .hide-btn, .tile:focus-within .hide-btn { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .tile-over .hide-btn { transition: none; } }
+  @media (max-width: 600px) {
+    .strip { grid-auto-columns: 116px; gap: 12px; }
+    .tile-over .hide-btn { right: 4px; top: 4px; }
+  }
+
+  /* search */
   .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .tabs button { background: none; }
   .tabs button[aria-pressed="true"] { border-color: var(--acc-hi); background: var(--raise); }
@@ -443,7 +474,7 @@
   <nav aria-label="Sections">
     <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
     <a href="#library" data-view="library">Library</a>
-    <a href="#add" data-view="add">Add</a>
+    <a href="#discover" data-view="discover">Discover</a>
     <a href="#settings" data-view="settings">Settings</a>
   </nav>
 </header>
@@ -462,16 +493,15 @@
     </ol>
     <label for="emptyUrl">Add-on not installed yet? Paste this URL into Stremio &rarr; Add-ons:</label>
     <div class="copyrow"><input id="emptyUrl" class="manifest-url" readonly><button type="button" data-copy="#emptyUrl"><span class="lbl">Copy</span></button></div>
-    <p class="msg">Or <a href="#add">search for a title here</a> and download it without opening Stremio.</p>
+    <p class="msg">Or <a href="#discover">find something to watch here</a> and download it without opening Stremio.</p>
   </div>
   <div id="downloads" tabindex="-1"></div>
 </section>
 
 <section id="v-library" aria-label="Library" hidden>
-  <div id="libHome">
     <div id="libEmpty" class="empty" hidden>
       <h2>Your library is empty</h2>
-      <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#add">Search for a title</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
+      <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#discover">Find something to watch</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
     </div>
     <div id="libTools" hidden>
       <div class="libbar">
@@ -495,14 +525,14 @@
       <div class="note" id="libNone" hidden>Nothing in your library matches this search.</div>
     </div>
     <div id="library" tabindex="-1"></div>
-  </div>
-  <div id="libDetail" hidden>
-    <button type="button" class="back" id="back"><span class="lbl">Back</span></button>
-    <div id="detail"></div>
-  </div>
 </section>
 
-<section id="v-add" aria-label="Add" hidden>
+<section id="v-detail" aria-label="Details" hidden>
+  <button type="button" class="back" id="back"><span class="lbl">Back</span></button>
+  <div id="detail"></div>
+</section>
+
+<section id="v-discover" aria-label="Discover" hidden>
   <div class="tabs" role="group" aria-label="What to search">
     <button type="button" id="tMovie" aria-pressed="true">Movies</button>
     <button type="button" id="tSeries" aria-pressed="false">Series</button>
@@ -513,6 +543,15 @@
     <button class="primary">Search</button>
   </form>
   <div id="results"></div>
+  <div id="disc">
+    <div class="disc-head">
+      <div><h2>Picked for you</h2><p class="msg" id="discSum"></p></div>
+      <button type="button" id="discRefresh"><span class="lbl">Refresh</span></button>
+    </div>
+    <div class="chips" id="discGenres" hidden></div>
+    <div id="discRows" tabindex="-1"></div>
+    <p class="msg" id="discHidden" hidden><span></span> <button type="button" class="link" id="discUnhide">Show them again</button></p>
+  </div>
 </section>
 
 <section id="v-settings" aria-label="Settings" hidden>
@@ -618,6 +657,9 @@ const ICONS = {
   fs: '<path d="M4 9V4.5h4.5M15.5 4.5H20V9M20 15v4.5h-4.5M8.5 19.5H4V15"/>',
   fsexit: '<path d="M8.5 4v4.5H4M20 8.5h-4.5V4M15.5 20v-4.5H20M4 15.5h4.5V20"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  download: '<path d="M12 4.5v11M7 11l5 5 5-5M5 19.5h14"/>',
+  next: '<path d="M9.5 6l6 6-6 6"/>',
+  x: '<path d="M7 7l10 10M17 7L7 17"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -700,21 +742,23 @@ const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- views ----
-const VIEWS = ['downloads', 'library', 'add', 'settings'];
-// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages; #watch/<type>/<id> the player.
+const VIEWS = ['downloads', 'library', 'discover', 'settings'];
+// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages (#discover/... for one opened from
+// Discover, so that tab stays selected); #watch/<type>/<id> the player.
 const watchHref = (type, id) => `#watch/${type}/${encodeURIComponent(id)}`;
 function route() {
-  const [v, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  const [hv, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  const v = hv === 'add' ? 'discover' : hv; // the tab's old name, in bookmarks
   if (v === 'watch') {
     let id = '';
     try { id = decodeURIComponent(tt || ''); } catch { /* bad link */ }
     if ((type === 'movie' || type === 'series') && /^tt\d+(:\d+:\d+)?$/.test(id)) return { view: 'watch', type: null, tt: null, watch: { type, id } };
   }
   const view = VIEWS.includes(v) ? v : 'downloads';
-  const detail = view === 'library' && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
+  const detail = (view === 'library' || view === 'discover') && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
   return { view, type: detail ? type : null, tt: detail ? tt : null };
 }
-const detailHref = (type, tt) => `#library/${type}/${tt}`;
+const detailHref = (type, tt, from = 'library') => `#${from}/${type}/${tt}`;
 const scrollAt = {}; // scroll position per page, restored when coming back to it
 window.addEventListener('scroll', () => (scrollAt[location.hash] = scrollY), { passive: true });
 let navigated = false; // whether Back can use the browser history
@@ -727,9 +771,7 @@ function show() {
     if (a.dataset.view === r.view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== 'v-' + r.view));
-  $('#libHome').hidden = !!r.type;
-  $('#libDetail').hidden = !r.type;
+  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== (r.type ? 'v-detail' : 'v-' + r.view)));
   if (r.type) {
     const k = `${r.type}:${r.tt}`;
     if (fullMetas.get(k)?.error) fullMetas.delete(k); // failed before: try again
@@ -738,6 +780,7 @@ function show() {
     $('#detail .hero-title')?.focus({ preventScroll: true });
   } else {
     if (r.view === 'library') renderLibrary();
+    if (r.view === 'discover') loadDiscover();
     scrollTo(0, scrollAt[location.hash] || 0);
   }
   if (r.view === 'settings') loadSettings();
@@ -825,9 +868,9 @@ function posterInto(slot, url, { cls = 'poster', name = '', ph: phIcon = 'film' 
 // ---- downloads ----
 let lastData = null;
 let serverDown = false;
-let known = new Map(); // latest download list by ID, so the Add view can show what is already on the server
+let known = new Map(); // latest download list by ID, so Discover can show what is already on the server
 let pendingIds = new Set();
-const openLists = new Set(); // update callbacks of the Add view's result rows and open episode lists
+const openLists = new Set(); // update callbacks of Discover's tiles, search result rows and open episode lists
 const freshIds = new Set(); // just finished: highlighted once
 let prevStatus = null;
 
@@ -1209,7 +1252,7 @@ $('#libSearch').prepend(icon('search'));
 $('#libViews [data-v="grid"]').append(icon('grid'));
 $('#libViews [data-v="list"]').append(icon('list'));
 $('#back').prepend(icon('back'));
-$('#back').onclick = () => (navigated ? history.back() : (location.hash = '#library'));
+$('#back').onclick = () => (navigated ? history.back() : (location.hash = '#' + route().view));
 segment($('#libKinds'), lib.kind, (v) => { lib.kind = v; renderLibrary(); });
 segment($('#libViews'), lib.view, (v) => { lib.view = v; savePref('lib-view', v); renderLibrary(); });
 $('#libSort').value = lib.sort;
@@ -1691,15 +1734,23 @@ document.addEventListener('keydown', (e) => {
   if (d) { d.open = false; $('summary', d).focus(); }
 });
 
-// ---- add: search, episodes, picker ----
+// ---- discover: search, episodes, picker ----
 let type = 'movie';
 function setType(t) {
   type = t;
   $('#tMovie').setAttribute('aria-pressed', String(t === 'movie'));
   $('#tSeries').setAttribute('aria-pressed', String(t === 'series'));
   $('#q').placeholder = t === 'movie' ? 'Search movies' : 'Search series';
-  $('#results').replaceChildren();
+  clearSearch();
 }
+// Search results replace the recommendations until the search box is emptied (or Movies/Series is switched).
+function clearSearch() {
+  searchSeq++;
+  $('#results').replaceChildren();
+  $('#results').removeAttribute('aria-busy');
+  $('#disc').hidden = false;
+}
+$('#q').addEventListener('input', () => { if (!$('#q').value.trim()) clearSearch(); });
 $('#tMovie').onclick = () => setType('movie');
 $('#tSeries').onclick = () => setType('series');
 
@@ -1870,6 +1921,7 @@ async function search(e) {
   if (!q) return $('#q').focus();
   const seq = ++searchSeq;
   const out = $('#results');
+  $('#disc').hidden = true;
   out.setAttribute('aria-busy', 'true');
   const status = el('p', { className: 'msg', textContent: 'Searching...' });
   out.replaceChildren(status);
@@ -1893,6 +1945,178 @@ async function search(e) {
   }
 }
 $('#f').onsubmit = search;
+
+// Recommendations: rows of titles from the server's taste profile (see discover.js). What the web player has a
+// position for counts as watched, so those IDs go along. Loaded when the tab opens, at most every 10 minutes.
+const disc = { data: null, at: 0, seq: 0, busy: false };
+function playedIds() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('ldw-pos:')) out.push(k.slice(8));
+    }
+  } catch { /* no storage: nothing played */ }
+  return out.slice(0, 500);
+}
+async function loadDiscover(force = false) {
+  if (!force && (disc.busy || (disc.data && Date.now() - disc.at < 10 * 60000))) return;
+  const seq = ++disc.seq;
+  disc.busy = true;
+  const box = $('#discRows');
+  const btn = $('#discRefresh');
+  box.setAttribute('aria-busy', 'true');
+  if (force) busy(btn, 'Refreshing...');
+  if (!disc.data) box.replaceChildren(el('p', { className: 'msg', textContent: 'Finding titles you might like...' }));
+  try {
+    const data = await api('api/discover?played=' + encodeURIComponent(playedIds().join(',')));
+    if (seq !== disc.seq) return;
+    disc.data = data;
+    disc.at = Date.now();
+    renderDiscover();
+    if (force) announce('Recommendations refreshed');
+  } catch (e) {
+    if (seq !== disc.seq) return;
+    if (disc.data) toast('Could not refresh: ' + e.message, 'err');
+    else {
+      const retry = button('Try again');
+      retry.onclick = () => loadDiscover(true);
+      box.replaceChildren(el('div', { className: 'note err', role: 'alert' }, el('span', { textContent: 'Could not load recommendations: ' + e.message }), retry));
+    }
+  } finally {
+    if (seq === disc.seq) {
+      disc.busy = false;
+      box.removeAttribute('aria-busy');
+      idle(btn);
+    }
+  }
+}
+$('#discRefresh').onclick = () => loadDiscover(true);
+$('#discUnhide').onclick = async () => {
+  try {
+    await send('DELETE', 'api/discover/hidden');
+    toast('Hidden titles show again');
+    loadDiscover(true);
+  } catch (e) {
+    toast('Could not do that: ' + e.message, 'err');
+  }
+};
+
+function renderDiscover() {
+  const d = disc.data;
+  setText($('#discSum'), d.basedOn
+    ? `Based on ${plural(d.basedOn, 'title')} on your server and what you play here.`
+    : 'Popular and top rated titles for now. Download a few and this page learns what you like.');
+  const chips = $('#discGenres');
+  chips.hidden = !d.genres.length;
+  chips.replaceChildren(...d.genres.map((g) => el('span', { textContent: g })));
+  if (d.genres.length) chips.setAttribute('aria-label', 'Your top genres');
+  const rows = d.rows.filter((r) => r.items.length);
+  $('#discRows').replaceChildren(...(rows.length ? rows.map(discRow) : [el('div', { className: 'note' }, 'Nothing new to recommend right now. Try Refresh later, or search for a title above.')]));
+  const hid = $('#discHidden');
+  hid.hidden = !d.hidden;
+  setText($('span', hid), d.hidden ? `${plural(d.hidden, 'title')} hidden with Not interested.` : '');
+}
+
+function discRow(row) {
+  const strip = attrs(el('div', { className: 'strip' }), { role: 'list' });
+  strip.append(...row.items.map((m) => discTile(m, row)));
+  const head = el('h3', { id: 'dr-' + row.key, textContent: row.title });
+  const prev = button('', { ico: 'back', title: 'Scroll back' });
+  const next = button('', { ico: 'next', title: 'Scroll on' });
+  prev.setAttribute('aria-label', `Scroll ${row.title} back`);
+  next.setAttribute('aria-label', `Scroll ${row.title} on`);
+  const step = (dir) => strip.scrollBy({ left: dir * strip.clientWidth * 0.85, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  prev.onclick = () => step(-1);
+  next.onclick = () => step(1);
+  const ends = () => {
+    prev.disabled = strip.scrollLeft < 4;
+    next.disabled = strip.scrollLeft + strip.clientWidth > strip.scrollWidth - 4;
+  };
+  strip.addEventListener('scroll', ends, { passive: true });
+  requestAnimationFrame(ends);
+  return attrs(el('section', { className: 'drow' }, el('div', { className: 'drow-head' }, head, el('div', { className: 'drow-nav' }, prev, next)), strip), { 'aria-labelledby': head.id });
+}
+
+// What the server has of a recommended title (once you download it from here).
+function discState(m) {
+  if (m.type === 'movie') return itemState(m.id);
+  const eps = [...known.values()].filter((d) => d.id.startsWith(m.id + ':'));
+  if (!eps.length) return null;
+  const done = eps.filter((d) => d.status === 'complete').length;
+  return { text: done === eps.length ? `${plural(done, 'episode')} on your server` : `${plural(eps.length - done, 'episode')} downloading`, busy: true, cls: done === eps.length ? 'ok' : '' };
+}
+
+function discTile(m, row) {
+  seedMeta(m, m.id);
+  const t = attrs(el('article', { className: 'tile' }), { role: 'listitem' });
+  const badge = el('span', { className: 'badge', hidden: true });
+  const slot = el('span', { className: 'art-slot' });
+  posterInto(slot, m.poster, { cls: 'art-img', name: m.name });
+  const sub = [m.year, m.rating ? `★ ${m.rating}` : ''].filter(Boolean).join(' · ');
+  const link = el('a', { className: 'tile-link', href: detailHref(m.type, m.id, 'discover') },
+    el('span', { className: 'art' }, slot, badge),
+    el('span', { className: 'tile-name', textContent: m.name }),
+    el('span', { className: 'tile-sub', textContent: sub }),
+    m.reason ? el('span', { className: 'tile-why', textContent: m.reason, title: m.reason }) : null);
+  link.setAttribute('aria-label', [m.name, m.type === 'series' ? 'series' : 'movie', sub, m.reason].filter(Boolean).join(', '));
+  const over = el('div', { className: 'tile-over' });
+  let fab = null;
+  if (m.type === 'movie') {
+    fab = el('button', { type: 'button', className: 'fab', title: 'Download to your server' }, icon('download'));
+    fab.setAttribute('aria-label', `Download ${m.name}`);
+    fab.onclick = async () => {
+      fab.disabled = true;
+      fab.setAttribute('aria-busy', 'true');
+      try {
+        await send('POST', 'api/download', { type: 'movie', id: m.id });
+        toast(`Downloading ${m.name}`);
+      } catch (e) {
+        toast('Could not start: ' + e.message, 'err');
+      }
+      fab.disabled = false;
+      fab.removeAttribute('aria-busy');
+      await refresh();
+    };
+    over.append(fab);
+  }
+  const no = el('button', { type: 'button', className: 'hide-btn', title: 'Not interested' }, icon('x'));
+  no.setAttribute('aria-label', `Not interested in ${m.name}`);
+  no.onclick = async () => {
+    no.disabled = true;
+    try {
+      await send('POST', 'api/discover/hidden', { id: m.id });
+    } catch (e) {
+      no.disabled = false;
+      return toast('Could not hide it: ' + e.message, 'err');
+    }
+    // Out of every row it is in, keeping keyboard focus in this row.
+    const strip = t.parentElement;
+    const after = t.nextElementSibling || t.previousElementSibling;
+    disc.data.rows.forEach((r) => (r.items = r.items.filter((x) => x.id !== m.id)));
+    disc.data.hidden++;
+    document.querySelectorAll('#discRows .tile').forEach((x) => { if (x._id === m.id) x.remove(); });
+    if (!strip.children.length) strip.closest('.drow')?.remove();
+    setText($('#discHidden span'), `${plural(disc.data.hidden, 'title')} hidden with Not interested.`);
+    $('#discHidden').hidden = false;
+    (after && after.isConnected ? $('.tile-link', after) : $('#discRows')).focus();
+    toast(`Hidden: ${m.name}`);
+  };
+  over.append(no);
+  t._id = m.id;
+  t.append(link, over);
+  const paint = () => {
+    const st = discState(m);
+    badge.hidden = !st;
+    setText(badge, st ? st.text : '');
+    badge.className = 'badge' + (st && st.cls === 'ok' ? ' ok' : '');
+    if (fab && !fab.getAttribute('aria-busy')) fab.hidden = !!(st && st.busy);
+  };
+  const update = () => (t.isConnected ? paint() : openLists.delete(update));
+  openLists.add(update);
+  paint();
+  return t;
+}
 
 $('#pickClose').onclick = () => $('#picker').close();
 
