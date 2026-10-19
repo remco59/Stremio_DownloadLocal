@@ -214,6 +214,14 @@ const UI_CSP = [
   "form-action 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
+// Favicon, PWA manifest, icons and service worker: public (browsers fetch them without the login cookie).
+router.use(express.static(path.join(__dirname, 'public'), {
+  index: false,
+  maxAge: '1d',
+  setHeaders: (res, file) => {
+    if (path.basename(file) === 'sw.js') res.set('Cache-Control', 'no-cache');
+  },
+}));
 function page(res, file, mode) {
   res.set({ 'Content-Security-Policy': UI_CSP, 'X-Frame-Options': 'DENY', 'Cache-Control': 'no-store' });
   let html = fs.readFileSync(path.join(__dirname, file), 'utf8');
