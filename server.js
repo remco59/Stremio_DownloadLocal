@@ -279,28 +279,33 @@ router.post('/api/download/batch', async (req, res) => {
   }
 });
 
-// Cinemeta sits behind Cloudflare, which now and then answers a search it has not cached yet with a 504 error
-// page (not JSON). A second try usually works; if not, say so instead of passing on a JSON parse error.
+// Cinemeta sits behind Cloudflare, which gives up on a query Cinemeta has not cached yet after ~6 s and sends a
+// 504 error page (not JSON); sometimes nothing comes back at all. Cinemeta finishes and caches the answer anyway,
+// so retrying with growing pauses gets it. A 4xx is final, and the whole thing stops after CINEMETA_DEADLINE_MS.
+const CINEMETA_DEADLINE_MS = 45000;
 async function cinemeta(p, res) {
-  try {
-    for (let attempt = 1; ; attempt++) {
-      const r = await fetch(`${cfg.cinemetaUrl}${p}`, { signal: AbortSignal.timeout(15000) });
+  const deadline = Date.now() + CINEMETA_DEADLINE_MS;
+  let error;
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try {
+      r = await fetch(`${cfg.cinemetaUrl}${p}`, { signal: AbortSignal.timeout(Math.max(1, Math.min(cfg.cinemetaTimeoutMs, deadline - Date.now()))) });
       const text = await r.text();
       let body;
       try {
         body = JSON.parse(text);
       } catch {
-        if (r.status >= 500 && attempt < 2) {
-          await sleep(1000);
-          continue;
-        }
-        return res.status(502).json({ error: `Cinemeta did not answer properly (HTTP ${r.status}), try again in a moment` });
+        error = `Cinemeta did not answer properly (HTTP ${r.status}), try again in a moment`;
       }
-      return res.status(r.status).json(body);
+      if (body !== undefined) return res.status(r.status).json(body);
+    } catch (e) {
+      error = e.name === 'TimeoutError' ? 'Cinemeta did not answer in time, try again in a moment' : String(e.message);
     }
-  } catch (e) {
-    res.status(502).json({ error: e.name === 'TimeoutError' ? 'Cinemeta did not answer in time, try again in a moment' : String(e.message) });
+    const pause = cfg.cinemetaRetryMs[attempt];
+    if (pause == null || (r && r.status < 500) || Date.now() + pause >= deadline) break;
+    await sleep(pause);
   }
+  res.status(502).json({ error });
 }
 router.get('/api/search', (req, res) => {
   const type = req.query.type === 'series' ? 'series' : 'movie';

@@ -960,26 +960,34 @@ function resultRow(m) {
   return [node, epBox];
 }
 
+let searchSeq = 0; // a slow search that finishes after a newer one must not overwrite its results
 async function search(e) {
   if (e) e.preventDefault();
   const q = $('#q').value.trim();
   if (!q) return $('#q').focus();
+  const seq = ++searchSeq;
   const out = $('#results');
   out.setAttribute('aria-busy', 'true');
-  out.replaceChildren(el('p', { className: 'msg', textContent: 'Searching...' }));
+  const status = el('p', { className: 'msg', textContent: 'Searching...' });
+  out.replaceChildren(status);
+  const slow = setTimeout(() => (status.textContent = 'Searching... Cinemeta is slow for new searches, this can take up to 45 s'), 5000);
   try {
     const { metas: found = [] } = await api(`api/search?type=${type}&q=${encodeURIComponent(q)}`);
+    if (seq !== searchSeq) return;
     const shown = found.slice(0, 12);
     out.replaceChildren(...shown.flatMap(resultRow));
     if (!shown.length) out.replaceChildren(el('div', { className: 'note' }, `No ${type === 'movie' ? 'movies' : 'series'} found for "${q}". Check the spelling, or switch between Movies and Series.`));
     announce(shown.length ? `${plural(shown.length, 'result')} for ${q}` : 'No results');
     openLists.forEach((f) => f());
   } catch (err) {
+    if (seq !== searchSeq) return;
     const retry = button('Try again');
     retry.onclick = () => search();
     out.replaceChildren(el('div', { className: 'note err', role: 'alert' }, el('span', { textContent: 'Search failed: ' + err.message }), retry));
+  } finally {
+    clearTimeout(slow);
+    if (seq === searchSeq) out.removeAttribute('aria-busy');
   }
-  out.removeAttribute('aria-busy');
 }
 $('#f').onsubmit = search;
 

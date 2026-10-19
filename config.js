@@ -39,6 +39,9 @@ const defaults = {
 
   // Titles, seasons and episodes (search and season/show downloads)
   cinemetaUrl: strip(env.CINEMETA_URL || 'https://v3-cinemeta.strem.io'),
+  // Pauses between retries when Cinemeta errors or does not answer (one retry per pause), and the per-try timeout.
+  cinemetaRetryMs: (env.CINEMETA_RETRY_MS || '2000,4000,8000').split(/[\s,]+/).map((n) => parseInt(n, 10)).filter((n) => n >= 0),
+  cinemetaTimeoutMs: parseInt(env.CINEMETA_TIMEOUT_MS || '15000', 10),
 
   // Where to look up torrents (see finder.js and sources/): torrentio | torznab | both
   sources: env.SOURCES || 'torrentio',
