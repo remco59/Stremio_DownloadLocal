@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
 <title>Local Download &amp; Watch</title>
@@ -12,11 +12,12 @@
     --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --raise:#1f232c; --line:#2a2f3a; --line-hi:#3a4150;
     --acc:#6c50f5; --acc-press:#5b3fe0; --acc-hi:#a48fff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f5b84b;
     --r:10px;
+    --navh: 58px; --below: calc(var(--navh) + env(safe-area-inset-bottom)); /* room the bottom nav takes */
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html { scrollbar-color: var(--line-hi) var(--bg); }
-  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 960px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right)) calc(40px + var(--below)) max(16px, env(safe-area-inset-left)); max-width: 960px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
   ::selection { background: rgba(164, 143, 255, .35); }
   :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
   [tabindex="-1"]:focus { outline: none; } /* list containers: focus targets only, and the URL hash (#downloads) focuses them */
@@ -26,15 +27,38 @@
   .i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   .i-more, .i-play, .i-pause { fill: currentColor; }
 
-  /* header + nav */
-  header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 16px; }
-  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 10px; }
-  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
-  nav a { color: var(--mut); text-decoration: none; padding: 9px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 7px; align-items: center; }
-  nav a:hover { color: var(--fg); }
-  nav a[aria-current="page"] { color: var(--fg); border-color: var(--acc-hi); }
+  /* header + nav: a bar along the bottom on phones, a sidebar on wide screens */
+  header.top { padding-top: 16px; }
+  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 16px; }
   .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line); color: var(--fg); text-align: center; font-variant-numeric: tabular-nums; }
   .count.bad { background: #4a1f24; color: #ffc2c2; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--card); border-top: 1px solid var(--line); }
+  nav a { height: var(--navh); display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--mut); text-decoration: none; font-size: 12px; font-weight: 500; -webkit-tap-highlight-color: transparent; }
+  nav a:hover { color: var(--fg); }
+  nav a[aria-current="page"] { color: var(--acc-hi); }
+  nav .ni { position: relative; display: grid; place-items: center; width: 56px; height: 28px; border-radius: 999px; transition: background .2s; }
+  nav a[aria-current="page"] .ni { background: rgba(164, 143, 255, .16); }
+  nav .i { width: 22px; height: 22px; }
+  nav .badges { position: absolute; left: calc(50% + 7px); top: -5px; display: flex; gap: 3px; }
+  nav .count { font-size: 11px; line-height: 16px; min-width: 16px; padding: 0 4px; background: var(--acc); color: #fff; box-shadow: 0 0 0 2px var(--card); }
+  nav .count.bad { background: #c43d3d; }
+  @media (min-width: 840px) {
+    :root { --side: 216px; --below: 0px; }
+    body { max-width: none; padding: 0 32px 40px calc(var(--side) + 32px); }
+    main { max-width: 960px; margin: 0 auto; padding-top: 28px; }
+    header.top { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; width: var(--side); overflow-y: auto; padding: 20px 12px 20px max(12px, env(safe-area-inset-left)); background: var(--bg); border-right: 1px solid var(--line); }
+    h1 { font-size: 16px; margin: 0 0 18px; padding: 0 10px; }
+    nav { position: static; display: flex; flex-direction: column; gap: 2px; padding: 0; background: none; border: 0; }
+    nav a { height: auto; display: flex; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 400; }
+    nav a:hover { background: var(--card); }
+    nav a[aria-current="page"] { color: var(--fg); background: var(--raise); }
+    nav a[aria-current="page"] .i { color: var(--acc-hi); }
+    nav .ni { display: contents; }
+    nav .i { width: 18px; height: 18px; }
+    nav .badges { position: static; order: 1; margin-left: auto; }
+    nav .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; background: var(--line); color: var(--fg); box-shadow: none; }
+    nav .count.bad { background: #4a1f24; color: #ffc2c2; }
+  }
 
   /* controls */
   input, select, button, .btn { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
@@ -256,7 +280,7 @@
   button.danger-solid:hover { background: #ad3131; border-color: #ad3131; }
   button.del { color: var(--err); }
   button.del:hover { border-color: rgba(255, 107, 107, .5); }
-  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 150; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
+  #toasts { position: fixed; left: 50%; bottom: calc(20px + var(--below)); transform: translateX(-50%); z-index: 150; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
   .toast { padding: 10px 16px; border-radius: 999px; background: #262b36; border: 1px solid var(--line-hi); font-size: 14px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8); animation: toast-in .3s cubic-bezier(.16, 1, .3, 1); transition: opacity .3s, transform .3s; }
   .toast.err { background: #3a1c20; border-color: #6b2a31; color: #ffd0d0; }
   .toast.out { opacity: 0; transform: translateY(6px); }
@@ -356,7 +380,7 @@
   details.advanced > summary small { color: var(--mut); font-size: 13px; }
   details.advanced[open] > summary { margin-bottom: 14px; }
   .row { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-  .savebar { position: sticky; bottom: 0; z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0 12px; background: linear-gradient(rgba(15, 17, 21, 0), var(--bg) 35%); }
+  .savebar { position: sticky; bottom: var(--below); z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0 12px; background: linear-gradient(rgba(15, 17, 21, 0), var(--bg) 35%); }
   .msg { font-size: 13px; color: var(--mut); }
   .msg.ok { color: var(--ok); }
   .msg.err { color: var(--err); }
@@ -441,10 +465,10 @@
 <header class="top">
   <h1>Local Download &amp; Watch</h1>
   <nav aria-label="Sections">
-    <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
-    <a href="#library" data-view="library">Library</a>
-    <a href="#add" data-view="add">Add</a>
-    <a href="#settings" data-view="settings">Settings</a>
+    <a href="#downloads" data-view="downloads"><span class="ni"><span class="badges"><span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></span></span><span>Downloads</span></a>
+    <a href="#library" data-view="library"><span class="ni"></span><span>Library</span></a>
+    <a href="#add" data-view="add"><span class="ni"></span><span>Add</span></a>
+    <a href="#settings" data-view="settings"><span class="ni"></span><span>Settings</span></a>
   </nav>
 </header>
 <div id="live" class="sr-only" role="status" aria-live="polite"></div>
@@ -618,6 +642,11 @@ const ICONS = {
   fs: '<path d="M4 9V4.5h4.5M15.5 4.5H20V9M20 15v4.5h-4.5M8.5 19.5H4V15"/>',
   fsexit: '<path d="M8.5 4v4.5H4M20 8.5h-4.5V4M15.5 20v-4.5H20M4 15.5h4.5V20"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  // Section icons, from Lucide (lucide.dev, ISC license): download, library-big, circle-plus, settings.
+  downloads: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
+  library: '<rect width="8" height="18" x="3" y="3" rx="1"/><path d="M7 3v18"/><path d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z"/>',
+  add: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1205,6 +1234,7 @@ function segment(box, current, onPick) {
   mark(current);
   btns.forEach((b) => (b.onclick = () => { mark(b.dataset.v); onPick(b.dataset.v); }));
 }
+document.querySelectorAll('nav a').forEach((a) => $('.ni', a).prepend(icon(a.dataset.view)));
 $('#libSearch').prepend(icon('search'));
 $('#libViews [data-v="grid"]').append(icon('grid'));
 $('#libViews [data-v="list"]').append(icon('list'));
