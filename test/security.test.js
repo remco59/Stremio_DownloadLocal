@@ -1,4 +1,4 @@
-// Auth hardening: token check, plain 404s, headers, body limits, rate limits, wrong-token lockout.
+// Auth hardening: token check, plain 404s, headers, body limits, rate limits, wrong-token and wrong-password lockout.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { boot } = require('./helpers/boot');
@@ -20,7 +20,12 @@ test.beforeEach(() => {
   Object.assign(cfg, { playStartsPerIpPerMin: 0, playStartsPerMin: 0, apiWritesPerIpPerMin: 0, tokenFailuresLockout: 0 });
 });
 
-const as = (ip, p, opts = {}) => fetch(p.startsWith('http') ? p : env.base + p, { ...opts, headers: { 'X-Forwarded-For': ip, ...(opts.headers || {}) }, redirect: 'manual' });
+// Paths under /api/ are the web UI's (logged in); the rest are the add-on's, under the token.
+const as = (ip, p, opts = {}) => {
+  const ui = p.startsWith('/api/');
+  const url = p.startsWith('http') ? p : (ui ? env.origin : env.base) + p;
+  return fetch(url, { ...opts, headers: { 'X-Forwarded-For': ip, ...(ui ? { Cookie: env.cookie } : {}), ...(opts.headers || {}) }, redirect: 'manual' });
+};
 const post = (ip, p, body) => as(ip, p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 test('token comparison', () => {
@@ -42,16 +47,17 @@ test('unknown paths get a plain 404 that does not echo the path', async () => {
   const r = await fetch(`${env.origin}/secret-guess-here/manifest.json`);
   assert.equal(r.status, 404);
   assert.equal(await r.text(), 'Not found');
-  assert.equal((await fetch(`${env.origin}/`)).status, 404);
+  assert.equal((await fetch(`${env.origin}/nope`)).status, 404);
 });
 
 test('security headers', async () => {
-  const ui = await fetch(`${env.base}/`);
+  const ui = await env.api('/');
   assert.match(ui.headers.get('content-security-policy'), /default-src 'self'.*frame-ancestors 'none'/);
   assert.equal(ui.headers.get('x-frame-options'), 'DENY');
   assert.equal(ui.headers.get('referrer-policy'), 'no-referrer');
   assert.match(await ui.text(), /<meta name="referrer" content="no-referrer">/);
-  const api = await fetch(`${env.base}/api/downloads`);
+  const api = await env.api('/api/downloads');
+  assert.equal(api.headers.get('access-control-allow-origin'), null, 'the web UI API is same-origin only');
   assert.equal(api.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(api.headers.get('referrer-policy'), 'no-referrer');
   assert.equal(api.headers.get('x-powered-by'), null);

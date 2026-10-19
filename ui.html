@@ -30,6 +30,9 @@
   /* header + nav: a bar along the bottom on phones, a sidebar on wide screens */
   header.top { padding-top: 16px; }
   h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 16px; }
+  .title-row { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+  .title-row button.logout { color: var(--mut); font-size: 13px; }
+  .title-row button.logout:hover { color: var(--fg); }
   .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line); color: var(--fg); text-align: center; font-variant-numeric: tabular-nums; }
   .count.bad { background: #4a1f24; color: #ffc2c2; }
   nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--card); border-top: 1px solid var(--line); }
@@ -46,8 +49,10 @@
     :root { --side: 216px; --below: 0px; }
     body { max-width: none; padding: 0 32px 40px calc(var(--side) + 32px); }
     main { max-width: 960px; margin: 0 auto; padding-top: 28px; }
-    header.top { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; width: var(--side); overflow-y: auto; padding: 20px 12px 20px max(12px, env(safe-area-inset-left)); background: var(--bg); border-right: 1px solid var(--line); }
+    header.top { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; width: var(--side); display: flex; flex-direction: column; overflow-y: auto; padding: 20px 12px 20px max(12px, env(safe-area-inset-left)); background: var(--bg); border-right: 1px solid var(--line); }
     h1 { font-size: 16px; margin: 0 0 18px; padding: 0 10px; }
+    .title-row { display: contents; } /* log out moves to the foot of the sidebar */
+    .title-row button.logout { order: 1; margin-top: auto; align-self: flex-start; padding: 9px 10px; }
     nav { position: static; display: flex; flex-direction: column; gap: 2px; padding: 0; background: none; border: 0; }
     nav a { height: auto; display: flex; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 400; }
     nav a:hover { background: var(--card); }
@@ -313,7 +318,37 @@
     .kv dd { margin-bottom: 8px; }
   }
 
-  /* add */
+  /* discover */
+  .disc-head { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; margin: 26px 0 0; }
+  .disc-head h2 { font-size: 18px; margin: 0; }
+  #discSum { margin: 2px 0 0; }
+  #discGenres { margin-top: 10px; }
+  .drow { margin-top: 24px; }
+  .drow-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .drow-head h3 { font-size: 15px; margin: 0; }
+  .drow-nav { display: none; gap: 4px; }
+  .drow-nav button { width: 32px; height: 32px; padding: 0; border-radius: 50%; }
+  .drow-nav .lbl { display: none; }
+  @media (hover: hover) and (pointer: fine) { .drow-nav { display: flex; } }
+  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: 150px; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-padding: 0 4px; padding: 4px 4px 12px; margin: 0 -4px; scrollbar-width: thin; }
+  .strip > .tile { scroll-snap-align: start; }
+  .tile-why { font-size: 12px; color: var(--acc-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .badge.ok { color: var(--ok); }
+  .strip .badge { max-width: calc(100% - 50px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile-over .hide-btn { position: absolute; right: 8px; top: 8px; width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 50%; background: rgba(15, 17, 21, .78); border-color: transparent; color: #c6cbd5; backdrop-filter: blur(6px); }
+  .tile-over .hide-btn:hover { background: rgba(15, 17, 21, .92); color: var(--fg); }
+  .fab[aria-busy="true"] { cursor: progress; opacity: .7; }
+  @media (hover: hover) {
+    .tile-over .hide-btn { opacity: 0; transform: translateY(3px); transition: opacity .18s, transform .18s; }
+    .tile:hover .hide-btn, .tile:focus-within .hide-btn { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .tile-over .hide-btn { transition: none; } }
+  @media (max-width: 600px) {
+    .strip { grid-auto-columns: 116px; gap: 12px; }
+    .tile-over .hide-btn { right: 4px; top: 4px; }
+  }
+
+  /* search */
   .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .tabs button { background: none; }
   .tabs button[aria-pressed="true"] { border-color: var(--acc-hi); background: var(--raise); }
@@ -463,11 +498,14 @@
 </head>
 <body>
 <header class="top">
-  <h1>Local Download &amp; Watch</h1>
+  <div class="title-row">
+    <h1>Local Download &amp; Watch</h1>
+    <button type="button" class="link logout" id="logout" title="Log out of the web UI">Log out</button>
+  </div>
   <nav aria-label="Sections">
     <a href="#downloads" data-view="downloads"><span class="ni"><span class="badges"><span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></span></span><span>Downloads</span></a>
     <a href="#library" data-view="library"><span class="ni"></span><span>Library</span></a>
-    <a href="#add" data-view="add"><span class="ni"></span><span>Add</span></a>
+    <a href="#discover" data-view="discover"><span class="ni"></span><span>Discover</span></a>
     <a href="#settings" data-view="settings"><span class="ni"></span><span>Settings</span></a>
   </nav>
 </header>
@@ -486,16 +524,15 @@
     </ol>
     <label for="emptyUrl">Add-on not installed yet? Paste this URL into Stremio &rarr; Add-ons:</label>
     <div class="copyrow"><input id="emptyUrl" class="manifest-url" readonly><button type="button" data-copy="#emptyUrl"><span class="lbl">Copy</span></button></div>
-    <p class="msg">Or <a href="#add">search for a title here</a> and download it without opening Stremio.</p>
+    <p class="msg">Or <a href="#discover">find something to watch here</a> and download it without opening Stremio.</p>
   </div>
   <div id="downloads" tabindex="-1"></div>
 </section>
 
 <section id="v-library" aria-label="Library" hidden>
-  <div id="libHome">
     <div id="libEmpty" class="empty" hidden>
       <h2>Your library is empty</h2>
-      <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#add">Search for a title</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
+      <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#discover">Find something to watch</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
     </div>
     <div id="libTools" hidden>
       <div class="libbar">
@@ -519,14 +556,14 @@
       <div class="note" id="libNone" hidden>Nothing in your library matches this search.</div>
     </div>
     <div id="library" tabindex="-1"></div>
-  </div>
-  <div id="libDetail" hidden>
-    <button type="button" class="back" id="back"><span class="lbl">Back</span></button>
-    <div id="detail"></div>
-  </div>
 </section>
 
-<section id="v-add" aria-label="Add" hidden>
+<section id="v-detail" aria-label="Details" hidden>
+  <button type="button" class="back" id="back"><span class="lbl">Back</span></button>
+  <div id="detail"></div>
+</section>
+
+<section id="v-discover" aria-label="Discover" hidden>
   <div class="tabs" role="group" aria-label="What to search">
     <button type="button" id="tMovie" aria-pressed="true">Movies</button>
     <button type="button" id="tSeries" aria-pressed="false">Series</button>
@@ -537,6 +574,15 @@
     <button class="primary">Search</button>
   </form>
   <div id="results"></div>
+  <div id="disc">
+    <div class="disc-head">
+      <div><h2>Picked for you</h2><p class="msg" id="discSum"></p></div>
+      <button type="button" id="discRefresh"><span class="lbl">Refresh</span></button>
+    </div>
+    <div class="chips" id="discGenres" hidden></div>
+    <div id="discRows" tabindex="-1"></div>
+    <p class="msg" id="discHidden" hidden><span></span> <button type="button" class="link" id="discUnhide">Show them again</button></p>
+  </div>
 </section>
 
 <section id="v-settings" aria-label="Settings" hidden>
@@ -552,6 +598,33 @@
       <span class="msg" id="rotateMsg" role="status">Creates a new secret URL. The old one stops working; reinstall the add-on in Stremio.</span>
     </div>
   </fieldset>
+  <form id="accountForm" novalidate>
+    <fieldset>
+      <legend>Web UI login</legend>
+      <p class="msg" id="acEnv" hidden>Set with <code>UI_USER</code> and <code>UI_PASSWORD</code> on the container: change it there.</p>
+      <div class="field">
+        <label for="acUser">Username</label>
+        <input id="acUser" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="acNew">New password</label>
+        <input id="acNew" type="password" autocomplete="new-password" aria-describedby="acNewHelp">
+        <div class="help" id="acNewHelp">Leave empty to keep the current one. Changing the login logs out every other browser.</div>
+      </div>
+      <div class="field">
+        <label for="acNew2">Repeat new password</label>
+        <input id="acNew2" type="password" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="acCur">Current password</label>
+        <input id="acCur" type="password" autocomplete="current-password">
+      </div>
+      <div class="row">
+        <button class="primary" id="acSave"><span class="lbl">Change login</span></button>
+        <span class="msg" id="acMsg" role="status"></span>
+      </div>
+    </fieldset>
+  </form>
   <form id="settingsForm" novalidate></form>
 </section>
 </main>
@@ -607,7 +680,7 @@
 
 <script>
 const BASE = location.pathname.replace(/\/?$/, '/');
-const TOKEN = BASE.split('/').filter(Boolean).pop() || '';
+let TOKEN = ''; // the add-on token (api/session): Stremio's install URL and the /<token>/play URLs
 const APP = 'Local Download & Watch';
 const $ = (s, root = document) => root.querySelector(s);
 const el = (tag, { role, ...props } = {}, ...kids) => {
@@ -642,10 +715,13 @@ const ICONS = {
   fs: '<path d="M4 9V4.5h4.5M15.5 4.5H20V9M20 15v4.5h-4.5M8.5 19.5H4V15"/>',
   fsexit: '<path d="M8.5 4v4.5H4M20 8.5h-4.5V4M15.5 20v-4.5H20M4 15.5h4.5V20"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-  // Section icons, from Lucide (lucide.dev, ISC license): download, library-big, circle-plus, settings.
+  download: '<path d="M12 4.5v11M7 11l5 5 5-5M5 19.5h14"/>',
+  next: '<path d="M9.5 6l6 6-6 6"/>',
+  x: '<path d="M7 7l10 10M17 7L7 17"/>',
+  // Section icons, from Lucide (lucide.dev, ISC license): download, library-big, compass, settings.
   downloads: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
   library: '<rect width="8" height="18" x="3" y="3" rx="1"/><path d="M7 3v18"/><path d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z"/>',
-  add: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+  discover: '<path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
 };
 function icon(name) {
@@ -706,8 +782,14 @@ function ask({ title, body = '', ok = 'OK', danger = false }) {
   return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true }));
 }
 
+// Logged out (the session ran out, or the login changed in another browser): back to the login page.
+const loggedOut = (r) => r.status === 401 || r.status === 410;
 async function api(p, opts) {
   const r = await fetch(BASE + p, opts);
+  if (loggedOut(r)) {
+    location.replace(BASE);
+    return new Promise(() => {});
+  }
   if (!r.ok) {
     const text = await r.text();
     let err;
@@ -729,21 +811,23 @@ const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- views ----
-const VIEWS = ['downloads', 'library', 'add', 'settings'];
-// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages; #watch/<type>/<id> the player.
+const VIEWS = ['downloads', 'library', 'discover', 'settings'];
+// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages (#discover/... for one opened from
+// Discover, so that tab stays selected); #watch/<type>/<id> the player.
 const watchHref = (type, id) => `#watch/${type}/${encodeURIComponent(id)}`;
 function route() {
-  const [v, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  const [hv, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  const v = hv === 'add' ? 'discover' : hv; // the tab's old name, in bookmarks
   if (v === 'watch') {
     let id = '';
     try { id = decodeURIComponent(tt || ''); } catch { /* bad link */ }
     if ((type === 'movie' || type === 'series') && /^tt\d+(:\d+:\d+)?$/.test(id)) return { view: 'watch', type: null, tt: null, watch: { type, id } };
   }
   const view = VIEWS.includes(v) ? v : 'downloads';
-  const detail = view === 'library' && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
+  const detail = (view === 'library' || view === 'discover') && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
   return { view, type: detail ? type : null, tt: detail ? tt : null };
 }
-const detailHref = (type, tt) => `#library/${type}/${tt}`;
+const detailHref = (type, tt, from = 'library') => `#${from}/${type}/${tt}`;
 const scrollAt = {}; // scroll position per page, restored when coming back to it
 window.addEventListener('scroll', () => (scrollAt[location.hash] = scrollY), { passive: true });
 let navigated = false; // whether Back can use the browser history
@@ -756,9 +840,7 @@ function show() {
     if (a.dataset.view === r.view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== 'v-' + r.view));
-  $('#libHome').hidden = !!r.type;
-  $('#libDetail').hidden = !r.type;
+  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== (r.type ? 'v-detail' : 'v-' + r.view)));
   if (r.type) {
     const k = `${r.type}:${r.tt}`;
     if (fullMetas.get(k)?.error) fullMetas.delete(k); // failed before: try again
@@ -767,6 +849,7 @@ function show() {
     $('#detail .hero-title')?.focus({ preventScroll: true });
   } else {
     if (r.view === 'library') renderLibrary();
+    if (r.view === 'discover') loadDiscover();
     scrollTo(0, scrollAt[location.hash] || 0);
   }
   if (r.view === 'settings') loadSettings();
@@ -854,9 +937,9 @@ function posterInto(slot, url, { cls = 'poster', name = '', ph: phIcon = 'film' 
 // ---- downloads ----
 let lastData = null;
 let serverDown = false;
-let known = new Map(); // latest download list by ID, so the Add view can show what is already on the server
+let known = new Map(); // latest download list by ID, so Discover can show what is already on the server
 let pendingIds = new Set();
-const openLists = new Set(); // update callbacks of the Add view's result rows and open episode lists
+const openLists = new Set(); // update callbacks of Discover's tiles, search result rows and open episode lists
 const freshIds = new Set(); // just finished: highlighted once
 let prevStatus = null;
 
@@ -1239,7 +1322,7 @@ $('#libSearch').prepend(icon('search'));
 $('#libViews [data-v="grid"]').append(icon('grid'));
 $('#libViews [data-v="list"]').append(icon('list'));
 $('#back').prepend(icon('back'));
-$('#back').onclick = () => (navigated ? history.back() : (location.hash = '#library'));
+$('#back').onclick = () => (navigated ? history.back() : (location.hash = '#' + route().view));
 segment($('#libKinds'), lib.kind, (v) => { lib.kind = v; renderLibrary(); });
 segment($('#libViews'), lib.view, (v) => { lib.view = v; savePref('lib-view', v); renderLibrary(); });
 $('#libSort').value = lib.sort;
@@ -1721,15 +1804,23 @@ document.addEventListener('keydown', (e) => {
   if (d) { d.open = false; $('summary', d).focus(); }
 });
 
-// ---- add: search, episodes, picker ----
+// ---- discover: search, episodes, picker ----
 let type = 'movie';
 function setType(t) {
   type = t;
   $('#tMovie').setAttribute('aria-pressed', String(t === 'movie'));
   $('#tSeries').setAttribute('aria-pressed', String(t === 'series'));
   $('#q').placeholder = t === 'movie' ? 'Search movies' : 'Search series';
-  $('#results').replaceChildren();
+  clearSearch();
 }
+// Search results replace the recommendations until the search box is emptied (or Movies/Series is switched).
+function clearSearch() {
+  searchSeq++;
+  $('#results').replaceChildren();
+  $('#results').removeAttribute('aria-busy');
+  $('#disc').hidden = false;
+}
+$('#q').addEventListener('input', () => { if (!$('#q').value.trim()) clearSearch(); });
 $('#tMovie').onclick = () => setType('movie');
 $('#tSeries').onclick = () => setType('series');
 
@@ -1900,6 +1991,7 @@ async function search(e) {
   if (!q) return $('#q').focus();
   const seq = ++searchSeq;
   const out = $('#results');
+  $('#disc').hidden = true;
   out.setAttribute('aria-busy', 'true');
   const status = el('p', { className: 'msg', textContent: 'Searching...' });
   out.replaceChildren(status);
@@ -1923,6 +2015,178 @@ async function search(e) {
   }
 }
 $('#f').onsubmit = search;
+
+// Recommendations: rows of titles from the server's taste profile (see discover.js). What the web player has a
+// position for counts as watched, so those IDs go along. Loaded when the tab opens, at most every 10 minutes.
+const disc = { data: null, at: 0, seq: 0, busy: false };
+function playedIds() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('ldw-pos:')) out.push(k.slice(8));
+    }
+  } catch { /* no storage: nothing played */ }
+  return out.slice(0, 500);
+}
+async function loadDiscover(force = false) {
+  if (!force && (disc.busy || (disc.data && Date.now() - disc.at < 10 * 60000))) return;
+  const seq = ++disc.seq;
+  disc.busy = true;
+  const box = $('#discRows');
+  const btn = $('#discRefresh');
+  box.setAttribute('aria-busy', 'true');
+  if (force) busy(btn, 'Refreshing...');
+  if (!disc.data) box.replaceChildren(el('p', { className: 'msg', textContent: 'Finding titles you might like...' }));
+  try {
+    const data = await api('api/discover?played=' + encodeURIComponent(playedIds().join(',')));
+    if (seq !== disc.seq) return;
+    disc.data = data;
+    disc.at = Date.now();
+    renderDiscover();
+    if (force) announce('Recommendations refreshed');
+  } catch (e) {
+    if (seq !== disc.seq) return;
+    if (disc.data) toast('Could not refresh: ' + e.message, 'err');
+    else {
+      const retry = button('Try again');
+      retry.onclick = () => loadDiscover(true);
+      box.replaceChildren(el('div', { className: 'note err', role: 'alert' }, el('span', { textContent: 'Could not load recommendations: ' + e.message }), retry));
+    }
+  } finally {
+    if (seq === disc.seq) {
+      disc.busy = false;
+      box.removeAttribute('aria-busy');
+      idle(btn);
+    }
+  }
+}
+$('#discRefresh').onclick = () => loadDiscover(true);
+$('#discUnhide').onclick = async () => {
+  try {
+    await send('DELETE', 'api/discover/hidden');
+    toast('Hidden titles show again');
+    loadDiscover(true);
+  } catch (e) {
+    toast('Could not do that: ' + e.message, 'err');
+  }
+};
+
+function renderDiscover() {
+  const d = disc.data;
+  setText($('#discSum'), d.basedOn
+    ? `Based on ${plural(d.basedOn, 'title')} on your server and what you play here.`
+    : 'Popular and top rated titles for now. Download a few and this page learns what you like.');
+  const chips = $('#discGenres');
+  chips.hidden = !d.genres.length;
+  chips.replaceChildren(...d.genres.map((g) => el('span', { textContent: g })));
+  if (d.genres.length) chips.setAttribute('aria-label', 'Your top genres');
+  const rows = d.rows.filter((r) => r.items.length);
+  $('#discRows').replaceChildren(...(rows.length ? rows.map(discRow) : [el('div', { className: 'note' }, 'Nothing new to recommend right now. Try Refresh later, or search for a title above.')]));
+  const hid = $('#discHidden');
+  hid.hidden = !d.hidden;
+  setText($('span', hid), d.hidden ? `${plural(d.hidden, 'title')} hidden with Not interested.` : '');
+}
+
+function discRow(row) {
+  const strip = attrs(el('div', { className: 'strip' }), { role: 'list' });
+  strip.append(...row.items.map((m) => discTile(m, row)));
+  const head = el('h3', { id: 'dr-' + row.key, textContent: row.title });
+  const prev = button('', { ico: 'back', title: 'Scroll back' });
+  const next = button('', { ico: 'next', title: 'Scroll on' });
+  prev.setAttribute('aria-label', `Scroll ${row.title} back`);
+  next.setAttribute('aria-label', `Scroll ${row.title} on`);
+  const step = (dir) => strip.scrollBy({ left: dir * strip.clientWidth * 0.85, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  prev.onclick = () => step(-1);
+  next.onclick = () => step(1);
+  const ends = () => {
+    prev.disabled = strip.scrollLeft < 4;
+    next.disabled = strip.scrollLeft + strip.clientWidth > strip.scrollWidth - 4;
+  };
+  strip.addEventListener('scroll', ends, { passive: true });
+  requestAnimationFrame(ends);
+  return attrs(el('section', { className: 'drow' }, el('div', { className: 'drow-head' }, head, el('div', { className: 'drow-nav' }, prev, next)), strip), { 'aria-labelledby': head.id });
+}
+
+// What the server has of a recommended title (once you download it from here).
+function discState(m) {
+  if (m.type === 'movie') return itemState(m.id);
+  const eps = [...known.values()].filter((d) => d.id.startsWith(m.id + ':'));
+  if (!eps.length) return null;
+  const done = eps.filter((d) => d.status === 'complete').length;
+  return { text: done === eps.length ? `${plural(done, 'episode')} on your server` : `${plural(eps.length - done, 'episode')} downloading`, busy: true, cls: done === eps.length ? 'ok' : '' };
+}
+
+function discTile(m, row) {
+  seedMeta(m, m.id);
+  const t = attrs(el('article', { className: 'tile' }), { role: 'listitem' });
+  const badge = el('span', { className: 'badge', hidden: true });
+  const slot = el('span', { className: 'art-slot' });
+  posterInto(slot, m.poster, { cls: 'art-img', name: m.name });
+  const sub = [m.year, m.rating ? `★ ${m.rating}` : ''].filter(Boolean).join(' · ');
+  const link = el('a', { className: 'tile-link', href: detailHref(m.type, m.id, 'discover') },
+    el('span', { className: 'art' }, slot, badge),
+    el('span', { className: 'tile-name', textContent: m.name }),
+    el('span', { className: 'tile-sub', textContent: sub }),
+    m.reason ? el('span', { className: 'tile-why', textContent: m.reason, title: m.reason }) : null);
+  link.setAttribute('aria-label', [m.name, m.type === 'series' ? 'series' : 'movie', sub, m.reason].filter(Boolean).join(', '));
+  const over = el('div', { className: 'tile-over' });
+  let fab = null;
+  if (m.type === 'movie') {
+    fab = el('button', { type: 'button', className: 'fab', title: 'Download to your server' }, icon('download'));
+    fab.setAttribute('aria-label', `Download ${m.name}`);
+    fab.onclick = async () => {
+      fab.disabled = true;
+      fab.setAttribute('aria-busy', 'true');
+      try {
+        await send('POST', 'api/download', { type: 'movie', id: m.id });
+        toast(`Downloading ${m.name}`);
+      } catch (e) {
+        toast('Could not start: ' + e.message, 'err');
+      }
+      fab.disabled = false;
+      fab.removeAttribute('aria-busy');
+      await refresh();
+    };
+    over.append(fab);
+  }
+  const no = el('button', { type: 'button', className: 'hide-btn', title: 'Not interested' }, icon('x'));
+  no.setAttribute('aria-label', `Not interested in ${m.name}`);
+  no.onclick = async () => {
+    no.disabled = true;
+    try {
+      await send('POST', 'api/discover/hidden', { id: m.id });
+    } catch (e) {
+      no.disabled = false;
+      return toast('Could not hide it: ' + e.message, 'err');
+    }
+    // Out of every row it is in, keeping keyboard focus in this row.
+    const strip = t.parentElement;
+    const after = t.nextElementSibling || t.previousElementSibling;
+    disc.data.rows.forEach((r) => (r.items = r.items.filter((x) => x.id !== m.id)));
+    disc.data.hidden++;
+    document.querySelectorAll('#discRows .tile').forEach((x) => { if (x._id === m.id) x.remove(); });
+    if (!strip.children.length) strip.closest('.drow')?.remove();
+    setText($('#discHidden span'), `${plural(disc.data.hidden, 'title')} hidden with Not interested.`);
+    $('#discHidden').hidden = false;
+    (after && after.isConnected ? $('.tile-link', after) : $('#discRows')).focus();
+    toast(`Hidden: ${m.name}`);
+  };
+  over.append(no);
+  t._id = m.id;
+  t.append(link, over);
+  const paint = () => {
+    const st = discState(m);
+    badge.hidden = !st;
+    setText(badge, st ? st.text : '');
+    badge.className = 'badge' + (st && st.cls === 'ok' ? ' ok' : '');
+    if (fab && !fab.getAttribute('aria-busy')) fab.hidden = !!(st && st.busy);
+  };
+  const update = () => (t.isConnected ? paint() : openLists.delete(update));
+  openLists.add(update);
+  paint();
+  return t;
+}
 
 $('#pickClose').onclick = () => $('#picker').close();
 
@@ -1984,7 +2248,7 @@ const ADVANCED = new Set(['Timeouts', 'Security']);
 
 function manifestUrl() {
   const pub = current && current.values && current.values.publicUrl;
-  return pub ? `${pub}/${TOKEN}/manifest.json` : new URL('manifest.json', location.origin + BASE).href;
+  return `${pub || location.origin}/${TOKEN}/manifest.json`;
 }
 function fillManifestUrls() {
   document.querySelectorAll('.manifest-url').forEach((i) => (i.value = manifestUrl()));
@@ -2170,13 +2434,65 @@ $('#rotate').onclick = async () => {
   busy(btn, 'Rotating...');
   try {
     const r = await send('POST', 'api/settings/rotate-token');
-    location.href = new URL(r.uiUrl).pathname + '#settings';
+    TOKEN = r.token;
+    fillManifestUrls();
+    idle(btn);
+    msg.className = 'msg ok';
+    msg.textContent = 'New install URL above. Reinstall the add-on in Stremio with it.';
   } catch (e) {
     idle(btn);
     msg.className = 'msg err';
     msg.textContent = 'Rotating failed: ' + e.message;
   }
 };
+
+// ---- login ----
+$('#logout').onclick = async () => {
+  try { await send('POST', 'api/logout'); } catch { /* already logged out */ }
+  location.replace(BASE);
+};
+
+function renderAccount(session) {
+  const env = session.fromEnv;
+  $('#acEnv').hidden = !env;
+  $('#acUser').value = session.user || '';
+  $('#acNewHelp').textContent = `At least ${session.minPassword} characters. Leave empty to keep the current one. Changing the login logs out every other browser.`;
+  $('#accountForm').querySelectorAll('input, button').forEach((x) => (x.disabled = env));
+}
+
+$('#accountForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('#acSave');
+  const msg = $('#acMsg');
+  const fail = (t, focus) => { msg.className = 'msg err'; msg.textContent = t; if (focus) $(focus).focus(); };
+  const user = $('#acUser').value.trim();
+  const current = $('#acCur').value;
+  const next = $('#acNew').value;
+  if (!user) return fail('Fill in a username.', '#acUser');
+  if (next !== $('#acNew2').value) return fail('The new passwords do not match.', '#acNew2');
+  if (!current) return fail('Fill in your current password.', '#acCur');
+  busy(btn, 'Saving...');
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const r = await send('POST', 'api/account', { currentPassword: current, user, password: next || current });
+    ['#acCur', '#acNew', '#acNew2'].forEach((s) => ($(s).value = ''));
+    $('#acUser').value = r.user;
+    msg.className = 'msg ok';
+    msg.textContent = 'Login changed.';
+  } catch (err) {
+    fail(err.message, err.field === 'currentPassword' ? '#acCur' : null);
+  } finally {
+    idle(btn);
+  }
+};
+
+async function loadSession() {
+  const session = await api('api/session');
+  TOKEN = session.token;
+  fillManifestUrls();
+  renderAccount(session);
+}
 
 // ---- player: plays a download in the page, with audio track and subtitle choice ----
 // Files the browser plays as they are (MP4/WebM with codecs it knows) use the /play URL and seek natively.
@@ -2346,7 +2662,7 @@ async function load(t, { paused = false } = {}) {
   const direct = !info || (info.direct && can(info.direct.mime) && W.audio === info.direct.audio && W.burn == null && !W.triedStream);
   if (direct) {
     W.mode = 'direct';
-    src = `play/${W.type}/${encodeURIComponent(W.id)}`;
+    src = `${TOKEN}/play/${W.type}/${encodeURIComponent(W.id)}`;
   } else {
     W.mode = 'stream';
     const fmt = streamFormat();
@@ -2555,6 +2871,7 @@ async function loadSub(s) {
   renderPanel();
   try {
     const r = await fetch(BASE + url, { signal: ctl.signal });
+    if (loggedOut(r)) return location.replace(BASE);
     if (!r.ok) {
       let msg = r.statusText;
       try { msg = (await r.json()).error || msg; } catch { /* plain text */ }
@@ -2865,7 +3182,7 @@ $('#wSubs').onclick = () => togglePanel('subs');
 $('#wFs').onclick = toggleFs;
 $('#wPip').onclick = () => (document.pictureInPictureElement ? document.exitPictureInPicture() : wv.requestPictureInPicture()).catch(() => {});
 $('#wLink').onclick = async () => {
-  const url = new URL(`play/${W.type}/${encodeURIComponent(W.id)}`, location.href.split('#')[0]).href;
+  const url = new URL(`${TOKEN}/play/${W.type}/${encodeURIComponent(W.id)}`, location.href.split('#')[0]).href;
   try {
     await navigator.clipboard.writeText(url);
     note('Stream URL copied: paste it into VLC (Media → Open Network Stream)');
@@ -2979,11 +3296,13 @@ $('#watch').addEventListener('pointerdown', (e) => {
   }
 });
 
-fillManifestUrls();
-show();
-if (!current) loadSettings();
-refresh();
-setInterval(refresh, 5000);
+// The token first: the player and the install URL need it.
+loadSession().catch((e) => announce('Could not load the session: ' + e.message)).then(() => {
+  show();
+  if (!current) loadSettings();
+  refresh();
+  setInterval(refresh, 5000);
+});
 </script>
 </body>
 </html>

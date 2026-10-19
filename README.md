@@ -88,10 +88,11 @@ docker compose up -d --build
 sleep 5; docker logs --tail 20 stremio-local-addon
 curl -fsS "http://localhost:7000/$ADDON_TOKEN/manifest.json" >/dev/null && echo "Add-on is running"
 echo "Stremio add-on URL: $PUBLIC_URL/$ADDON_TOKEN/manifest.json"
-echo "Web UI:             $PUBLIC_URL/$ADDON_TOKEN/"
+echo "Create your login:  $PUBLIC_URL/$ADDON_TOKEN/"
+echo "Web UI:             $PUBLIC_URL/"
 ```
 
-Save the two URLs (the container log prints them too). Lost them? `grep ADDON_TOKEN /mnt/user/appdata/stremio-local-addon/app/docker-compose.override.yml` shows the token (use your `APP_DIR` if you changed it).
+Save these URLs (the container log prints them too). Lost them? `grep ADDON_TOKEN /mnt/user/appdata/stremio-local-addon/app/docker-compose.override.yml` shows the token (use your `APP_DIR` if you changed it).
 
 ### 6. HTTPS and Stremio
 
@@ -101,7 +102,7 @@ Stremio only installs remote add-ons over HTTPS. In Nginx Proxy Manager, add a p
 - **Forward**: `http`, the Docker host's IP, port `7000`
 - **SSL**: request a Let's Encrypt certificate, tick *Force SSL*
 
-Then open the web UI URL, go to **Settings** and click **Test connection** for your torrent client. In Stremio go to Add-ons, paste the add-on URL in the search box and install it.
+Then open the *Create your login* URL once and pick a username and password for the web UI (see [Web UI login](#web-ui-login)). From then on the web UI is at `PUBLIC_URL/` and asks for that login. Go to **Settings** and click **Test connection** for your torrent client. In Stremio go to Add-ons, paste the add-on URL in the search box and install it.
 
 ### Updating
 
@@ -152,13 +153,13 @@ Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Set
 - **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders.
 - **Score**: seeders, then bonuses for the preferred resolution, a preferred language (`nl`, `en`, `multi`, ...; from release names and Torrentio's flags), preferred words / release groups, and season packs for batch downloads. Releases above the max resolution are only used when nothing else exists.
 
-The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode under **Add**, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
+The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode in a **Discover** search, on a title's details page, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.
 
 Jackett: use the *all indexers* Torznab URL (`http://jackett:9117/api/v2.0/indexers/all/results/torznab/`) and its API key. Prowlarr has one URL per indexer (`http://prowlarr:9696/<id>/api`); list several separated by commas.
 
 ## Pre-downloading series
 
-Search a series under **Add**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
+Search a series under **Discover**, open **Episodes**, and download a single episode, **Download season** or **Download whole show**. A batch queues every released episode (specials skipped) that is not already on the server or on its way, and retries ones that failed. Torrent lookups run one at a time in the background. Episodes of one season prefer a shared season pack when the source has a reasonably seeded one. Every episode still gets its own entry, so each shows up in Stremio on its own.
 
 ## Managing downloads
 
@@ -186,6 +187,19 @@ On the main page a movie has **Play** right there; everything else for a title s
 
 Titles on the **Downloads** page link to the same details page. Deleting always asks first and works like *Delete files* on the Downloads page, including for season packs. A season or show delete only removes finished episodes; ones still downloading are left alone.
 
+## Discover
+
+The **Discover** page suggests movies and series to download next. Stremio does not share watch history with add-ons, so the add-on learns from what is on your server: the genres, directors, writers and cast of everything you downloaded. Recent downloads count more than old ones, a show with many episodes more than a single movie, and titles you played in the web player more than ones you only downloaded. Candidates come from Cinemeta's popular, top rated and new-this-year catalogs (also per favourite genre) and are ranked against that, in rows:
+
+- **Movies for you** / **Series for you**: the best fits overall, with why (*From Christopher Nolan*, *With Emily Blunt*, or the genres you like).
+- **Because you have ...**: titles close to the ones that weigh most in your library.
+- **New movies / series for you**: this year's releases that fit.
+- **Top rated** in your favourite genres.
+
+Titles already on the server (or failed or removed there) and ones not released yet never show, and each title shows in one row only. Movies have a **Download** button on the poster; click a poster for the full details page with **Download**, **Choose a torrent** or, for a show, **Download whole show** and per-season and per-episode downloads. **✕** (*Not interested*) hides a title for good; **Show them again** at the bottom brings hidden titles back (stored in `DATA_DIR/discover.json`). With nothing on the server yet, the page shows what is popular and top rated.
+
+The search box at the top finds any movie or series on Cinemeta; its results replace the suggestions until the box is emptied.
+
 ## Watching in the browser
 
 **Play** anywhere in the web UI opens a full-screen player, so a download can be watched without Stremio, also while it is still downloading.
@@ -199,11 +213,28 @@ Titles on the **Downloads** page link to the same details page. Deleting always 
 
 How it plays: an MP4 or WebM the browser can play as it is streams straight from the file. Anything else (MKV, HEVC in browsers without it, AC-3/DTS audio, another audio track, image subtitles) goes through **ffmpeg** on the server: the video is copied when the browser can play its codec, otherwise converted to H.264 (or VP9 for browsers without H.264) at up to 1080p (*Settings → Player*); audio becomes stereo AAC/Opus. Copying costs next to nothing; converting video takes real CPU (a 1080p HEVC file needs a few modern cores; there is no hardware acceleration). ffmpeg is in the Docker image; without it the player plays only what the browser plays itself, with online subtitles. Safari (iPhone/iPad) only plays files it supports as they are; use another browser there for the rest, or VLC.
 
+## Web UI login
+
+Stremio and the web UI are protected separately:
+
+- **Stremio** uses the secret token in the add-on URL (`PUBLIC_URL/<token>/manifest.json`), because Stremio cannot log in. Treat that URL like a password.
+- **The web UI** is at `PUBLIC_URL/` and needs a username and password. Sessions last 30 days and are renewed while you use the UI.
+
+Create the login in one of two ways:
+
+- **In the browser**: open `PUBLIC_URL/<token>/` (the old web UI URL, printed in the container log). While no login exists it shows a form to create one; afterwards it just leads to the web UI. Only the first login can be made this way.
+- **With env vars**: set `UI_USER` (default `admin`) and `UI_PASSWORD`. The env login then wins over one made in the browser, and can only be changed in the env.
+
+Change the username or password under **Settings → Web UI login**; that logs out every other browser. **Log out** (top right) ends the session in this browser.
+
+Forgot the password? Stop the container, delete `DATA_DIR/auth.json` (all sessions end too) and open `PUBLIC_URL/<token>/` again, or set `UI_PASSWORD`.
+
 ## Security
 
-The token is the only auth, so treat the URL like a password. On top of that:
+On top of the token and the login:
 
-- The token is compared in constant time. Wrong URLs get a plain `404 Not found`, and an IP that keeps guessing (20 misses in 10 minutes by default) is locked out for a minute, doubling up to an hour.
+- The token is compared in constant time. Wrong URLs get a plain `404 Not found`, and an IP that keeps guessing (20 misses in 10 minutes by default) is locked out for a minute, doubling up to an hour. Wrong web UI passwords count the same way, separately from wrong URLs.
+- Passwords are stored as scrypt hashes in `DATA_DIR/auth.json` (readable by the owner only), next to the key that signs session cookies. Cookies are `HttpOnly` and `SameSite=Strict`, and `Secure` behind an HTTPS reverse proxy that sends `X-Forwarded-Proto`.
 - New downloads started from Stremio are limited per IP (10/min) and in total (30/min), and web UI actions per IP (120/min). Playing what is already there is never limited. All limits are under Settings → Security (0 = off).
 - The client IP is only taken from `X-Forwarded-For` when the request comes from a private or loopback address (your reverse proxy), so clients cannot fake it.
 - The web UI sends a strict Content-Security-Policy and `Referrer-Policy: no-referrer`, so the token never leaks via the `Referer` header, e.g. when posters load.
@@ -212,7 +243,7 @@ The token is the only auth, so treat the URL like a password. On top of that:
 
 Everything below can be changed on the **Settings** page of the web UI: torrent client (with a *Test connection* button per client), connection details, path mapping, torrent source, timeouts and the public URL. Changes are stored in `DATA_DIR/settings.json`, override the env vars, and apply right away without a restart. *Reset to default* goes back to the env value. Passwords are never shown again once saved; leave the field empty to keep the saved one.
 
-**Rotate token** creates a new secret URL. The old URL stops working immediately, so reinstall the add-on in Stremio with the new manifest URL shown on the page.
+**Rotate token** creates a new secret add-on URL. The old URL stops working immediately, so reinstall the add-on in Stremio with the new manifest URL shown on the page. The web UI and your login are not affected.
 
 ## Env vars
 
@@ -220,7 +251,8 @@ These are the defaults for the settings page.
 
 | Var | Default | |
 |---|---|---|
-| `ADDON_TOKEN` | required | secret path segment |
+| `ADDON_TOKEN` | required | secret path segment of the Stremio add-on URL |
+| `UI_USER` / `UI_PASSWORD` | `admin` / none | env only: the web UI login; without `UI_PASSWORD` you create it in the browser (see [Web UI login](#web-ui-login)) |
 | `PUBLIC_URL` | from request | public HTTPS base URL |
 | `TORRENT_CLIENT` | `qbittorrent` | `qbittorrent` or `transmission` |
 | `QB_URL` / `QB_USER` / `QB_PASS` | `http://qbittorrent:8080` | qBittorrent WebUI |
@@ -250,7 +282,7 @@ These are the defaults for the settings page.
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | env only: where the player finds ffmpeg |
 | `PLAY_STARTS_PER_IP_PER_MIN` / `PLAY_STARTS_PER_MIN` | `10` / `30` | new downloads from Stremio per minute (0 = off) |
 | `API_WRITES_PER_IP_PER_MIN` | `120` | web UI actions per minute (0 = off) |
-| `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs within 10 minutes before an IP is locked out (0 = off) |
+| `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs (or, counted apart, wrong web UI passwords) within 10 minutes before an IP is locked out (0 = off) |
 
 ## How it works
 

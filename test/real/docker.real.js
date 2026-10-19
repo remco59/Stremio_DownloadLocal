@@ -15,7 +15,9 @@ const TOKEN = 'docker-test-token-0123456789';
 const ADDON = 'real-addon';
 const QB = 'real-addon-qb';
 const PORT = 17000;
-const base = `http://127.0.0.1:${PORT}/${TOKEN}`;
+const origin = `http://127.0.0.1:${PORT}`;
+const base = `${origin}/${TOKEN}`;
+const UI = { user: 'admin', password: 'docker-test-password' };
 let root;
 
 test.before(async () => {
@@ -48,29 +50,34 @@ test('compose file is valid', async () => {
 
 test('add-on container talks to the qBittorrent container and keeps its settings', { timeout: 300000 }, async () => {
   const qb = await d.startQb({ name: QB, port: 18090, mounts: [`${path.join(root, 'downloads')}:/downloads`, `${path.join(root, 'qb-config')}:/config`] });
-  await runAddon({ ADDON_TOKEN: TOKEN, TORRENT_CLIENT: 'qbittorrent', QB_URL: `http://${QB}:18090`, QB_USER: qb.user, QB_PASS: qb.pass });
+  await runAddon({ ADDON_TOKEN: TOKEN, UI_USER: UI.user, UI_PASSWORD: UI.password, TORRENT_CLIENT: 'qbittorrent', QB_URL: `http://${QB}:18090`, QB_USER: qb.user, QB_PASS: qb.pass });
 
   const logs = await d.sh('docker', ['logs', ADDON]);
   assert.match(logs, /torrent client: qbittorrent/);
 
   const m = await (await fetch(`${base}/manifest.json`)).json();
   assert.equal(m.id, 'community.local.download-and-watch');
-  const ui = await fetch(`${base}/`);
+  const login = await fetch(`${origin}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(UI) });
+  assert.equal(login.status, 200);
+  const Cookie = login.headers.get('set-cookie').split(';')[0];
+  const api = (p, opts = {}) => fetch(origin + p, { ...opts, headers: { Cookie, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const ui = await api('/');
   assert.equal(ui.status, 200);
   assert.match(ui.headers.get('content-security-policy'), /default-src 'self'/);
+  assert.match(await ui.text(), /<nav aria-label="Sections">/, 'the UI, not the login page');
 
   // Container to container, by service name.
-  const t = await (await fetch(`${base}/api/settings/test-client`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+  const t = await (await api('/api/settings/test-client', { method: 'POST', body: '{}' })).json();
   assert.equal(t.ok, true, t.error);
   assert.match(t.version, /^qBittorrent v5/);
 
   // Settings land in the /data volume and survive a container restart.
-  const put = await fetch(`${base}/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxRes: 720 }) });
+  const put = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ maxRes: 720 }) });
   assert.equal(put.status, 200);
   assert.ok(fs.existsSync(path.join(root, 'data', 'settings.json')));
   await d.sh('docker', ['restart', ADDON]);
   await d.waitFor(async () => (await fetch(`${base}/manifest.json`)).ok, 60000, 'restarted add-on');
-  assert.equal((await (await fetch(`${base}/api/settings`)).json()).values.maxRes, 720);
+  assert.equal((await (await api('/api/settings')).json()).values.maxRes, 720, 'still logged in after a restart too');
 
   const clip = await fetch(`${base}/clip/started.mp4`, { headers: { Range: 'bytes=0-9' } });
   assert.equal(clip.status, 206, 'status clips are in the image');

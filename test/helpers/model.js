@@ -8,6 +8,7 @@ function createModel() {
     torrentio: {}, // Stremio ID -> { streams: [...] } served at /stream/:type/:id.json
     subtitles: {}, // Stremio ID -> [{ id, lang, text }], a subtitles add-on at /subtitles/:type/:id.json (files at /subfile/:id)
     metas: {}, // Cinemeta stand-in: series/movie ID -> meta served at /meta/:type/:id.json
+    catalogs: {}, // Cinemeta catalogs: 'movie/top' or 'series/top/genre=Drama' -> [meta] at /catalog/<that>.json
     // Cinemeta trouble, used up by the next search/meta requests: N times a 504 HTML page (Cloudflare giving up),
     // then N times an answer that only comes after hangMs.
     cinemetaFailures: 0,
@@ -143,6 +144,8 @@ function serve(model, handle) {
         const type = url.pathname.split('/')[2];
         return send(res, 200, { metas: Object.values(model.metas).filter((m) => (m.type || 'series') === type) });
       }
+      const cm = /^\/catalog\/(.+)\.json$/.exec(url.pathname);
+      if (cm) return send(res, 200, { metas: model.catalogs[decodeURIComponent(cm[1])] || [] });
       if (url.pathname === '/torznab/api') {
         const q = Object.fromEntries(url.searchParams);
         model.torznabQueries.push(q);

@@ -67,7 +67,7 @@ async function title({ pieces = 0, metadata = true } = {}) {
   return { id, hash };
 }
 const queue = (id) =>
-  fetch(`${env.base}/api/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'movie', id }) });
+  env.api(`/api/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'movie', id }) });
 const play = (id, headers = {}) => fetch(`${env.base}/play/movie/${id}`, { headers, redirect: 'manual' });
 
 test('first tap without metadata: the "looking for the torrent" clip', async () => {
@@ -112,7 +112,7 @@ test('stream entry says how far it plays', async () => {
   const s = (await (await fetch(`${env.base}/stream/movie/${id}.json`)).json()).streams[0];
   assert.match(s.description, /^Playable up to 25%/);
   // The web UI shows the same on the downloads page.
-  const item = (await (await fetch(`${env.base}/api/downloads`)).json()).items.find((d) => d.id === id);
+  const item = (await (await env.api(`/api/downloads`)).json()).items.find((d) => d.id === id);
   assert.equal(item.playable, 0.25);
 });
 

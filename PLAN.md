@@ -51,9 +51,9 @@ Both containers mount the same host downloads folder at `/downloads` (read-write
 
 **Come back later** → Stremio asks `/stream/...`; the add-on sees the record and shows the percentage or "Your server". Playing continues from the server.
 
-**Web interface** (`/<token>/`), served by the same container, three areas:
+**Web interface** (`/`, behind a username/password login), served by the same container, three areas:
 
-1. **Add / pre-download**: search via Cinemeta, pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
+1. **Discover / pre-download**: recommendations scored against a taste profile of what is on the server (genres and people of every download, Cinemeta catalogs as candidates), and search via Cinemeta: pick a movie, a single episode, a whole season or a whole show (queues every episode; episodes that are already downloaded are skipped), hit Download.
 2. **Manage downloads**: live list with progress, status and size; per item: pause/resume, remove from qBittorrent, delete files from disk (with confirmation), re-download, open/play link.
 3. **Settings**: edit all settings in the UI and persist them in `DATA_DIR/settings.json` (env vars only provide the defaults). Covers: torrent client choice (qBittorrent / Transmission) with per-client URL/user/password/category or label and a "test connection" button, path mapping, torrent source (Torrentio URL or Jackett/Prowlarr), max resolution and language/size preferences, timeouts, public URL, and token rotation. Changes apply without restarting the container.
 
@@ -63,7 +63,7 @@ Both containers mount the same host downloads folder at `/downloads` (read-write
 - Add-on and torrent client kept as separate containers; all client access goes through one interface (add, info, files, pieces, set wanted files, stop/start, remove, test connection), so the downloader can be swapped without touching the add-on logic.
 - Transmission needs 4.1+ for sequential download (`sequential_download`); older versions work but only play once (almost) complete.
 - Piece-map gating instead of guessing from file size (qBittorrent files are sparse while downloading).
-- Secret token in the URL path for all routes (manifest, streams, UI, API).
+- Secret token in the URL path for the add-on routes Stremio uses (manifest, streams, play). The web UI and its API use a username/password login with signed session cookies instead; the first login is created through the token URL or set with `UI_USER`/`UI_PASSWORD`.
 - Settings live in a JSON file in the data volume and override env vars, so the web UI can edit them at runtime.
 - "Whole show" downloads are just a batch of per-episode downloads, so each episode keeps its own state record and shows up correctly in Stremio.
 
@@ -79,6 +79,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Automated tests (range parsing, piece-map gating, end-to-end against a mock qBittorrent) + CI
 - [x] Pluggable torrent client: qBittorrent and Transmission behind one interface, end-to-end tests against both mocks
 - [x] Auth hardening: constant-time token check, plain 404s, rate limits for new downloads and UI actions, wrong-token lockout, security headers, body size limits
+- [x] Web UI login: username/password (scrypt) with signed session cookies, set up via the token URL or `UI_USER`/`UI_PASSWORD`; Stremio keeps the URL token
 - [x] Playback UX: first tap plays or shows a status clip, clean 503 when seeking past the downloaded part, "playable up to NN%" in Stremio
 - [x] Torrent picker: Torrentio and/or Jackett/Prowlarr (Torznab), filters + scoring from settings, manual pick in the web UI
 - [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)

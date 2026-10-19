@@ -15,7 +15,7 @@ module.exports = function manageSuite({ client }) {
   });
   test.after(() => env && env.close());
 
-  const call = (method, p) => fetch(env.base + p, { method });
+  const call = (method, p) => env.api(p, { method });
   const act = async (id, action, method = 'POST') => {
     const r = await call(method, `/api/downloads/${encodeURIComponent(id)}${action ? '/' + action : ''}`);
     return { status: r.status, body: await r.json() };
@@ -32,7 +32,7 @@ module.exports = function manageSuite({ client }) {
     env.mock.onAdd = (h) => env.mock.addTorrent({ hash: h, name: `T${n}`, pieceSize: 1024, files });
     for (const id of ids) {
       const type = id.includes(':') ? 'series' : 'movie';
-      const r = await fetch(`${env.base}/api/download`, {
+      const r = await env.api(`/api/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, id }),
@@ -83,7 +83,7 @@ module.exports = function manageSuite({ client }) {
     assert.equal(body.item.status, 'missing');
     assert.equal(env.mock.torrents.has(hash), false);
     assert.equal(env.mock.lastRemoved.deletedFiles, false);
-    const s = await (await call('GET', `/stream/movie/${id}.json`)).json();
+    const s = await (await fetch(`${env.base}/stream/movie/${id}.json`)).json();
     assert.match(s.streams[0].name, /Download/);
 
     assert.equal((await act(id, 'pause')).status, 409);
@@ -104,7 +104,7 @@ module.exports = function manageSuite({ client }) {
     const { body } = await act(id, 'remove');
     assert.equal(body.item.status, 'complete');
     assert.equal(body.item.inClient, false);
-    const r = await call('GET', `/play/movie/${id}`);
+    const r = await fetch(`${env.base}/play/movie/${id}`);
     assert.deepEqual(Buffer.from(await r.arrayBuffer()), pattern(3000));
   });
 
@@ -190,7 +190,7 @@ module.exports = function manageSuite({ client }) {
   });
 
   const libDelete = async (body) => {
-    const r = await fetch(`${env.base}/api/library/delete`, {
+    const r = await env.api(`/api/library/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
