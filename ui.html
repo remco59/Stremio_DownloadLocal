@@ -19,6 +19,7 @@
   body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 800px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
   ::selection { background: rgba(164, 143, 255, .35); }
   :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
+  [tabindex="-1"]:focus { outline: none; } /* list containers: focus targets only, and the URL hash (#downloads) focuses them */
   a { color: var(--acc-hi); text-underline-offset: 3px; }
   h1, h2, h3 { text-wrap: balance; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -130,6 +131,42 @@
     .acts details.more { margin-left: auto; }
   }
 
+  /* library */
+  .libbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .libbar input { flex: 1 1 220px; }
+  .libbar .tabs { margin: 0; }
+  #libSum { margin: 0 0 18px; }
+  button.del { color: var(--err); }
+  button.del:hover { border-color: rgba(255, 107, 107, .5); }
+  .disc-h { margin: 0; font-size: inherit; font-weight: inherit; min-width: 0; }
+  button.disc { display: flex; gap: 12px; align-items: center; justify-content: flex-start; width: 100%; min-width: 0; background: none; border: 0; padding: 4px 0; text-align: left; white-space: normal; font-weight: inherit; }
+  button.disc:hover { background: none; }
+  button.disc:hover .disc-name { text-decoration: underline; text-underline-offset: 3px; }
+  .chev { width: 7px; height: 7px; flex: none; margin: 0 3px; border-right: 1.75px solid var(--mut); border-bottom: 1.75px solid var(--mut); transform: rotate(-45deg); transition: transform .2s; }
+  [aria-expanded="true"] > .chev { transform: rotate(45deg); }
+  .disc-tx { display: grid; min-width: 0; }
+  .disc-name { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  .disc-meta { font-size: 13px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .lib-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; }
+  .lib-show { background: var(--card); border-radius: var(--r); padding: 12px; }
+  .lib-show > .panel { margin-top: 10px; }
+  .season { border-top: 1px solid var(--line); padding: 6px 0; }
+  .season .disc-name { font-size: 14px; }
+  .lib-eps { padding: 2px 0 4px 22px; }
+  .lib-ep { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .lib-ep .ep-name { overflow-wrap: anywhere; }
+  .lib-ep .ep-size { font-size: 13px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .lib-ep .cardmsg { grid-column: 1 / -1; margin: 0; }
+  .lib-show .cardmsg, .season .cardmsg { font-size: 13px; color: var(--err); margin: 6px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+  @media (max-width: 600px) {
+    .lib-head { grid-template-columns: minmax(0, 1fr); }
+    .lib-head .acts { justify-content: flex-start; }
+    .lib-eps { padding-left: 0; }
+    .lib-ep { grid-template-columns: minmax(0, 1fr) auto; }
+    .lib-ep .ep-name { grid-column: 1 / -1; }
+  }
+
   /* add */
   .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .tabs button { background: none; }
@@ -209,6 +246,7 @@
   <h1>Local Download &amp; Watch</h1>
   <nav aria-label="Sections">
     <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
+    <a href="#library" data-view="library">Library</a>
     <a href="#add" data-view="add">Add</a>
     <a href="#settings" data-view="settings">Settings</a>
   </nav>
@@ -231,6 +269,29 @@
     <p class="msg">Or <a href="#add">search for a title here</a> and download it without opening Stremio.</p>
   </div>
   <div id="downloads" tabindex="-1"></div>
+</section>
+
+<section id="v-library" aria-label="Library" hidden>
+  <div id="libEmpty" class="empty" hidden>
+    <h2>Your library is empty</h2>
+    <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#add">Search for a title</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
+  </div>
+  <div id="libTools" hidden>
+    <div class="libbar">
+      <label for="libQ" class="sr-only">Filter the library</label>
+      <input id="libQ" type="search" placeholder="Filter by title" autocomplete="off">
+      <div class="tabs" id="libKinds" role="group" aria-label="What to show">
+        <button type="button" data-kind="all" aria-pressed="true">All</button>
+        <button type="button" data-kind="movie" aria-pressed="false">Movies</button>
+        <button type="button" data-kind="series" aria-pressed="false">Series</button>
+      </div>
+      <label for="libSort" class="sr-only">Sort by</label>
+      <select id="libSort"><option value="name">A to Z</option><option value="recent">Recently added</option></select>
+    </div>
+    <p class="msg" id="libSum"></p>
+    <div class="note" id="libNone" hidden>Nothing in your library matches this filter.</div>
+  </div>
+  <div id="library" tabindex="-1"></div>
 </section>
 
 <section id="v-add" aria-label="Add" hidden>
@@ -289,6 +350,7 @@ const ICONS = {
   film: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 4.5v15M16.5 4.5v15M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/>',
   alert: '<path d="M12 3.5l9 16h-18z"/><path d="M12 10v4.5M12 17.2v.1"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 10.5v6M14 10.5v6"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -345,7 +407,7 @@ const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- views ----
-const VIEWS = ['downloads', 'add', 'settings'];
+const VIEWS = ['downloads', 'library', 'add', 'settings'];
 function show() {
   const v = (location.hash.slice(1) || 'downloads').split('?')[0];
   const name = VIEWS.includes(v) ? v : 'downloads';
@@ -617,7 +679,7 @@ function updateCard(card, d, stale) {
 }
 
 // Keyed list update: existing nodes are patched in place (focus, open menus and scroll survive the 5 s poll).
-function reconcile(parent, entries) {
+function reconcile(parent, entries, home = $('#downloads')) {
   const old = new Map([...parent.children].map((n) => [n.dataset.key, n]));
   let prev = null;
   for (const e of entries) {
@@ -640,7 +702,7 @@ function reconcile(parent, entries) {
     const lostFocus = n.contains(document.activeElement);
     const next = n.nextElementSibling || n.previousElementSibling;
     n.remove();
-    if (lostFocus) (next && !old.has(next.dataset.key) && next.querySelector('a, button, summary') || $('#downloads')).focus({ preventScroll: true });
+    if (lostFocus) (next && !old.has(next.dataset.key) && next.querySelector('a, button, summary') || home).focus({ preventScroll: true });
   }
 }
 
@@ -737,7 +799,7 @@ let renderQueued = false;
 function renderSoon() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); openLists.forEach((f) => f()); });
+  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); renderLibrary(); openLists.forEach((f) => f()); });
 }
 
 function noticeFinished(items) {
@@ -772,6 +834,224 @@ async function refresh() {
   noticeFinished(data.items);
   openLists.forEach((f) => f());
   renderDownloads();
+  renderLibrary();
+}
+
+// ---- library: everything on the server, series as show > season > episode ----
+let libKind = 'all';
+const libOpen = new Set(); // expanded shows ('s:tt') and seasons ('ss:tt:season'), kept across polls
+const sizeOf = (list) => list.reduce((s, d) => s + (d.size || 0), 0);
+const sizeText = (list) => (sizeOf(list) ? fmtBytes(sizeOf(list)) : '');
+const fmtDate = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+const epNum = (d) => d.id.split(':').slice(1).map(Number);
+
+document.querySelectorAll('#libKinds button').forEach((b) => (b.onclick = () => {
+  libKind = b.dataset.kind;
+  document.querySelectorAll('#libKinds button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  renderLibrary();
+}));
+$('#libQ').oninput = () => renderLibrary();
+$('#libSort').onchange = () => renderLibrary();
+
+// Deletes the files of `items` after a confirmation; feedback in `msg` (or announced, if the row is gone).
+async function libDelete(items, what, btn, msg) {
+  const count = items.some((d) => d.id.includes(':')) ? plural(items.length, 'episode') : items[0].fileName || '';
+  if (!confirm(`Permanently delete ${what} from disk?\n${[count, sizeText(items)].filter(Boolean).join(' · ')}\nThis cannot be undone.`)) return;
+  msg.hidden = true;
+  busy(btn, 'Deleting...');
+  let failed;
+  try {
+    ({ failed } = await send('POST', 'api/library/delete', { ids: items.map((d) => d.id) }));
+  } catch (e) {
+    failed = [{ error: e.message }];
+  }
+  idle(btn);
+  if (failed.length) {
+    const text = `${failed.length < items.length ? `Could not delete ${failed.length} of ${items.length}` : 'Could not delete'}: ${failed[0].error}`;
+    msg.textContent = text;
+    msg.hidden = false;
+    announce(text);
+  } else announce(`Deleted ${what}`);
+  await refresh();
+}
+
+function playLink(d, label, cls) {
+  const a = el('a', { className: cls, target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Opens in the browser; or copy the link into VLC' },
+    icon('play'), el('span', { className: 'lbl', textContent: 'Play' }));
+  a.setAttribute('aria-label', `Play ${label}`);
+  return a;
+}
+
+// Expand/collapse button for a show or a season; `key` goes into libOpen.
+function disclosure(key, panel, ...kids) {
+  const b = attrs(el('button', { type: 'button', className: 'disc' }, attrs(el('span', { className: 'chev' }), { 'aria-hidden': 'true' }), ...kids), { 'aria-controls': panel.id });
+  b.onclick = () => {
+    if (libOpen.has(key)) libOpen.delete(key);
+    else libOpen.add(key);
+    renderLibrary();
+  };
+  return el('h3', { className: 'disc-h' }, b);
+}
+function setOpen(node, key) {
+  const open = libOpen.has(key);
+  $('.disc', node).setAttribute('aria-expanded', String(open));
+  node.querySelector(':scope > .panel').hidden = !open;
+}
+const panelId = (key) => 'lib-' + key.replace(/:/g, '-');
+
+function makeLibMovie() {
+  const card = el('article', { className: 'dl' });
+  const del = button('Delete', { cls: 'del', ico: 'trash' });
+  const msg = el('p', { className: 'cardmsg', hidden: true, role: 'alert' });
+  card.append(el('div', { className: 'poster-slot' }),
+    el('div', { className: 'body' },
+      el('h3', { className: 'title' }, el('span', { className: 'tx' }), el('span', { className: 'year' })),
+      el('div', { className: 'file' }), el('p', { className: 'status' }), msg),
+    el('div', { className: 'acts' }, del));
+  del.onclick = () => libDelete([card._d], `"${names(card._d).full}"`, del, msg);
+  return card;
+}
+function updateLibMovie(card, d) {
+  card._d = d;
+  const n = names(d);
+  setText($('.title .tx', card), n.title);
+  setText($('.title .year', card), n.year || '');
+  const file = $('.file', card);
+  setText(file, d.label || d.title || '');
+  file.title = d.fileName || '';
+  setText($('.status', card), [sizeText([d]), d.createdAt ? 'added ' + fmtDate(d.createdAt) : ''].filter(Boolean).join(' · '));
+  posterInto($('.poster-slot', card), n.poster);
+  const acts = $('.acts', card);
+  if (acts.dataset.sig !== n.full) {
+    acts.dataset.sig = n.full;
+    $('a', acts)?.remove();
+    acts.prepend(playLink(d, n.full, 'btn primary'));
+    $('button.del', acts).setAttribute('aria-label', `Delete ${n.full}`);
+  }
+}
+
+function makeLibShow(key) {
+  const g = el('article', { className: 'lib-show' });
+  const panel = el('div', { className: 'panel', id: panelId(key) });
+  const del = button('Delete show', { cls: 'del', ico: 'trash' });
+  const msg = el('p', { className: 'cardmsg', hidden: true, role: 'alert' });
+  del.onclick = () => libDelete(g._eps, `all of "${g._name}"`, del, msg);
+  g.append(
+    el('div', { className: 'lib-head' },
+      disclosure(key, panel, el('span', { className: 'poster-slot' }), el('span', { className: 'disc-tx' }, el('span', { className: 'disc-name' }), el('span', { className: 'disc-meta' }))),
+      el('div', { className: 'acts' }, del)),
+    msg, panel);
+  return g;
+}
+function updateLibShow(g, key, tt, eps) {
+  const n = names(eps[0]);
+  g._eps = eps;
+  g._name = n.show;
+  const seasons = new Map();
+  for (const d of [...eps].sort((a, b) => epNum(a)[0] - epNum(b)[0] || epNum(a)[1] - epNum(b)[1])) {
+    const s = epNum(d)[0];
+    if (!seasons.has(s)) seasons.set(s, []);
+    seasons.get(s).push(d);
+  }
+  setText($('.disc-name', g), n.show);
+  setText($('.disc-meta', g), [n.year, plural(seasons.size, 'season'), plural(eps.length, 'episode'), sizeText(eps)].filter(Boolean).join(' · '));
+  posterInto($('.poster-slot', g), n.poster);
+  $('button.del', g).setAttribute('aria-label', `Delete all of ${n.show}`);
+  setOpen(g, key);
+  reconcile($(':scope > .panel', g), [...seasons].map(([s, list]) => {
+    const sk = `ss:${tt}:${s}`;
+    return { key: sk, create: () => makeLibSeason(sk), update: (n2) => updateLibSeason(n2, sk, s, list, n.show) };
+  }), $('#library'));
+}
+
+function makeLibSeason(key) {
+  const sec = el('section', { className: 'season' });
+  const panel = el('div', { className: 'panel lib-eps', id: panelId(key) });
+  const del = button('Delete season', { cls: 'del', ico: 'trash' });
+  const msg = el('p', { className: 'cardmsg', hidden: true, role: 'alert' });
+  del.onclick = () => libDelete(sec._eps, `season ${sec._s} of "${sec._show}"`, del, msg);
+  sec.append(
+    el('div', { className: 'lib-head' },
+      disclosure(key, panel, el('span', { className: 'disc-tx' }, el('span', { className: 'disc-name' }), el('span', { className: 'disc-meta' }))),
+      el('div', { className: 'acts' }, del)),
+    msg, panel);
+  return sec;
+}
+function updateLibSeason(sec, key, s, eps, show) {
+  Object.assign(sec, { _eps: eps, _s: s, _show: show });
+  setText($('.disc-name', sec), `Season ${s}`);
+  setText($('.disc-meta', sec), [plural(eps.length, 'episode'), sizeText(eps)].filter(Boolean).join(' · '));
+  $('button.del', sec).setAttribute('aria-label', `Delete season ${s} of ${show}`);
+  setOpen(sec, key);
+  reconcile($(':scope > .panel', sec), eps.map((d) => ({ key: d.id, create: makeLibEp, update: (r) => updateLibEp(r, d, show) })), $('#library'));
+}
+
+function makeLibEp() {
+  const r = el('div', { className: 'lib-ep' });
+  const del = button('Delete', { cls: 'del', ico: 'trash' });
+  const msg = el('p', { className: 'cardmsg', hidden: true, role: 'alert' });
+  del.onclick = () => libDelete([r._d], `"${names(r._d).full}"`, del, msg);
+  r.append(el('span', { className: 'ep-name' }), el('span', { className: 'ep-size' }), el('div', { className: 'acts' }, del), msg);
+  return r;
+}
+function updateLibEp(r, d, show) {
+  r._d = d;
+  const [s, e] = epNum(d);
+  const m = metaFor('series', d.id.split(':')[0]);
+  const title = m && m.eps && m.eps[`${s}:${e}`];
+  const name = $('.ep-name', r);
+  setText(name, `${e}. ${title || `Episode ${e}`}`);
+  name.title = d.label || d.fileName || '';
+  setText($('.ep-size', r), sizeText([d]));
+  const full = `${show} ${epCode(s, e)}`;
+  const acts = $('.acts', r);
+  if (acts.dataset.sig !== full) {
+    acts.dataset.sig = full;
+    $('a', acts)?.remove();
+    acts.prepend(playLink(d, full, 'btn'));
+    $('button.del', acts).setAttribute('aria-label', `Delete ${full}`);
+  }
+}
+
+function renderLibrary() {
+  if (!lastData) return;
+  const all = lastData.items.filter((d) => d.status === 'complete');
+  const movies = [];
+  const shows = new Map();
+  for (const d of all) {
+    if (d.type !== 'series' || !d.id.includes(':')) { movies.push(d); continue; }
+    const tt = d.id.split(':')[0];
+    if (!shows.has(tt)) shows.set(tt, []);
+    shows.get(tt).push(d);
+  }
+  $('#libEmpty').hidden = !!all.length;
+  $('#libTools').hidden = !all.length;
+  const epCount = all.length - movies.length;
+  setText($('#libSum'), [
+    movies.length ? plural(movies.length, 'movie') : '',
+    shows.size ? `${plural(shows.size, 'show')} (${plural(epCount, 'episode')})` : '',
+    sizeOf(all) ? `${fmtBytes(sizeOf(all))} on disk` : '',
+  ].filter(Boolean).join(' · '));
+
+  const q = $('#libQ').value.trim().toLowerCase();
+  const hit = (x) => !q || x.name.toLowerCase().includes(q);
+  const recent = $('#libSort').value === 'recent';
+  const order = (a, b) => (recent ? b.at - a.at : 0) || byName(a.name, b.name);
+  const mv = (libKind === 'series' ? [] : movies).map((d) => ({ d, name: names(d).title, at: d.createdAt || 0 })).filter(hit).sort(order);
+  const sh = (libKind === 'movie' ? [] : [...shows]).map(([tt, eps]) => ({ tt, eps, name: names(eps[0]).show, at: Math.max(...eps.map((d) => d.createdAt || 0)) })).filter(hit).sort(order);
+  const groups = [];
+  if (mv.length) groups.push(['lib-movies', 'Movies', mv.map(({ d }) => ({ key: d.id, create: makeLibMovie, update: (n) => updateLibMovie(n, d) }))]);
+  if (sh.length) groups.push(['lib-series', 'Series', sh.map(({ tt, eps }) => ({ key: 's:' + tt, create: () => makeLibShow('s:' + tt), update: (n) => updateLibShow(n, 's:' + tt, tt, eps) }))]);
+  $('#libNone').hidden = !all.length || !!groups.length;
+  reconcile($('#library'), groups.map(([key, title, entries]) => ({
+    key,
+    create: () => makeSection(key, title),
+    update: (s) => {
+      setText($('h2 .count', s), String(entries.length));
+      reconcile($('.list', s), entries, $('#library'));
+    },
+  })), $('#library'));
 }
 
 // Menus: one open at a time; outside click or Escape closes.

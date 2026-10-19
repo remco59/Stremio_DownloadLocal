@@ -210,6 +210,16 @@ router.post('/api/downloads/:id/:action', (req, res) => {
 });
 router.delete('/api/downloads/:id', (req, res) => act(dl.forget, req, res));
 
+// Library: deletes the files of many items in one request (a whole season or show). Per-item failures are
+// reported next to what did get deleted.
+router.post('/api/library/delete', async (req, res) => {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || !ids.every((id) => typeof id === 'string' && ID_RE.test(id))) {
+    return res.status(400).json({ error: 'ids must be a list of Stremio IDs' });
+  }
+  res.json(await dl.deleteMany(ids));
+});
+
 // Ranked torrents for the manual picker (rejected ones last, with the reason).
 router.get('/api/candidates/:type/:id', async (req, res) => {
   const { type, id } = req.params;

@@ -175,6 +175,12 @@ The web UI opens on the **Downloads** page. It lists everything the add-on knows
 
 Season packs are shared between episodes: removing or deleting one episode only drops that episode's file, and the torrent stays for the others.
 
+## Library
+
+The **Library** page shows everything that is fully downloaded. Movies are listed with their size and when they were added. Series are listed once per show: open a show to see its seasons, and a season to see its episodes. You can filter by title, show only movies or only series, and sort A to Z or by recently added.
+
+**Play** works the same as on the Downloads page. **Delete** removes files from disk after a confirmation, for one movie or episode, a whole season (**Delete season**) or a whole show (**Delete show**). Deleting works like *Delete files* on the Downloads page, including for season packs. Episodes that are still downloading are not in the Library, so a season or show delete leaves them alone.
+
 ## Security
 
 The token is the only auth, so treat the URL like a password. On top of that:

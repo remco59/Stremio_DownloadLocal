@@ -375,6 +375,24 @@ async function deleteFiles(id) {
   db.delete(id);
 }
 
+/**
+ * Deletes several items (a season, a whole show) one after the other, never in parallel: episodes of one season
+ * pack share a torrent, and each delete decides from the ones still left whether the torrent goes too.
+ */
+async function deleteMany(ids) {
+  const deleted = [];
+  const failed = [];
+  for (const id of new Set(ids)) {
+    try {
+      await deleteFiles(id);
+      deleted.push(id);
+    } catch (e) {
+      failed.push({ id, error: String(e.message) });
+    }
+  }
+  return { deleted, failed };
+}
+
 /** Starts over for an item whose download failed or disappeared. */
 async function redownload(id) {
   const rec = need(id);
@@ -447,6 +465,7 @@ module.exports = {
   resume,
   removeFromClient,
   deleteFiles,
+  deleteMany,
   redownload,
   forget,
 };
