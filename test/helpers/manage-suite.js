@@ -189,6 +189,40 @@ module.exports = function manageSuite({ client }) {
     assert.equal(env.mock.torrents.has(hash), true);
   });
 
+  const libDelete = async (body) => {
+    const r = await fetch(`${env.base}/api/library/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return { status: r.status, body: await r.json() };
+  };
+
+  test('library: deleting a whole season pack at once removes the torrent and every file', async () => {
+    const ids = ['tt0944947:3:1', 'tt0944947:3:2'];
+    const files = [{ name: 'GoT.S03/E01.mkv', size: 1024 }, { name: 'GoT.S03/E02.mkv', size: 1024 }];
+    const hash = await queue(ids, files);
+    writeFiles(files);
+    env.mock.completeAll(hash);
+    await waitFor(() => ids.every((id) => env.db.get(id).status === 'complete'));
+
+    const { status, body } = await libDelete({ ids: [...ids, 'tt404404'] });
+    assert.equal(status, 200);
+    assert.deepEqual(body.deleted, ids);
+    assert.deepEqual(body.failed.map((f) => f.id), ['tt404404']);
+    assert.equal(env.mock.torrents.has(hash), false);
+    assert.equal(env.mock.lastRemoved.deletedFiles, true);
+    assert.equal(fs.existsSync(onDisk(files[0].name)), false, 'the first episode was unlinked while the torrent was still shared');
+    ids.forEach((id) => assert.equal(env.db.get(id), null));
+  });
+
+  test('library: bad delete requests', async () => {
+    assert.equal((await libDelete({})).status, 400);
+    assert.equal((await libDelete({ ids: [] })).status, 400);
+    assert.equal((await libDelete({ ids: ['tt1', '../etc'] })).status, 400);
+    assert.equal((await libDelete({ ids: 'tt1000001' })).status, 400);
+  });
+
   test('bad requests', async () => {
     assert.equal((await act('tt404404', 'pause')).status, 404);
     assert.equal((await act('nope', 'pause')).status, 400);

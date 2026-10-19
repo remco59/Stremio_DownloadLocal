@@ -16,9 +16,10 @@
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html { scrollbar-color: var(--line-hi) var(--bg); }
-  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 800px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 960px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
   ::selection { background: rgba(164, 143, 255, .35); }
   :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
+  [tabindex="-1"]:focus { outline: none; } /* list containers: focus targets only, and the URL hash (#downloads) focuses them */
   a { color: var(--acc-hi); text-underline-offset: 3px; }
   h1, h2, h3 { text-wrap: balance; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
@@ -71,6 +72,8 @@
   .dl { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; background: var(--card); border-radius: var(--r); padding: 12px; }
   .dl .body { min-width: 0; }
   .dl .title { font-size: 15px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .dl .title a.tx, .show-name a { color: inherit; text-decoration: none; }
+  .dl .title a.tx:hover, .show-name a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .dl .title .year { color: var(--mut); font-weight: 400; margin-left: 6px; }
   .dl .file { font-size: 12px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
   .dl .status { font-size: 13px; color: var(--mut); margin: 6px 0 0; font-variant-numeric: tabular-nums; }
@@ -109,9 +112,9 @@
   details.more > summary::-webkit-details-marker { display: none; }
   details.more[open] > summary { background: #252a34; border-color: var(--line-hi); }
   .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: max-content; min-width: 230px; max-width: min(300px, calc(100vw - 32px)); background: var(--raise); border: 1px solid var(--line-hi); border-radius: var(--r); padding: 6px; display: grid; box-shadow: 0 14px 32px -10px rgba(0, 0, 0, .7); }
-  .menu button { display: grid; justify-items: start; justify-content: start; gap: 2px; width: 100%; background: none; border: 0; border-radius: 6px; padding: 9px 10px; text-align: left; white-space: normal; }
-  .menu button:hover { background: #2b303b; }
-  .menu button small { color: var(--mut); font-size: 12px; font-weight: 400; }
+  .menu button, .menu a { display: grid; color: var(--fg); text-decoration: none; font-size: 14px; line-height: 1.2; justify-items: start; justify-content: start; gap: 2px; width: 100%; background: none; border: 0; border-radius: 6px; padding: 9px 10px; text-align: left; white-space: normal; }
+  .menu button:hover, .menu a:hover { background: #2b303b; }
+  .menu button small, .menu a small { color: var(--mut); font-size: 12px; font-weight: 400; }
   .menu .danger { color: var(--err); }
   .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; width: calc(100% - 4px); }
 
@@ -128,6 +131,162 @@
     .dl .acts { grid-column: 1 / -1; justify-content: flex-start; }
     .show .eps-list .dl { grid-template-columns: minmax(0, 1fr); }
     .acts details.more { margin-left: auto; }
+  }
+
+  /* library: toolbar */
+  .libbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .searchbox { position: relative; flex: 1 1 240px; display: flex; min-width: 0; }
+  .searchbox input { width: 100%; }
+  .searchbox .i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--mut); pointer-events: none; }
+  .searchbox input { flex: 1; padding-left: 34px; }
+  .seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--card); border: 1px solid var(--line); border-radius: 9px; }
+  .seg button { background: none; border: 0; border-radius: 6px; padding: 6px 11px; color: var(--mut); min-height: 0; }
+  .seg button:hover { background: var(--raise); border: 0; color: var(--fg); }
+  .seg button[aria-pressed="true"] { background: #2b303b; color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+  .seg.icons button { padding: 6px 8px; }
+  #libSum { margin: 0 0 20px; }
+
+  /* library: grid */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 16px; }
+  .tile { position: relative; min-width: 0; }
+  .tile-link { display: grid; gap: 2px; color: inherit; text-decoration: none; border-radius: var(--r); }
+  .tile-link:focus-visible { outline-offset: 4px; }
+  .art { position: relative; aspect-ratio: 2 / 3; border-radius: var(--r); overflow: hidden; background: var(--raise); margin-bottom: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .05) inset; transition: box-shadow .25s; }
+  .art-slot { position: absolute; inset: 0; }
+  .art-img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .45s cubic-bezier(.16, 1, .3, 1); }
+  .tile:hover .art, .tile:focus-within .art { box-shadow: 0 0 0 1px var(--line-hi), 0 14px 30px -14px rgba(0, 0, 0, .9); }
+  .tile:hover .art-img { transform: scale(1.04); }
+  .tile-name { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .tile-link:hover .tile-name { text-decoration: underline; text-underline-offset: 3px; }
+  .tile-sub { font-size: 12px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .badge { position: absolute; left: 8px; top: 8px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: rgba(15, 17, 21, .82); color: var(--acc-hi); backdrop-filter: blur(6px); }
+  .tile-over { position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 2 / 3; pointer-events: none; }
+  .tile-over > * { pointer-events: auto; }
+  .fab { position: absolute; left: 10px; bottom: 10px; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--acc); color: #fff; box-shadow: 0 6px 18px -4px rgba(0, 0, 0, .7); }
+  .fab:hover { background: var(--acc-press); }
+  .fab .i { width: 18px; height: 18px; margin-left: 2px; }
+  .tile-over details.more { position: absolute; right: 8px; top: 8px; }
+  .tile-over details.more > summary { width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%; background: rgba(15, 17, 21, .78); border-color: transparent; backdrop-filter: blur(6px); }
+  .tile-over details.more > summary .lbl { display: none; }
+  .tile-over .menu { top: calc(100% + 4px); }
+  @media (hover: hover) {
+    .fab, .tile-over details.more > summary { opacity: 0; transform: translateY(3px); transition: opacity .18s, transform .18s; }
+    .tile:hover .fab, .tile:focus-within .fab, .tile:hover details.more > summary, .tile:focus-within details.more > summary, .tile-over details.more[open] > summary { opacity: 1; transform: none; }
+  }
+
+  /* library: list */
+  .lrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; background: var(--card); border-radius: var(--r); padding: 10px 12px; }
+  .lrow-link { display: flex; gap: 14px; align-items: center; min-width: 0; color: inherit; text-decoration: none; border-radius: 6px; }
+  .lrow-link:hover .tile-name { text-decoration: underline; text-underline-offset: 3px; }
+  .lrow-tx { display: grid; gap: 2px; min-width: 0; }
+  .lrow .tile-sub { font-size: 13px; }
+
+  /* placeholders when there is no artwork */
+  .art-img.ph, .poster-lg.ph, .thumb-img.ph { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; padding: 10px; text-align: center; color: var(--line-hi); background: linear-gradient(160deg, #252a36, #15181e); }
+  .art-img.ph .i, .poster-lg.ph .i { width: 26px; height: 26px; }
+  .ph-name { font-size: 13px; font-weight: 600; color: #a3aaba; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* details page */
+  .back { background: none; border: 0; padding: 4px 0; margin: -4px 0 12px; color: var(--mut); gap: 6px; }
+  .back:hover { background: none; border: 0; color: var(--fg); }
+  .back .i { width: 18px; height: 18px; }
+  .hero { position: relative; isolation: isolate; display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 24px; padding: 24px; border-radius: 14px; background: var(--card); margin-bottom: 22px; }
+  .hero-bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; border-radius: inherit; }
+  .hero-bg img { width: 100%; height: 100%; object-fit: cover; opacity: .42; }
+  .hero-bg img.blur { filter: blur(36px) saturate(1.3); transform: scale(1.3); opacity: .5; }
+  .hero-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15, 17, 21, .96) 25%, rgba(15, 17, 21, .7) 65%, rgba(15, 17, 21, .5)), linear-gradient(0deg, rgba(24, 27, 34, .9), transparent 60%); }
+  .poster-lg { display: block; width: 170px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px; box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .9), 0 0 0 1px rgba(255, 255, 255, .06); }
+  .hero-main { min-width: 0; align-self: center; }
+  .kind { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--acc-hi); font-weight: 600; margin-bottom: 4px; }
+  .hero-title { font-size: 28px; line-height: 1.15; letter-spacing: -.02em; margin: 0 0 8px; overflow-wrap: anywhere; }
+  .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 14px; color: #b9bfcb; font-variant-numeric: tabular-nums; }
+  .facts .star { color: var(--warn); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips span { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line-hi); color: #c6cbd5; }
+  .desc { margin: 12px 0 0; max-width: 64ch; color: #cfd3db; }
+  .credits { font-size: 13px; color: var(--mut); margin-top: 8px; display: grid; gap: 2px; }
+  .credits b { color: #b9bfcb; font-weight: 500; }
+  .hero-state { margin-top: 14px; max-width: 520px; }
+  .hero-state .status { margin: 0; font-size: 14px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .hero-acts { justify-content: flex-start; margin-top: 16px; }
+  .hero-acts .btn.primary, .hero-acts button.primary { padding: 10px 18px; }
+
+  .st.ok .status { color: var(--ok); }
+  .st.bad .status { color: var(--err); }
+  .st.ok .bar .play { background: var(--ok); }
+  .st.paused .bar .got, .st.gone .bar .got { background: rgba(139, 147, 161, .35); }
+  .st.paused .bar .play, .st.gone .bar .play { background: var(--mut); }
+  .st.stale .bar { opacity: .4; }
+
+  .panel-box { background: var(--card); border-radius: var(--r); padding: 16px; margin-bottom: 18px; }
+  .panel-box > h3 { font-size: 15px; margin: 0 0 12px; }
+  .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; margin: 0; font-size: 14px; }
+  .kv dt { color: var(--mut); }
+  .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+  .stabs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; margin: 0 -2px 6px; scrollbar-width: thin; }
+  .stabs button { flex: none; display: grid; justify-items: start; gap: 0; padding: 7px 14px; background: none; }
+  .stabs button small { font-size: 11px; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .stabs button[aria-pressed="true"] { background: var(--raise); border-color: var(--acc-hi); }
+  .stabs button.full small { color: var(--ok); }
+  .shead { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; justify-content: space-between; padding: 6px 0 12px; }
+  .shead h3 { font-size: 18px; margin: 0; }
+  .shead .msg { margin-top: 2px; }
+  .erow { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 0; border-top: 1px solid var(--line); }
+  .thumb { position: relative; width: 150px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: var(--raise); }
+  .thumb-slot { position: absolute; inset: 0; }
+  .thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .thumb-img.ph .ph-name { font-size: 15px; color: var(--mut); }
+  .thumb .tick { position: absolute; right: 6px; bottom: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #0f1115; }
+  .thumb .tick .i { width: 13px; height: 13px; stroke-width: 2.5; }
+  .e-body { min-width: 0; }
+  .e-title { margin: 0; font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+  .e-sub { font-size: 12px; color: var(--mut); margin-top: 1px; }
+  .e-desc { font-size: 13px; color: #a9b0bd; margin: 6px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .e-state .status { font-size: 13px; margin: 6px 0 0; color: var(--mut); font-variant-numeric: tabular-nums; }
+  .e-state .bar { margin-top: 6px; max-width: 320px; }
+  .erow .acts { flex-wrap: nowrap; }
+
+  /* confirm dialog + toasts */
+  dialog.ask { width: min(440px, calc(100vw - 32px)); padding: 22px; }
+  dialog.ask h2 { font-size: 17px; margin: 0 0 8px; overflow-wrap: anywhere; }
+  dialog.ask p { margin: 0; color: var(--mut); font-size: 14px; white-space: pre-line; overflow-wrap: anywhere; }
+  .ask-acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+  button.danger-solid { background: #c43d3d; border-color: #c43d3d; color: #fff; font-weight: 600; }
+  button.danger-solid:hover { background: #ad3131; border-color: #ad3131; }
+  button.del { color: var(--err); }
+  button.del:hover { border-color: rgba(255, 107, 107, .5); }
+  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
+  .toast { padding: 10px 16px; border-radius: 999px; background: #262b36; border: 1px solid var(--line-hi); font-size: 14px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8); animation: toast-in .3s cubic-bezier(.16, 1, .3, 1); transition: opacity .3s, transform .3s; }
+  .toast.err { background: #3a1c20; border-color: #6b2a31; color: #ffd0d0; }
+  .toast.out { opacity: 0; transform: translateY(6px); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .art-img, .fab, .tile-over details.more > summary, .toast { transition: none; animation: none; }
+    .tile:hover .art-img { transform: none; }
+  }
+  @media (max-width: 600px) {
+    .searchbox { flex-basis: 200px; }
+    #libViews { order: 1; }
+    #libKinds { order: 2; }
+    #libSort { order: 3; flex: 1 1 120px; }
+    .tiles { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 18px 12px; }
+    .tile-name { font-size: 13px; }
+    .fab { width: 36px; height: 36px; left: 6px; bottom: 6px; }
+    .tile-over details.more { right: 4px; top: 4px; }
+    .hero { grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 16px; }
+    .poster-lg { width: 96px; }
+    .hero-title { font-size: 21px; }
+    .hero-main { display: contents; }
+    .hero-main > :first-child, .hero-main > .hero-title, .hero-main > .facts { grid-column: 2; }
+    .hero-main > :not(.kind):not(.hero-title):not(.facts) { grid-column: 1 / -1; }
+    .hero-poster { grid-row: 1 / span 3; }
+    .erow { grid-template-columns: 112px minmax(0, 1fr); gap: 12px; }
+    .thumb { width: 112px; }
+    .erow .acts { grid-column: 1 / -1; justify-content: flex-start; }
+    .kv { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .kv dd { margin-bottom: 8px; }
   }
 
   /* add */
@@ -209,6 +368,7 @@
   <h1>Local Download &amp; Watch</h1>
   <nav aria-label="Sections">
     <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
+    <a href="#library" data-view="library">Library</a>
     <a href="#add" data-view="add">Add</a>
     <a href="#settings" data-view="settings">Settings</a>
   </nav>
@@ -231,6 +391,41 @@
     <p class="msg">Or <a href="#add">search for a title here</a> and download it without opening Stremio.</p>
   </div>
   <div id="downloads" tabindex="-1"></div>
+</section>
+
+<section id="v-library" aria-label="Library" hidden>
+  <div id="libHome">
+    <div id="libEmpty" class="empty" hidden>
+      <h2>Your library is empty</h2>
+      <p class="msg">Movies and episodes show up here once they are fully downloaded. <a href="#add">Search for a title</a> to get started, or check <a href="#downloads">Downloads</a> for what is on its way.</p>
+    </div>
+    <div id="libTools" hidden>
+      <div class="libbar">
+        <div class="searchbox" id="libSearch">
+          <label for="libQ" class="sr-only">Search your library</label>
+          <input id="libQ" type="search" placeholder="Search your library" autocomplete="off">
+        </div>
+        <div class="seg" id="libKinds" role="group" aria-label="What to show">
+          <button type="button" data-v="all">All</button>
+          <button type="button" data-v="movie">Movies</button>
+          <button type="button" data-v="series">Series</button>
+        </div>
+        <label for="libSort" class="sr-only">Sort by</label>
+        <select id="libSort"><option value="name">A to Z</option><option value="recent">Recently added</option></select>
+        <div class="seg icons" id="libViews" role="group" aria-label="Layout">
+          <button type="button" data-v="grid" aria-label="Grid" title="Grid"></button>
+          <button type="button" data-v="list" aria-label="List" title="List"></button>
+        </div>
+      </div>
+      <p class="msg" id="libSum"></p>
+      <div class="note" id="libNone" hidden>Nothing in your library matches this search.</div>
+    </div>
+    <div id="library" tabindex="-1"></div>
+  </div>
+  <div id="libDetail" hidden>
+    <button type="button" class="back" id="back"><span class="lbl">Back</span></button>
+    <div id="detail"></div>
+  </div>
 </section>
 
 <section id="v-add" aria-label="Add" hidden>
@@ -263,6 +458,15 @@
 </section>
 </main>
 
+<dialog id="ask" class="ask" aria-labelledby="askTitle" aria-describedby="askBody">
+  <form method="dialog">
+    <h2 id="askTitle"></h2>
+    <p id="askBody"></p>
+    <div class="ask-acts"><button value="cancel" id="askNo">Cancel</button><button value="ok" id="askOk">OK</button></div>
+  </form>
+</dialog>
+<div id="toasts" aria-hidden="true"></div>
+
 <dialog id="picker" aria-labelledby="pickTitle">
   <div class="dlg-head"><h2 id="pickTitle"></h2><button type="button" id="pickClose"><span class="lbl">Close</span></button></div>
   <div id="pickBody"></div>
@@ -289,6 +493,11 @@ const ICONS = {
   film: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 4.5v15M16.5 4.5v15M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/>',
   alert: '<path d="M12 3.5l9 16h-18z"/><path d="M12 10v4.5M12 17.2v.1"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 10.5v6M14 10.5v6"/>',
+  grid: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+  list: '<path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.75" cy="6.5" r=".9"/><circle cx="4.75" cy="12" r=".9"/><circle cx="4.75" cy="17.5" r=".9"/>',
+  back: '<path d="M14.5 6l-6 6 6 6"/>',
+  check: '<path d="M5.5 12.5l4 4 9-9"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -322,6 +531,32 @@ function announce(msg) {
   setTimeout(() => (r.textContent = msg), 60);
 }
 
+// Short visual confirmation (screen readers get it through announce).
+function toast(text, kind = '') {
+  announce(text);
+  const t = el('div', { className: 'toast ' + kind, textContent: text });
+  $('#toasts').append(t);
+  setTimeout(() => {
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 300);
+  }, kind === 'err' ? 6000 : 3500);
+}
+
+// In-page replacement for confirm(): resolves true when the person clicks the OK button.
+function ask({ title, body = '', ok = 'OK', danger = false }) {
+  const dlg = $('#ask');
+  setText($('#askTitle'), title);
+  $('#askBody').textContent = body;
+  $('#askBody').hidden = !body;
+  const okBtn = $('#askOk');
+  okBtn.textContent = ok;
+  okBtn.className = danger ? 'danger-solid' : 'primary';
+  dlg.returnValue = '';
+  dlg.showModal();
+  (danger ? $('#askNo') : okBtn).focus();
+  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true }));
+}
+
 async function api(p, opts) {
   const r = await fetch(BASE + p, opts);
   if (!r.ok) {
@@ -345,18 +580,44 @@ const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- views ----
-const VIEWS = ['downloads', 'add', 'settings'];
+const VIEWS = ['downloads', 'library', 'add', 'settings'];
+// #library/movie/tt0133093 and #library/series/tt0903747 are the details pages.
+function route() {
+  const [v, type, tt] = (location.hash.slice(1) || 'downloads').split('?')[0].split('/');
+  const view = VIEWS.includes(v) ? v : 'downloads';
+  const detail = view === 'library' && (type === 'movie' || type === 'series') && /^tt\d+$/.test(tt || '');
+  return { view, type: detail ? type : null, tt: detail ? tt : null };
+}
+const detailHref = (type, tt) => `#library/${type}/${tt}`;
+const scrollAt = {}; // scroll position per page, restored when coming back to it
+window.addEventListener('scroll', () => (scrollAt[location.hash] = scrollY), { passive: true });
+let navigated = false; // whether Back can use the browser history
+
 function show() {
-  const v = (location.hash.slice(1) || 'downloads').split('?')[0];
-  const name = VIEWS.includes(v) ? v : 'downloads';
+  const r = route();
   document.querySelectorAll('nav a').forEach((a) => {
-    if (a.dataset.view === name) a.setAttribute('aria-current', 'page');
+    if (a.dataset.view === r.view) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== 'v-' + name));
-  if (name === 'settings') loadSettings();
+  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== 'v-' + r.view));
+  $('#libHome').hidden = !!r.type;
+  $('#libDetail').hidden = !r.type;
+  if (r.type) {
+    const k = `${r.type}:${r.tt}`;
+    if (fullMetas.get(k)?.error) fullMetas.delete(k); // failed before: try again
+    renderDetail();
+    scrollTo(0, 0);
+    $('#detail .hero-title')?.focus({ preventScroll: true });
+  } else {
+    if (r.view === 'library') renderLibrary();
+    scrollTo(0, scrollAt[location.hash] || 0);
+  }
+  if (r.view === 'settings') loadSettings();
 }
-window.addEventListener('hashchange', show);
+window.addEventListener('hashchange', () => {
+  navigated = true;
+  show();
+});
 
 // ---- titles and posters (Cinemeta, cached in the browser) ----
 // Downloads only know IMDb IDs and release names; the names people know come from Cinemeta.
@@ -388,16 +649,17 @@ function pumpMeta() {
     const { type, tt } = metaQueue.shift();
     metaBusy++;
     api(`api/meta/${type}/${tt}`)
-      .then(({ meta = {} }) => {
-        const eps = {};
-        (meta.videos || []).forEach((v) => { if (v.season > 0) eps[`${v.season}:${v.episode}`] = v.name || v.title || ''; });
-        const m = { name: meta.name || '', poster: meta.poster || '', year: meta.releaseInfo || meta.year || '', eps, full: true };
-        metas.set(tt, m);
-        try { localStorage.setItem(META_KEY + tt, JSON.stringify(m)); } catch { /* storage full or blocked: memory only */ }
-      })
+      .then(({ meta = {} }) => storeMeta(tt, meta))
       .catch(() => { if (!metas.get(tt)) metas.set(tt, null); })
       .finally(() => { metaBusy--; renderSoon(); pumpMeta(); });
   }
+}
+function storeMeta(tt, meta) {
+  const eps = {};
+  (meta.videos || []).forEach((v) => { if (v.season > 0) eps[`${v.season}:${v.episode}`] = v.name || v.title || ''; });
+  const m = { name: meta.name || '', poster: meta.poster || '', year: meta.releaseInfo || meta.year || '', eps, full: true };
+  metas.set(tt, m);
+  try { localStorage.setItem(META_KEY + tt, JSON.stringify(m)); } catch { /* storage full or blocked: memory only */ }
 }
 // Search results already carry name, poster and year.
 function seedMeta(m, id) {
@@ -420,12 +682,14 @@ function names(d) {
   return { tt, title, full: title, year: m && m.year, poster: m && m.poster };
 }
 
-function posterInto(slot, url) {
-  if (slot.dataset.url === (url || '')) return;
-  slot.dataset.url = url || '';
-  const ph = () => el('div', { className: 'poster ph' }, icon('film'));
+// Artwork into `slot`, or a placeholder (with `name`, for the big ones) when there is none or it fails to load.
+function posterInto(slot, url, { cls = 'poster', name = '', ph: phIcon = 'film' } = {}) {
+  const sig = `${cls}|${url || ''}|${name}`;
+  if (slot.dataset.url === sig) return;
+  slot.dataset.url = sig;
+  const ph = () => el('div', { className: `${cls} ph` }, phIcon ? icon(phIcon) : null, name ? el('span', { className: 'ph-name', textContent: name }) : null);
   if (!url) return slot.replaceChildren(ph());
-  const img = el('img', { className: 'poster', src: url, alt: '', loading: 'lazy', decoding: 'async' });
+  const img = el('img', { className: cls, src: url, alt: '', loading: 'lazy', decoding: 'async' });
   img.onerror = () => img.replaceWith(ph());
   slot.replaceChildren(img);
 }
@@ -484,15 +748,15 @@ const ACTS = {
   choose: { label: 'Choose another torrent', hint: 'Pick a different release by hand' },
   remove: {
     label: 'Remove from torrent client', hint: 'Stops downloading; the files stay on disk', busy: 'Removing...', done: 'Removed from the torrent client', path: 'remove', method: 'POST',
-    confirm: (d, name) => `Remove "${name}" from the torrent client?\nFiles stay on disk${d.status === 'complete' ? ' and it stays playable' : ''}.`,
+    confirm: (d, name) => ({ title: `Remove "${name}" from the torrent client?`, body: `Files stay on disk${d.status === 'complete' ? ' and it stays playable' : ''}.`, ok: 'Remove' }),
   },
   forget: {
     label: 'Forget', hint: 'Removes it from this list only', busy: 'Forgetting...', done: 'Forgotten', path: '', method: 'DELETE',
-    confirm: (d, name) => `Forget "${name}"? The torrent client and the files are not touched.`,
+    confirm: (d, name) => ({ title: `Forget "${name}"?`, body: 'It disappears from these lists. The torrent client and the files are not touched.', ok: 'Forget' }),
   },
   delete: {
     label: 'Delete files...', hint: 'Deletes the file from disk for good', danger: true, busy: 'Deleting...', done: 'Deleted', path: 'delete-files', method: 'POST',
-    confirm: (d, name) => `Permanently delete "${name}" from disk?\n${d.fileName || ''}\nThis cannot be undone.`,
+    confirm: (d, name) => ({ title: `Delete "${name}"?`, body: `${d.label || d.fileName || ''}\nThe file is deleted from disk for good.`.trim(), ok: 'Delete', danger: true }),
   },
 };
 
@@ -509,25 +773,26 @@ function actionsFor(d) {
   return { primary, menu };
 }
 
-// Runs a per-item action. Feedback stays on the card: busy label, then an announcement or an inline error.
-async function runAction(card, key, btn) {
-  const d = card._d;
+// Runs a per-item action. Feedback stays next to the button: busy label, then a toast or an inline error in `msg`.
+async function itemAction(d, key, btn, msg, name = names(d).full) {
   const A = ACTS[key];
-  const name = names(d).full;
-  if (A.confirm && !confirm(A.confirm(d, name))) return;
-  const msg = $('.cardmsg', card);
-  msg.hidden = true;
+  if (A.confirm && !(await ask(A.confirm(d, name)))) return;
+  if (msg) msg.hidden = true;
   busy(btn, A.busy);
   try {
     await api(`api/downloads/${encodeURIComponent(d.id)}${A.path ? '/' + A.path : ''}`, { method: A.method });
-    announce(`${A.done}: ${name}`);
+    toast(`${A.done}: ${name}`);
   } catch (e) {
-    msg.textContent = `${A.label.replace(/\.+$/, '')} failed: ${e.message}`;
-    msg.hidden = false;
+    const text = `${A.label.replace(/\.+$/, '')} failed: ${e.message}`;
+    if (msg) {
+      msg.textContent = text;
+      msg.hidden = false;
+    } else toast(text, 'err');
   }
   idle(btn);
   await refresh();
 }
+const runAction = (card, key, btn) => itemAction(card._d, key, btn, $('.cardmsg', card));
 
 function renderActs(card) {
   const d = card._d;
@@ -576,11 +841,11 @@ function renderActs(card) {
 
 function makeCard(d, withPoster) {
   const card = el('article', { className: 'dl' });
-  const bar = attrs(el('div', { className: 'bar' }, el('div', { className: 'got' }), el('div', { className: 'play' })), { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' });
+  const bar = makeBar();
   if (withPoster) card.append(el('div', { className: 'poster-slot' }));
   card.append(
     el('div', { className: 'body' },
-      el('h3', { className: 'title' }, el('span', { className: 'tx' }), el('span', { className: 'year' })),
+      el('h3', { className: 'title' }, el('a', { className: 'tx' }), el('span', { className: 'year' })),
       el('div', { className: 'file' }),
       el('p', { className: 'status' }),
       bar,
@@ -595,6 +860,7 @@ function updateCard(card, d, stale) {
   const unknown = stale && (d.status === 'downloading' || d.status === 'queued');
   card.className = `dl ${stateCls(d)}${unknown ? ' stale' : ''}${freshIds.has(d.id) ? ' fresh' : ''}`;
   setText($('.title .tx', card), n.title);
+  $('.title .tx', card).href = detailHref(d.type, n.tt);
   setText($('.title .year', card), d.type === 'movie' && n.year ? n.year : '');
   const file = $('.file', card);
   const release = d.label || d.title || '';
@@ -602,22 +868,26 @@ function updateCard(card, d, stale) {
   file.title = d.fileName || release;
   file.hidden = !release || release === n.title;
   setText($('.status', card), statusText(d, stale));
-  const pct = Math.round((d.progress || 0) * 100);
-  const playable = d.status === 'complete' ? 100 : Math.min(pct, Math.floor((d.playable || 0) * 100));
-  const bar = $('.bar', card);
-  bar.hidden = d.status === 'error' && !pct;
-  $('.got', bar).style.width = pct + '%';
-  $('.play', bar).style.width = playable + '%';
-  bar.setAttribute('aria-valuenow', String(pct));
-  bar.setAttribute('aria-label', `${n.full}: download progress`);
-  bar.setAttribute('aria-valuetext', d.status === 'complete' ? 'Complete' : `${pct}% downloaded, playable up to ${playable}%`);
+  fillBar($('.bar', card), d, n.full);
   const slot = $('.poster-slot', card);
   if (slot) posterInto(slot, n.poster);
   renderActs(card);
 }
 
+const makeBar = () => attrs(el('div', { className: 'bar' }, el('div', { className: 'got' }), el('div', { className: 'play' })), { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' });
+function fillBar(bar, d, name) {
+  const pct = Math.round((d.progress || 0) * 100);
+  const playable = d.status === 'complete' ? 100 : Math.min(pct, Math.floor((d.playable || 0) * 100));
+  bar.hidden = d.status === 'error' && !pct;
+  $('.got', bar).style.width = pct + '%';
+  $('.play', bar).style.width = playable + '%';
+  bar.setAttribute('aria-valuenow', String(pct));
+  bar.setAttribute('aria-label', `${name}: download progress`);
+  bar.setAttribute('aria-valuetext', d.status === 'complete' ? 'Complete' : `${pct}% downloaded, playable up to ${playable}%`);
+}
+
 // Keyed list update: existing nodes are patched in place (focus, open menus and scroll survive the 5 s poll).
-function reconcile(parent, entries) {
+function reconcile(parent, entries, home = $('#downloads')) {
   const old = new Map([...parent.children].map((n) => [n.dataset.key, n]));
   let prev = null;
   for (const e of entries) {
@@ -640,7 +910,7 @@ function reconcile(parent, entries) {
     const lostFocus = n.contains(document.activeElement);
     const next = n.nextElementSibling || n.previousElementSibling;
     n.remove();
-    if (lostFocus) (next && !old.has(next.dataset.key) && next.querySelector('a, button, summary') || $('#downloads')).focus({ preventScroll: true });
+    if (lostFocus) (next && !old.has(next.dataset.key) && next.querySelector('a, button, summary') || home).focus({ preventScroll: true });
   }
 }
 
@@ -666,13 +936,14 @@ function listEntries(items, stale) {
 function makeShow() {
   const g = el('div', { className: 'show' });
   g.append(
-    el('header', {}, el('div', { className: 'poster-slot' }), el('div', {}, el('h3', { className: 'show-name' }), el('div', { className: 'show-meta' }))),
+    el('header', {}, el('div', { className: 'poster-slot' }), el('div', {}, el('h3', { className: 'show-name' }, el('a')), el('div', { className: 'show-meta' }))),
     el('div', { className: 'eps-list' }));
   return g;
 }
 function updateShow(g, tt, eps, stale) {
   const n = names(eps[0]);
-  setText($('.show-name', g), n.show);
+  setText($('.show-name a', g), n.show);
+  $('.show-name a', g).href = detailHref('series', tt);
   setText($('.show-meta', g), [n.year, plural(eps.length, 'episode')].filter(Boolean).join(' · '));
   posterInto($('.poster-slot', g), n.poster);
   const order = (d) => d.id.split(':').slice(1).map(Number);
@@ -737,7 +1008,7 @@ let renderQueued = false;
 function renderSoon() {
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); openLists.forEach((f) => f()); });
+  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); renderLibrary(); renderDetail(); openLists.forEach((f) => f()); });
 }
 
 function noticeFinished(items) {
@@ -745,7 +1016,7 @@ function noticeFinished(items) {
   if (prevStatus) {
     for (const d of items) {
       if (d.status !== 'complete' || !prevStatus.has(d.id) || prevStatus.get(d.id) === 'complete') continue;
-      announce(`Finished: ${names(d).full} is on your server`);
+      toast(`Finished: ${names(d).full} is on your server`);
       freshIds.add(d.id);
       setTimeout(() => freshIds.delete(d.id), 3000);
     }
@@ -772,12 +1043,519 @@ async function refresh() {
   noticeFinished(data.items);
   openLists.forEach((f) => f());
   renderDownloads();
+  renderLibrary();
+  renderDetail();
+}
+
+// ---- library: everything on the server, as a grid or a list; each title opens its details page ----
+const pref = (k, def, allowed) => {
+  try {
+    const v = localStorage.getItem('ldw-' + k);
+    return allowed.includes(v) ? v : def;
+  } catch {
+    return def;
+  }
+};
+const savePref = (k, v) => { try { localStorage.setItem('ldw-' + k, v); } catch { /* memory only */ } };
+const lib = { kind: 'all', sort: pref('lib-sort', 'name', ['name', 'recent']), view: pref('lib-view', 'grid', ['grid', 'list']) };
+const sizeOf = (list) => list.reduce((s, d) => s + (d.size || 0), 0);
+const sizeText = (list) => (sizeOf(list) ? fmtBytes(sizeOf(list)) : '');
+const fmtDate = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+const epNum = (d) => d.id.split(':').slice(1).map(Number);
+const isActive = (d) => d.status === 'queued' || d.status === 'downloading';
+
+// Replaces `box`'s children when `sig` changes (not on every poll, so open menus and focus survive).
+function patch(box, sig, make, focusSel = 'a, button, summary') {
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig;
+  const hadFocus = box.contains(document.activeElement);
+  box.replaceChildren(...make().filter(Boolean));
+  if (hadFocus) box.querySelector(focusSel)?.focus({ preventScroll: true });
+}
+
+function segment(box, current, onPick) {
+  const btns = [...box.querySelectorAll('button')];
+  const mark = (v) => btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  mark(current);
+  btns.forEach((b) => (b.onclick = () => { mark(b.dataset.v); onPick(b.dataset.v); }));
+}
+$('#libSearch').prepend(icon('search'));
+$('#libViews [data-v="grid"]').append(icon('grid'));
+$('#libViews [data-v="list"]').append(icon('list'));
+$('#back').prepend(icon('back'));
+$('#back').onclick = () => (navigated ? history.back() : (location.hash = '#library'));
+segment($('#libKinds'), lib.kind, (v) => { lib.kind = v; renderLibrary(); });
+segment($('#libViews'), lib.view, (v) => { lib.view = v; savePref('lib-view', v); renderLibrary(); });
+$('#libSort').value = lib.sort;
+$('#libSort').onchange = () => { lib.sort = $('#libSort').value; savePref('lib-sort', lib.sort); renderLibrary(); };
+$('#libQ').oninput = () => renderLibrary();
+
+// "..." menu. `entries`: { label, hint, href } links or { label, hint, danger, run(summary) } buttons.
+function moreMenu(label, entries) {
+  const more = el('details', { className: 'more' });
+  const sum = el('summary', { className: 'btn' }, icon('more'), el('span', { className: 'lbl', textContent: 'More' }));
+  sum.setAttribute('aria-label', label);
+  const menu = el('div', { className: 'menu' });
+  entries.forEach((it, i) => {
+    if (it.danger && i) menu.append(el('hr'));
+    const kids = [el('span', { className: 'lbl', textContent: it.label }), it.hint ? el('small', { textContent: it.hint }) : null];
+    const b = it.href ? el('a', { href: it.href }, ...kids) : el('button', { type: 'button', className: it.danger ? 'danger' : '' }, ...kids);
+    b.onclick = () => {
+      more.open = false;
+      if (!it.run) return;
+      sum.focus();
+      it.run(sum);
+    };
+    menu.append(b);
+  });
+  more.append(sum, menu);
+  return more;
+}
+
+function playLink(d, label, cls) {
+  const a = el('a', { className: cls, target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Opens in the browser; or copy the link into VLC' },
+    icon('play'), el('span', { className: 'lbl', textContent: 'Play' }));
+  a.setAttribute('aria-label', `Play ${label}`);
+  return a;
+}
+
+// Deletes the files of `items` after a confirmation; errors go to `msg` when given, else to a toast.
+async function libDelete(items, what, btn, msg) {
+  const many = items.length > 1 || items[0].id.includes(':');
+  const detail = [many ? plural(items.length, 'episode') : items[0].label || '', sizeText(items)].filter(Boolean).join(' · ');
+  if (!(await ask({ title: `Delete ${what}?`, body: `${detail}\nThe ${many && items.length > 1 ? 'files are' : 'file is'} deleted from disk for good.`, ok: 'Delete', danger: true }))) return;
+  if (msg) msg.hidden = true;
+  busy(btn, 'Deleting...');
+  let failed;
+  try {
+    ({ failed } = await send('POST', 'api/library/delete', { ids: items.map((d) => d.id) }));
+  } catch (e) {
+    failed = [{ error: e.message }];
+  }
+  idle(btn);
+  if (failed.length) {
+    const text = `${failed.length < items.length ? `Could not delete ${failed.length} of ${items.length}` : 'Could not delete'}: ${failed[0].error}`;
+    if (msg) {
+      msg.textContent = text;
+      msg.hidden = false;
+    }
+    toast(text, 'err');
+  } else toast(`Deleted ${what}`);
+  await refresh();
+}
+
+// Finished movies, and shows with at least one finished episode (plus how many are still on their way).
+function libraryEntries(items) {
+  const movies = [];
+  const shows = new Map();
+  for (const d of items) {
+    if (d.type !== 'series' || !d.id.includes(':')) {
+      if (d.status === 'complete') movies.push(d);
+      continue;
+    }
+    const tt = d.id.split(':')[0];
+    if (!shows.has(tt)) shows.set(tt, { done: [], busy: 0 });
+    if (d.status === 'complete') shows.get(tt).done.push(d);
+    else if (isActive(d)) shows.get(tt).busy++;
+  }
+  const out = movies.map((d) => {
+    const n = names(d);
+    return { key: d.id, type: 'movie', tt: n.tt, name: n.title, year: n.year, poster: n.poster, at: d.createdAt || 0, items: [d], d };
+  });
+  for (const [tt, s] of shows) {
+    if (!s.done.length) continue;
+    const n = names(s.done[0]);
+    out.push({ key: 's:' + tt, type: 'series', tt, name: n.show, year: n.year, poster: n.poster, at: Math.max(...s.done.map((d) => d.createdAt || 0)), items: s.done, busy: s.busy });
+  }
+  return out;
+}
+
+function entrySub(e, long) {
+  if (e.type === 'movie') return [e.year, sizeText(e.items), long && e.at ? 'added ' + fmtDate(e.at) : ''];
+  return [long ? e.year : '', plural(e.items.length, 'episode'), sizeText(e.items)];
+}
+
+function entryMenu(node) {
+  const e = node._e;
+  const what = e.type === 'movie' ? `"${e.name}"` : `all of "${e.name}"`;
+  return moreMenu(`More actions for ${e.name}`, [
+    { label: 'Details', hint: e.type === 'movie' ? 'File, torrent and all actions' : 'Seasons, episodes and all actions', href: detailHref(e.type, e.tt) },
+    { label: e.type === 'movie' ? 'Delete...' : 'Delete show...', hint: 'Deletes from disk for good', danger: true, run: (sum) => libDelete(node._e.items, what, sum) },
+  ]);
+}
+
+function makeTile() {
+  const t = el('article', { className: 'tile' });
+  t.append(
+    el('a', { className: 'tile-link' },
+      el('span', { className: 'art' }, el('span', { className: 'art-slot' }), el('span', { className: 'badge', hidden: true })),
+      el('span', { className: 'tile-name' }), el('span', { className: 'tile-sub' })),
+    el('div', { className: 'tile-over' }));
+  return t;
+}
+function updateTile(t, e) {
+  t._e = e;
+  $('.tile-link', t).href = detailHref(e.type, e.tt);
+  posterInto($('.art-slot', t), e.poster, { cls: 'art-img', name: e.name });
+  setText($('.tile-name', t), e.name);
+  setText($('.tile-sub', t), entrySub(e).filter(Boolean).join(' · '));
+  const badge = $('.badge', t);
+  badge.hidden = !e.busy;
+  setText(badge, e.busy ? `+${e.busy} downloading` : '');
+  patch($('.tile-over', t), JSON.stringify([e.key, e.name]), () => {
+    const fab = e.type === 'movie' ? playLink(e.d, e.name, 'fab') : null;
+    if (fab) setText($('.lbl', fab), ''); // icon only; the aria-label says what it does
+    return [fab, entryMenu(t)];
+  });
+}
+
+function makeRow() {
+  const r = el('article', { className: 'lrow' });
+  r.append(
+    el('a', { className: 'lrow-link' }, el('span', { className: 'poster-slot' }), el('span', { className: 'lrow-tx' }, el('span', { className: 'tile-name' }), el('span', { className: 'tile-sub' }))),
+    el('div', { className: 'acts' }));
+  return r;
+}
+function updateRow(r, e) {
+  r._e = e;
+  $('.lrow-link', r).href = detailHref(e.type, e.tt);
+  posterInto($('.poster-slot', r), e.poster);
+  setText($('.tile-name', r), e.name);
+  setText($('.tile-sub', r), [...entrySub(e, true), e.busy ? `${e.busy} downloading` : ''].filter(Boolean).join(' · '));
+  patch($('.acts', r), JSON.stringify([e.key, e.name]), () => [e.type === 'movie' ? playLink(e.d, e.name, 'btn primary') : null, entryMenu(r)]);
+}
+
+function renderLibrary() {
+  if (!lastData) return;
+  const all = libraryEntries(lastData.items);
+  const movies = all.filter((e) => e.type === 'movie');
+  const shows = all.filter((e) => e.type === 'series');
+  const done = all.flatMap((e) => e.items);
+  $('#libEmpty').hidden = !!all.length;
+  $('#libTools').hidden = !all.length;
+  setText($('#libSum'), [
+    movies.length ? plural(movies.length, 'movie') : '',
+    shows.length ? `${plural(shows.length, 'show')} (${plural(done.length - movies.length, 'episode')})` : '',
+    sizeOf(done) ? `${fmtBytes(sizeOf(done))} on disk` : '',
+  ].filter(Boolean).join(' · '));
+
+  const q = $('#libQ').value.trim().toLowerCase();
+  const order = (a, b) => (lib.sort === 'recent' ? b.at - a.at : 0) || byName(a.name, b.name);
+  const pick = (list) => list.filter((e) => !q || e.name.toLowerCase().includes(q)).sort(order);
+  const groups = [
+    ['lib-movies', 'Movies', lib.kind === 'series' ? [] : pick(movies)],
+    ['lib-series', 'Series', lib.kind === 'movie' ? [] : pick(shows)],
+  ].filter((g) => g[2].length);
+  $('#libNone').hidden = !all.length || !!groups.length;
+  const grid = lib.view === 'grid';
+  reconcile($('#library'), groups.map(([key, title, list]) => ({
+    key: `${key}:${lib.view}`,
+    create: () => {
+      const s = makeSection(key, title);
+      $('.list', s).className = grid ? 'tiles' : 'list';
+      return s;
+    },
+    update: (s) => {
+      setText($('h2 .count', s), String(list.length));
+      reconcile(s.lastElementChild, list.map((e) => ({ key: e.key, create: grid ? makeTile : makeRow, update: (n) => (grid ? updateTile : updateRow)(n, e) })), $('#library'));
+    },
+  })), $('#library'));
+}
+
+// ---- details page: everything about one movie or show, with all its actions ----
+const fullMetas = new Map(); // 'type:tt' -> { meta } | { error }; undefined while loading
+function fullMeta(type, tt) {
+  const k = `${type}:${tt}`;
+  if (!fullMetas.has(k)) {
+    fullMetas.set(k, undefined);
+    api(`api/meta/${type}/${tt}`)
+      .then(({ meta = {} }) => {
+        fullMetas.set(k, { meta });
+        storeMeta(tt, meta);
+      })
+      .catch((e) => fullMetas.set(k, { error: e.message }))
+      .finally(renderSoon);
+  }
+  return fullMetas.get(k);
+}
+const detailSeason = new Map(); // show -> season picked on its page
+const list2 = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+
+function renderDetail() {
+  const r = route();
+  if (!r.type || !lastData) return;
+  const root = $('#detail');
+  const key = `${r.type}:${r.tt}`;
+  if (root.dataset.key !== key) {
+    root.dataset.key = key;
+    root.replaceChildren(
+      el('section', { className: 'hero' },
+        el('div', { className: 'hero-bg' }),
+        el('div', { className: 'hero-poster' }),
+        el('div', { className: 'hero-main' },
+          el('div', { className: 'kind', textContent: r.type === 'movie' ? 'Movie' : 'Series' }),
+          attrs(el('h2', { className: 'hero-title' }), { tabindex: '-1' }),
+          el('div', { className: 'facts' }),
+          el('div', { className: 'chips' }),
+          el('p', { className: 'desc' }),
+          el('div', { className: 'credits' }),
+          el('div', { className: 'hero-state st' }, el('p', { className: 'status' }), makeBar()),
+          el('div', { className: 'acts hero-acts' }),
+          el('p', { className: 'cardmsg', hidden: true, role: 'alert' }),
+          el('p', { className: 'msg', id: 'heroMsg', role: 'status' }))),
+      el('div', { className: 'detail-body' }));
+  }
+  if (r.type === 'movie') movieDetail(root, r.tt);
+  else showDetail(root, r.tt);
+}
+
+function fillHero(root, type, tt, fallbackName) {
+  const info = fullMeta(type, tt);
+  const m = (info && info.meta) || {};
+  const small = metaFor(type, tt) || {};
+  const name = m.name || small.name || fallbackName || tt;
+  setText($('.hero-title', root), name);
+  const poster = m.poster || small.poster || '';
+  posterInto($('.hero-poster', root), poster, { cls: 'poster-lg', name });
+  const bg = $('.hero-bg', root);
+  const bgUrl = m.background || poster;
+  if (bg.dataset.url !== bgUrl) {
+    bg.dataset.url = bgUrl;
+    const img = bgUrl ? el('img', { src: bgUrl, alt: '', decoding: 'async', className: m.background ? '' : 'blur' }) : null;
+    if (img) img.onerror = () => img.remove();
+    bg.replaceChildren(...(img ? [img] : []));
+  }
+  const facts = [m.releaseInfo || m.year || small.year, m.runtime, type === 'series' && m.status ? m.status : ''].filter(Boolean);
+  patch($('.facts', root), JSON.stringify([facts, m.imdbRating]), () => [
+    ...facts.map((f) => el('span', { textContent: f })),
+    m.imdbRating ? el('span', {}, el('span', { className: 'star', textContent: '★ ' }), `${m.imdbRating} IMDb`) : null,
+  ]);
+  const genres = list2(m.genres || m.genre);
+  patch($('.chips', root), JSON.stringify(genres), () => genres.map((g) => el('span', { textContent: g })));
+  const desc = $('.desc', root);
+  setText(desc, info === undefined ? 'Loading details...' : info.error ? `Could not load details from Cinemeta: ${info.error}` : m.description || '');
+  desc.hidden = !desc.textContent;
+  const credits = [['Director', list2(m.director)], ['Cast', list2(m.cast).slice(0, 5)]].filter(([, v]) => v.length);
+  patch($('.credits', root), JSON.stringify(credits), () => credits.map(([k, v]) => el('div', {}, el('b', { textContent: k + ': ' }), v.join(', '))));
+  return name;
+}
+
+// Buttons for one movie or episode: what actionsFor() puts up front, or Download when there is nothing yet.
+function primaryActs(d, type, id, name, msg, quiet = false) {
+  if (!d) {
+    const b = button('Download', { cls: quiet ? '' : 'primary' });
+    b.setAttribute('aria-label', `Download ${name}`);
+    b.onclick = () => startOne(type, id, b, msg);
+    return [b];
+  }
+  return actionsFor(d).primary.map((k) => {
+    if (k === 'play') return playLink(d, name, d.status === 'complete' && !quiet ? 'btn primary' : 'btn');
+    const label = k === 'redownload' && d.status === 'missing' ? 'Download again' : ACTS[k].label;
+    const b = button(label, { cls: k === 'redownload' ? 'primary' : '', title: k === 'pause' && d.shared ? 'Pauses the whole season pack (other episodes share it)' : '' });
+    b.setAttribute('aria-label', `${label} ${name}`);
+    b.onclick = () => itemAction(known.get(d.id) || d, k, b, msg, name);
+    return b;
+  });
+}
+
+async function startOne(type, id, btn, msg) {
+  if (msg) msg.hidden = true;
+  busy(btn, 'Starting...');
+  try {
+    await send('POST', 'api/download', { type, id });
+    toast('Download started');
+  } catch (e) {
+    if (msg) {
+      msg.textContent = 'Could not start: ' + e.message;
+      msg.hidden = false;
+    } else toast('Could not start: ' + e.message, 'err');
+  }
+  idle(btn);
+  await refresh();
+}
+
+function fillState(box, d, name, text) {
+  box.hidden = !d && !text;
+  box.className = 'hero-state st ' + (d ? stateCls(d) : '') + (d && isActive(d) && (serverDown || lastData.clientError) ? ' stale' : '');
+  setText($('.status', box), text || (d ? statusText(d, serverDown || !!lastData.clientError) : ''));
+  const bar = $('.bar', box);
+  if (d && d.status !== 'complete' && d.status !== 'missing') fillBar(bar, d, name);
+  else bar.hidden = true;
+}
+
+function movieDetail(root, tt) {
+  const d = known.get(tt) || null;
+  const name = fillHero(root, 'movie', tt, d && guessName(d.label || d.title));
+  const msg = $('.hero .cardmsg', root);
+  fillState($('.hero-state', root), d, name);
+  patch($('.hero-acts', root), JSON.stringify([d && actionsFor(d).primary, d && d.status, name]), () => {
+    const choose = button(d && d.title ? 'Choose another torrent' : 'Choose a torrent');
+    choose.onclick = () => openPicker('movie', tt, name);
+    return [...primaryActs(d, 'movie', tt, name, msg), choose];
+  });
+  const body = $('.detail-body', root);
+  patch(body, JSON.stringify(d ? [d.id, d.status, d.label, d.size, d.title, d.inClient, d.clientState, d.fileName] : null), () => {
+    if (!d) return [];
+    const client = d.inClient ? (d.paused ? 'Paused' : d.clientState === 'seeding' ? 'Seeding' : d.status === 'complete' ? 'Done' : 'Downloading') : 'Not in the torrent client';
+    const rows = [['File', d.label], ['Size', d.size ? fmtBytes(d.size) : ''], ['Added', d.createdAt ? fmtDate(d.createdAt) : ''], ['Torrent', d.title], ['Torrent client', client]].filter(([, v]) => v);
+    const pmsg = el('p', { className: 'cardmsg', hidden: true, role: 'alert' });
+    const acts = actionsFor(d).menu.filter((k) => k !== 'choose').map((k) => {
+      const A = ACTS[k];
+      const b = button(k === 'delete' ? 'Delete file' : A.label, { cls: A.danger ? 'del' : '', ico: A.danger ? 'trash' : null, title: A.hint });
+      b.onclick = () => itemAction(known.get(d.id) || d, k, b, pmsg, name);
+      return b;
+    });
+    return [el('section', { className: 'panel-box' },
+      el('h3', { textContent: 'On disk' }),
+      el('dl', { className: 'kv' }, ...rows.flatMap(([k, v]) => [el('dt', { textContent: k }), el('dd', { textContent: v, title: k === 'File' ? d.fileName || '' : '' })])),
+      el('div', { className: 'row' }, ...acts), pmsg)];
+  });
+}
+
+function showDetail(root, tt) {
+  const items = lastData.items.filter((d) => d.id.startsWith(tt + ':'));
+  const byId = new Map(items.map((d) => [d.id, d]));
+  const show = fillHero(root, 'series', tt, items[0] && guessName(items[0].title));
+  const info = fullMeta('series', tt);
+  const now = Date.now();
+  const vids = (info && info.meta && info.meta.videos || []).filter((v) => v.season > 0).map((v) => ({
+    id: v.id || `${tt}:${v.season}:${v.episode}`, season: v.season, episode: v.episode, name: v.name || v.title || '',
+    released: v.released ? Date.parse(v.released) : null, thumbnail: v.thumbnail || '', overview: v.overview || v.description || '',
+  }));
+  for (const d of items) if (!vids.some((v) => v.id === d.id)) { const [s, e] = epNum(d); vids.push({ id: d.id, season: s, episode: e, name: '' }); }
+  vids.sort((a, b) => a.season - b.season || a.episode - b.episode);
+  const isDone = (v) => byId.get(v.id)?.status === 'complete';
+  const released = (v) => !v.released || v.released <= now;
+  const missing = (v) => released(v) && !pendingIds.has(v.id) && !(byId.get(v.id) && (isActive(byId.get(v.id)) || isDone(v)));
+  const done = items.filter((d) => d.status === 'complete');
+  const busyN = items.filter(isActive).length + vids.filter((v) => pendingIds.has(v.id) && !byId.has(v.id)).length;
+
+  const msg = $('.hero .cardmsg', root);
+  const hmsg = $('#heroMsg');
+  fillState($('.hero-state', root), null, show, vids.length || done.length
+    ? [`${done.length} of ${plural(vids.filter(released).length || done.length, 'episode')} on your server`, sizeText(done), busyN ? `${busyN} downloading` : ''].filter(Boolean).join(' · ') : '');
+  const nMissing = vids.filter(missing).length;
+  patch($('.hero-acts', root), JSON.stringify([nMissing, done.length, show]), () => {
+    const out = [];
+    if (nMissing) {
+      const b = button(done.length || busyN ? `Download ${plural(nMissing, 'missing episode')}` : 'Download whole show', { cls: 'primary' });
+      b.onclick = () => batchDownload(tt, null, b, hmsg);
+      out.push(b);
+    }
+    if (done.length) {
+      const del = button('Delete show', { cls: 'del', ico: 'trash' });
+      del.onclick = () => libDelete(lastData.items.filter((d) => d.id.startsWith(tt + ':') && d.status === 'complete'), `all of "${show}"`, del, msg);
+      out.push(del);
+    }
+    return out;
+  });
+
+  const body = $('.detail-body', root);
+  if (!body.firstChild) {
+    body.append(el('section', { className: 'panel-box seasons-box' },
+      el('div', { className: 'stabs', role: 'group' }),
+      el('div', { className: 'shead' }, el('div', {}, el('h3'), el('p', { className: 'msg' })), el('div', { className: 'acts' })),
+      el('p', { className: 'cardmsg', hidden: true, role: 'alert' }),
+      el('p', { className: 'msg', id: 'seasonMsg', role: 'status' }),
+      el('div', { className: 'eps-detail' })));
+    $('.stabs', body).setAttribute('aria-label', 'Seasons');
+  }
+  const seasons = [...new Set(vids.map((v) => v.season))];
+  body.hidden = !seasons.length;
+  if (!seasons.length) return;
+  let season = detailSeason.get(tt);
+  if (!seasons.includes(season)) season = (vids.find(isDone) || vids[0]).season;
+  const inSeason = vids.filter((v) => v.season === season);
+  const count = (s) => [vids.filter((v) => v.season === s && isDone(v)).length, vids.filter((v) => v.season === s).length];
+
+  const tabs = $('.stabs', body);
+  tabs.hidden = seasons.length < 2;
+  patch(tabs, JSON.stringify([seasons.map(count), season]), () => seasons.map((s) => {
+    const [have, total] = count(s);
+    const b = el('button', { type: 'button', className: have && have === total ? 'full' : '' }, el('span', { textContent: `Season ${s}` }), el('small', { textContent: `${have}/${total}` }));
+    b.setAttribute('aria-pressed', String(s === season));
+    b.setAttribute('aria-label', `Season ${s}, ${have} of ${total} on your server`);
+    b.onclick = () => { detailSeason.set(tt, s); renderDetail(); };
+    return b;
+  }), '[aria-pressed="true"]');
+
+  const sDone = inSeason.filter(isDone).map((v) => byId.get(v.id));
+  const sMissing = inSeason.filter(missing).length;
+  setText($('.shead h3', body), `Season ${season}`);
+  setText($('.shead .msg', body), [`${sDone.length} of ${plural(inSeason.length, 'episode')} on your server`, sizeText(sDone)].filter(Boolean).join(' · '));
+  const smsg = $('.seasons-box > .cardmsg', body);
+  const bmsg = $('#seasonMsg');
+  patch($('.shead .acts', body), JSON.stringify([season, sMissing, sDone.length, show]), () => {
+    const out = [];
+    if (sMissing) {
+      const b = button(`Download ${plural(sMissing, 'missing episode')}`);
+      b.onclick = () => batchDownload(tt, season, b, bmsg);
+      out.push(b);
+    }
+    if (sDone.length) {
+      const del = button('Delete season', { cls: 'del', ico: 'trash' });
+      del.onclick = () => libDelete(lastData.items.filter((d) => d.id.startsWith(`${tt}:${season}:`) && d.status === 'complete'), `season ${season} of "${show}"`, del, smsg);
+      out.push(del);
+    }
+    return out;
+  });
+  reconcile($('.eps-detail', body), inSeason.map((v) => ({ key: v.id, create: makeEpisode, update: (r) => updateEpisode(r, v, byId.get(v.id) || null, show) })), $('#detail .hero-title'));
+}
+
+function makeEpisode() {
+  const r = el('article', { className: 'erow' });
+  r.append(
+    el('div', { className: 'thumb' }, el('div', { className: 'thumb-slot' })),
+    el('div', { className: 'e-body' },
+      el('h4', { className: 'e-title' }), el('div', { className: 'e-sub' }), el('p', { className: 'e-desc' }),
+      el('div', { className: 'e-state st' }, el('p', { className: 'status' }), makeBar()),
+      el('p', { className: 'cardmsg', hidden: true, role: 'alert' })),
+    el('div', { className: 'acts' }));
+  return r;
+}
+function updateEpisode(r, v, d, show) {
+  const full = `${show} ${epCode(v.season, v.episode)}`;
+  const future = v.released && v.released > Date.now();
+  const pending = !d && pendingIds.has(v.id);
+  posterInto($('.thumb-slot', r), v.thumbnail, { cls: 'thumb-img', name: `E${v.episode}`, ph: null });
+  const tick = $('.tick', r);
+  if (d?.status === 'complete' && !tick) $('.thumb', r).append(el('span', { className: 'tick', title: 'On your server' }, icon('check')));
+  if (d?.status !== 'complete' && tick) tick.remove();
+  setText($('.e-title', r), `${v.episode}. ${v.name || `Episode ${v.episode}`}`);
+  const sub = $('.e-sub', r);
+  const done = d?.status === 'complete';
+  setText(sub, [epCode(v.season, v.episode), v.released ? (future ? 'airs ' : '') + fmtDate(v.released) : '', done ? sizeText([d]) : ''].filter(Boolean).join(' · '));
+  const desc = $('.e-desc', r);
+  setText(desc, v.overview || '');
+  desc.hidden = !v.overview;
+  desc.title = v.overview || '';
+  const state = $('.e-state', r);
+  fillState(state, d, full, future ? 'Not released yet' : pending ? 'Looking for a torrent...' : '');
+  state.className = 'e-state st' + (d ? ' ' + stateCls(d) : '');
+  if (done) state.hidden = true; // the tick on the thumbnail says it
+
+  const msg = $('.e-body > .cardmsg', r);
+  const a = d ? actionsFor(d) : null;
+  patch($('.acts', r), JSON.stringify([a, d && d.status, d && d.shared, future, pending, full]), () => {
+    if (future || pending) return [];
+    const menu = (a ? a.menu : ['choose']).map((k) => ({
+      label: k === 'choose' ? (d && d.title ? 'Choose another torrent' : 'Choose a torrent') : ACTS[k].label,
+      hint: ACTS[k].hint,
+      danger: ACTS[k].danger,
+      run: (sum) => (k === 'choose' ? openPicker('series', v.id, full) : itemAction(known.get(v.id) || d, k, sum, msg, full)),
+    }));
+    return [...primaryActs(d, 'series', v.id, full, msg, true), moreMenu(`More actions for ${full}`, menu)];
+  });
 }
 
 // Menus: one open at a time; outside click or Escape closes.
 document.addEventListener('toggle', (e) => {
   if (!e.target.matches || !e.target.matches('details.more') || !e.target.open) return;
   document.querySelectorAll('details.more[open]').forEach((d) => { if (d !== e.target) d.open = false; });
+  const menu = $('.menu', e.target);
+  menu.style.left = menu.style.right = '';
+  if (menu.getBoundingClientRect().left < 8) Object.assign(menu.style, { left: '0', right: 'auto' });
 }, true);
 document.addEventListener('click', (e) => {
   document.querySelectorAll('details.more[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; });
@@ -1020,7 +1798,7 @@ async function openPicker(t, id, label) {
       action = button(c.rejected ? 'Download anyway' : 'Download', { cls: primary ? 'primary' : '' });
       action.setAttribute('aria-label', `${c.rejected ? 'Download anyway' : 'Download'}: ${c.title}`);
       action.onclick = async () => {
-        if (data.current && !confirm('Replace the current torrent with this one?\nThe current one is removed from the torrent client; files already downloaded stay on disk.')) return;
+        if (data.current && !(await ask({ title: 'Replace the current torrent?', body: 'The current one is removed from the torrent client; files already downloaded stay on disk.', ok: 'Replace' }))) return;
         busy(action, 'Starting...');
         cmsg.hidden = true;
         try {
@@ -1231,7 +2009,7 @@ async function loadSettings() {
 }
 
 $('#rotate').onclick = async () => {
-  if (!confirm('Create a new secret URL? The current URL (and the add-on installed in Stremio) stops working right away.')) return;
+  if (!(await ask({ title: 'Create a new secret URL?', body: 'The current URL, and the add-on installed in Stremio, stop working right away.', ok: 'Rotate token', danger: true }))) return;
   const btn = $('#rotate');
   const msg = $('#rotateMsg');
   busy(btn, 'Rotating...');
