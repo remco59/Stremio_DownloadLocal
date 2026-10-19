@@ -74,6 +74,11 @@ test('add-on container talks to the qBittorrent container and keeps its settings
 
   const clip = await fetch(`${base}/clip/started.mp4`, { headers: { Range: 'bytes=0-9' } });
   assert.equal(clip.status, 206, 'status clips are in the image');
+
+  // The web player's conversions: ffmpeg with the encoders player.js uses.
+  const encoders = await d.sh('docker', ['exec', ADDON, 'ffmpeg', '-hide_banner', '-encoders']);
+  for (const e of ['libx264', 'aac', 'libvpx-vp9', 'libopus', 'webvtt']) assert.match(encoders, new RegExp(` ${e} `), e);
+  await d.sh('docker', ['exec', ADDON, 'ffprobe', '-version']);
 });
 
 test('container refuses to start without a token', { timeout: 120000 }, async () => {

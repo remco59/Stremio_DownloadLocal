@@ -10,6 +10,8 @@ const settings = require('./settings');
 const { serveFile, parseRange, availableUntil } = require('./stream');
 const { decide } = require('./play');
 const security = require('./security');
+const player = require('./player');
+const subtitles = require('./subtitles');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -246,6 +248,63 @@ router.post('/api/download', async (req, res) => {
     res.json(dl.view(await dl.ensureDownload(type, id, { pick })));
   } catch (e) {
     res.status(502).json({ error: String(e.message) });
+  }
+});
+
+// ---- web player (player.js) ----
+// What a file holds (audio and subtitle tracks, whether the browser can play it as it is), conversions for
+// what it cannot, and subtitles as WebVTT. Only for items whose file is (partly) on the server.
+async function playerRoute(req, res, fn) {
+  const { type, id } = req.params;
+  if (!valid(type, id)) return res.status(400).json({ error: 'bad type/id' });
+  try {
+    if (!(await player.available())) return res.status(501).json({ error: 'ffmpeg is not installed on the server', ffmpeg: false });
+    await fn(db.get(id));
+  } catch (e) {
+    if (!e.status) console.error('[player]', id, e.message);
+    if (!res.headersSent) res.status(e.status || 502).json({ error: String(e.message) });
+    else res.destroy();
+  }
+}
+const num = (v, max) => {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n <= max ? n : NaN;
+};
+router.get('/api/player/:type/:id', (req, res) => playerRoute(req, res, async (rec) => res.json(await player.details(rec, req))));
+router.get('/api/player/:type/:id/keyframe', (req, res) => playerRoute(req, res, async (rec) => {
+  const t = num(req.query.t, 1e6);
+  if (!(t >= 0)) return res.status(400).json({ error: 'bad t' });
+  res.json({ t: await player.keyframe(rec, req, t) });
+}));
+// stream.mp4 or stream.webm ?audio=<stream>&t=<seconds>&copy=1 (the browser plays the video codec)&burn=<image subtitle stream>
+router.get('/api/player/:type/:id/stream.:format(mp4|webm)', (req, res) => playerRoute(req, res, async (rec) => {
+  const q = { audio: num(req.query.audio, 999), t: num(req.query.t, 1e6) ?? 0, format: req.params.format, copyVideo: req.query.copy === '1', burn: num(req.query.burn, 999) };
+  if (Number.isNaN(q.audio) || Number.isNaN(q.burn) || Number.isNaN(q.t)) return res.status(400).json({ error: 'bad parameters' });
+  await player.stream(req, res, rec, q);
+}));
+router.get('/api/player/:type/:id/subtitles/:key.vtt', (req, res) => {
+  const { key } = req.params;
+  if (!/^(e\d{1,3}|x\d{1,2})$/.test(key)) return res.status(400).json({ error: 'bad subtitle' });
+  playerRoute(req, res, (rec) => player.subtitle(req, res, rec, key));
+});
+// Online subtitles (a Stremio subtitles add-on) need neither the file nor ffmpeg.
+router.get('/api/subtitles/:type/:id', async (req, res) => {
+  const { type, id } = req.params;
+  if (!valid(type, id)) return res.status(400).json({ error: 'bad type/id' });
+  try {
+    res.json({ subtitles: (await subtitles.online(type, id)).map(({ url, ...s }) => s) }); // eslint-disable-line no-unused-vars
+  } catch (e) {
+    res.status(502).json({ error: `online subtitles: ${e.message}` });
+  }
+});
+router.get('/api/subtitles/:type/:id/:key.vtt', async (req, res) => {
+  const { type, id, key } = req.params;
+  if (!valid(type, id) || !/^o[A-Za-z0-9_-]{1,64}$/.test(key)) return res.status(400).json({ error: 'bad subtitle' });
+  try {
+    res.set({ 'Content-Type': 'text/vtt; charset=utf-8', 'Cache-Control': 'no-store' }).send(await subtitles.onlineVtt(type, id, key));
+  } catch (e) {
+    res.status(e.status || 502).json({ error: String(e.message) });
   }
 });
 

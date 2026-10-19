@@ -35,6 +35,7 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
     LOCAL_PATH_PREFIX: downloads,
     TORRENTIO_URL: mockUrl,
     CINEMETA_URL: mockUrl,
+    SUBTITLES_URL: mockUrl,
     WAIT_FOR_START_MS: '3000',
     STALL_MS: '300',
     SYNC_INTERVAL_MS: '50',

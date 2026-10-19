@@ -50,6 +50,12 @@ const FIELDS = [
   { key: 'stallSwitchMin', group: 'Torrent choice', label: 'Try another torrent when stuck at 0% for (minutes)', type: 'int', min: 0, max: 10080,
     help: 'Dead swarms: the next best torrent is picked, never one already tried for that title. Time paused or queued in the client does not count. 0 = never.' },
 
+  { key: 'subtitlesUrl', group: 'Player', label: 'Online subtitles add-on', type: 'url', optional: true,
+    help: 'Stremio subtitles add-on the web player gets online subtitles from (OpenSubtitles v3 by default). Empty = off.' },
+  { key: 'playerMaxHeight', group: 'Player', label: 'Max resolution when converting video', type: 'int',
+    options: [480, 720, 1080, 2160].map((v) => ({ value: v, label: `${v}p` })),
+    help: 'Video the browser cannot play as it is gets converted on the fly; lower is easier on the server CPU.' },
+
   { key: 'waitForStartMs', group: 'Timeouts', label: 'First tap: wait before showing the status clip (ms)', type: 'int', min: 1000, max: 600000,
     help: 'If the start of the file is there by then it plays right away; otherwise Stremio shows a short "download started" clip.' },
   { key: 'seekWaitMs', group: 'Timeouts', label: 'Seek past the downloaded part: wait (ms)', type: 'int', min: 1000, max: 600000 },
