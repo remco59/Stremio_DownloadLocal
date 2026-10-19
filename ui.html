@@ -4,106 +4,323 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Local Download</title>
+<meta name="color-scheme" content="dark">
+<title>Local Download &amp; Watch</title>
 <style>
-  :root { --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --acc:#7b5cff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f5b84b; }
+  :root {
+    color-scheme: dark;
+    --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --raise:#1f232c; --line:#2a2f3a; --line-hi:#3a4150;
+    --acc:#6c50f5; --acc-press:#5b3fe0; --acc-hi:#a48fff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f5b84b;
+    --r:10px;
+  }
   * { box-sizing: border-box; }
-  body { font: 15px system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 16px; max-width: 760px; }
-  h1 { font-size: 20px; margin: 0 0 12px; }
-  h2 { font-size: 15px; color: var(--mut); margin: 24px 0 8px; font-weight: 600; }
+  [hidden] { display: none !important; }
+  html { scrollbar-color: var(--line-hi) var(--bg); }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 800px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
+  ::selection { background: rgba(164, 143, 255, .35); }
+  :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
+  a { color: var(--acc-hi); text-underline-offset: 3px; }
+  h1, h2, h3 { text-wrap: balance; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .i-more, .i-play { fill: currentColor; }
+
+  /* header + nav */
+  header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 16px; }
+  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 10px; }
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  nav a { color: var(--mut); text-decoration: none; padding: 9px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 7px; align-items: center; }
+  nav a:hover { color: var(--fg); }
+  nav a[aria-current="page"] { color: var(--fg); border-color: var(--acc-hi); }
+  .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line); color: var(--fg); text-align: center; font-variant-numeric: tabular-nums; }
+  .count.bad { background: #4a1f24; color: #ffc2c2; }
+
+  /* controls */
+  input, select, button, .btn { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+  input, select { padding: 9px 12px; min-width: 0; }
+  input::placeholder { color: var(--mut); opacity: 1; }
+  input:hover, select:hover { border-color: var(--line-hi); }
+  button, .btn { font-size: 14px; line-height: 1.2; padding: 8px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap; background: var(--raise); }
+  button:hover, .btn:hover { border-color: var(--line-hi); background: #252a34; }
+  button.primary, .btn.primary { background: var(--acc); border-color: var(--acc); color: #fff; font-weight: 600; }
+  button.primary:hover, .btn.primary:hover { background: var(--acc-press); border-color: var(--acc-press); }
+  button:disabled { opacity: .55; cursor: default; }
+  button:disabled:hover { background: var(--raise); border-color: var(--line); }
+  button.primary:disabled:hover { background: var(--acc); border-color: var(--acc); }
+  button[aria-busy="true"] { cursor: progress; }
+  button.link { background: none; border: 0; padding: 2px 0; color: var(--acc-hi); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+  @media (pointer: coarse) {
+    button, .btn, select, input, details.more > summary { min-height: 44px; }
+    button.link { min-height: 32px; }
+  }
+
+  /* notices */
+  .notice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); background: var(--card); margin-bottom: 14px; font-size: 14px; }
+  .notice .i { width: 18px; height: 18px; margin-top: 1px; color: var(--mut); }
+  .notice p { margin: 2px 0 0; color: var(--mut); }
+  .notice.bad { background: #2a1517; }
+  .notice.bad .i, .notice.bad strong { color: #ffb3b3; }
+  .notice.bad p { color: #e9c4c4; }
+  .notice a { display: inline-block; margin-top: 6px; }
+
+  /* downloads */
+  .grp { margin-bottom: 24px; }
+  .grp > h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; display: flex; gap: 8px; align-items: center; }
+  .grp > h2 .count { font-weight: 400; }
+  .list { display: grid; gap: 8px; }
+  .dl { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; background: var(--card); border-radius: var(--r); padding: 12px; }
+  .dl .body { min-width: 0; }
+  .dl .title { font-size: 15px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .dl .title .year { color: var(--mut); font-weight: 400; margin-left: 6px; }
+  .dl .file { font-size: 12px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dl .status { font-size: 13px; color: var(--mut); margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+  .dl.bad .status { color: var(--err); }
+  .dl.ok .status { color: var(--ok); }
+  .dl .cardmsg { font-size: 13px; color: var(--err); margin: 6px 0 0; }
+  .acts { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+  .bar { position: relative; height: 6px; border-radius: 3px; background: var(--line-hi); overflow: hidden; margin-top: 8px; }
+  .bar .got, .bar .play { position: absolute; inset: 0 auto 0 0; border-radius: inherit; transition: width .8s cubic-bezier(.16, 1, .3, 1); }
+  .bar .got { background: rgba(164, 143, 255, .38); }
+  .bar .play { background: var(--acc-hi); }
+  .dl.ok .bar .play { background: var(--ok); }
+  .dl.paused .bar .got, .dl.gone .bar .got { background: rgba(139, 147, 161, .35); }
+  .dl.paused .bar .play, .dl.gone .bar .play { background: var(--mut); }
+  .dl.bad .bar .got { background: rgba(255, 107, 107, .3); }
+  .dl.bad .bar .play { background: rgba(255, 107, 107, .7); }
+  .dl.stale .bar { opacity: .4; }
+  .dl.stale .status { font-style: italic; }
+  .dl.fresh { animation: landed 2.6s cubic-bezier(.16, 1, .3, 1); }
+  @keyframes landed { from { background-color: rgba(62, 207, 142, .2); } }
+  @media (prefers-reduced-motion: reduce) { .dl.fresh { animation: none; } .bar .got, .bar .play { transition: none; } }
+
+  .poster { display: block; width: 44px; height: 66px; object-fit: cover; border-radius: 6px; background: var(--raise); }
+  .poster.ph { display: grid; place-items: center; color: var(--line-hi); }
+  .poster.ph .i { width: 20px; height: 20px; }
+
+  .show { background: var(--card); border-radius: var(--r); padding: 12px 12px 2px; }
+  .show > header { display: flex; gap: 14px; align-items: center; padding-bottom: 10px; }
+  .show h3 { font-size: 15px; margin: 0; }
+  .show .show-meta { font-size: 13px; color: var(--mut); margin-top: 2px; }
+  .show .eps-list .dl { grid-template-columns: minmax(0, 1fr) auto; background: none; border-radius: 0; padding: 12px 0; border-top: 1px solid var(--line); }
+  .show .eps-list .dl.fresh { border-radius: 6px; }
+
+  details.more { position: relative; }
+  details.more > summary { list-style: none; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more[open] > summary { background: #252a34; border-color: var(--line-hi); }
+  .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: max-content; min-width: 230px; max-width: min(300px, calc(100vw - 32px)); background: var(--raise); border: 1px solid var(--line-hi); border-radius: var(--r); padding: 6px; display: grid; box-shadow: 0 14px 32px -10px rgba(0, 0, 0, .7); }
+  .menu button { display: grid; justify-items: start; justify-content: start; gap: 2px; width: 100%; background: none; border: 0; border-radius: 6px; padding: 9px 10px; text-align: left; white-space: normal; }
+  .menu button:hover { background: #2b303b; }
+  .menu button small { color: var(--mut); font-size: 12px; font-weight: 400; }
+  .menu .danger { color: var(--err); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; width: calc(100% - 4px); }
+
+  .empty { background: var(--card); border-radius: var(--r); padding: 24px 20px; }
+  .empty h2 { font-size: 18px; margin: 0 0 6px; }
+  .empty ol { margin: 12px 0 18px; padding-left: 22px; display: grid; gap: 8px; }
+  .empty li::marker { color: var(--mut); }
+  .empty q { quotes: none; font-weight: 600; white-space: nowrap; }
+  .copyrow { display: flex; gap: 8px; margin-top: 6px; }
+  .copyrow input { flex: 1; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  @media (max-width: 600px) {
+    .dl { grid-template-columns: auto minmax(0, 1fr); }
+    .dl .acts { grid-column: 1 / -1; justify-content: flex-start; }
+    .show .eps-list .dl { grid-template-columns: minmax(0, 1fr); }
+    .acts details.more { margin-left: auto; }
+  }
+
+  /* add */
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tabs button { background: none; }
+  .tabs button[aria-pressed="true"] { border-color: var(--acc-hi); background: var(--raise); }
   #f { display: flex; gap: 8px; }
-  input, select, button { font: inherit; color: inherit; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; padding: 9px 12px; }
-  input { flex: 1; min-width: 0; }
-  button { cursor: pointer; }
-  button.primary { background: var(--acc); border-color: var(--acc); }
-  button:disabled { opacity: .5; cursor: default; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 8px; }
-  .tabs button.on { border-color: var(--acc); }
-  .item { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 10px; padding: 8px; margin-bottom: 8px; }
-  .item img { width: 46px; height: 68px; object-fit: cover; border-radius: 6px; background: #222; flex: none; }
-  .grow { flex: 1; min-width: 0; }
-  .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .s { color: var(--mut); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar { height: 6px; background: #2a2f3a; border-radius: 3px; margin-top: 6px; overflow: hidden; }
-  .bar > div { height: 100%; background: var(--acc); }
-  .complete .bar > div { background: var(--ok); }
-  .error .s { color: var(--err); }
-  .paused .bar > div { background: var(--mut); }
-  dialog { background: var(--bg); color: var(--fg); border: 1px solid #2a2f3a; border-radius: 12px; width: min(720px, calc(100vw - 32px)); max-height: 85vh; padding: 14px; }
-  dialog::backdrop { background: rgba(0, 0, 0, .6); }
-  .cand { padding: 8px 0; border-bottom: 1px solid #2a2f3a; display: flex; gap: 10px; align-items: center; }
-  .cand .t, .cand .s { white-space: normal; word-break: break-word; }
-  .cand .t { font-weight: 500; font-size: 14px; }
-  .cand.rejected { opacity: .55; }
-  .cand.current .t::before { content: '● '; color: var(--ok); }
-  .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .actions button, .actions .btn { padding: 5px 10px; font-size: 13px; }
-  a.btn { color: inherit; text-decoration: none; background: var(--card); border: 1px solid #2a2f3a; border-radius: 8px; }
-  .eps { margin: -2px 0 10px 8px; padding-left: 8px; border-left: 2px solid #2a2f3a; }
-  .ep { display: flex; gap: 8px; align-items: center; padding: 5px 0; }
-  nav { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #2a2f3a; }
-  nav a { color: var(--mut); text-decoration: none; padding: 8px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  nav a.on { color: var(--fg); border-color: var(--acc); }
-  #settingsForm { margin-bottom: 14px; }
-  fieldset { border: 1px solid #2a2f3a; border-radius: 10px; margin: 0 0 14px; padding: 10px 14px 14px; }
-  legend { color: var(--mut); padding: 0 6px; font-weight: 600; }
-  .field { display: grid; gap: 4px; margin-top: 10px; }
-  .field label { font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+  #q { flex: 1; }
+  #results { margin-top: 14px; display: grid; gap: 8px; }
+  .item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px 14px; align-items: center; background: var(--card); border-radius: var(--r); padding: 10px 12px; }
+  .item.open { border-radius: var(--r) var(--r) 0 0; }
+  .item .title { font-weight: 600; margin: 0; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .sub { font-size: 13px; color: var(--mut); margin-top: 2px; }
+  .state { font-size: 13px; color: var(--mut); text-decoration: none; font-variant-numeric: tabular-nums; }
+  a.state:hover { text-decoration: underline; }
+  .state.ok { color: var(--ok); }
+  .state.err { color: var(--err); }
+  .item .state { display: block; margin-top: 4px; }
+  .eps { background: var(--card); border-top: 1px solid var(--line); border-radius: 0 0 var(--r) var(--r); padding: 12px; margin-top: -8px; }
+  .eps .row { margin-top: 0; }
+  .ep { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .ep:first-child { border-top: 0; }
+  .ep-name { font-size: 14px; }
+  .ep-acts { display: flex; gap: 6px; }
+  .ep-list { margin-top: 10px; }
+  @media (max-width: 600px) {
+    .item { grid-template-columns: auto minmax(0, 1fr); }
+    .item .acts { grid-column: 2; justify-content: flex-start; }
+    .ep { grid-template-columns: minmax(0, 1fr) auto; }
+    .ep-name { grid-column: 1 / -1; }
+  }
+  .note { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--mut); padding: 14px; background: var(--card); border-radius: var(--r); }
+  .note.err { color: #ffb3b3; background: #2a1517; }
+
+  /* picker */
+  dialog { background: var(--bg); color: var(--fg); border: 1px solid var(--line-hi); border-radius: 12px; width: min(720px, calc(100vw - 24px)); max-height: 85vh; padding: 0; }
+  dialog::backdrop { background: rgba(0, 0, 0, .65); }
+  .dlg-head { position: sticky; top: 0; background: var(--bg); display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .dlg-head h2 { font-size: 16px; margin: 0; flex: 1; min-width: 0; }
+  #pickBody { padding: 4px 16px 12px; }
+  .cand { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+  .cand:last-child { border-bottom: 0; }
+  .cand .t { font-weight: 500; font-size: 14px; overflow-wrap: anywhere; }
+  .cand .s { font-size: 13px; color: var(--mut); overflow-wrap: anywhere; margin-top: 2px; }
+  .cand .why { font-size: 13px; color: var(--mut); margin-top: 2px; }
+  .cand.rejected .t, .cand.rejected .s { color: var(--mut); }
+  .cand.rejected .why { color: var(--warn); }
+  .cand .cmsg { font-size: 13px; color: var(--err); margin-top: 4px; }
+  .tag { font-size: 12px; padding: 4px 8px; border-radius: 999px; background: #173628; color: var(--ok); white-space: nowrap; }
+
+  /* settings */
+  fieldset { border: 1px solid var(--line); border-radius: var(--r); margin: 0 0 14px; padding: 10px 14px 16px; min-width: 0; }
+  legend { color: var(--fg); padding: 0 6px; font-weight: 600; }
+  .field { display: grid; gap: 5px; margin-top: 12px; }
+  .labelrow { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+  .labelrow label { font-size: 13px; }
   .field input, .field select { width: 100%; }
-  .field .help { color: var(--mut); font-size: 12px; }
+  .help { color: var(--mut); font-size: 12px; }
+  .ferr { color: var(--err); font-size: 13px; }
   .field.bad input, .field.bad select { border-color: var(--err); }
-  a.reset { color: var(--acc); font-size: 12px; cursor: pointer; margin-left: auto; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  details.advanced { margin: 0 0 14px; }
+  details.advanced > summary { cursor: pointer; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); display: flex; gap: 10px; align-items: baseline; list-style: none; }
+  details.advanced > summary::-webkit-details-marker { display: none; }
+  details.advanced > summary::before { content: ''; width: 7px; height: 7px; border-right: 1.75px solid var(--mut); border-bottom: 1.75px solid var(--mut); transform: translateY(-2px) rotate(-45deg); transition: transform .2s; flex: none; }
+  details.advanced[open] > summary::before { transform: translateY(-4px) rotate(45deg); }
+  details.advanced > summary span { font-weight: 600; }
+  details.advanced > summary small { color: var(--mut); font-size: 13px; }
+  details.advanced[open] > summary { margin-bottom: 14px; }
+  .row { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  .savebar { position: sticky; bottom: 0; z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0 12px; background: linear-gradient(rgba(15, 17, 21, 0), var(--bg) 35%); }
   .msg { font-size: 13px; color: var(--mut); }
   .msg.ok { color: var(--ok); }
   .msg.err { color: var(--err); }
   .msg.warn { color: var(--warn); }
-  code { background: var(--card); padding: 2px 6px; border-radius: 6px; word-break: break-all; font-size: 13px; }
 </style>
 </head>
 <body>
-<h1>Download to server</h1>
-<nav>
-  <a href="#add" data-view="add">Add</a>
-  <a href="#downloads" data-view="downloads">Downloads</a>
-  <a href="#settings" data-view="settings">Settings</a>
-</nav>
+<header class="top">
+  <h1>Local Download &amp; Watch</h1>
+  <nav aria-label="Sections">
+    <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
+    <a href="#add" data-view="add">Add</a>
+    <a href="#settings" data-view="settings">Settings</a>
+  </nav>
+</header>
+<div id="live" class="sr-only" role="status" aria-live="polite"></div>
 
-<section id="v-add">
-<div class="tabs">
-  <button id="tMovie" class="on">Movies</button>
-  <button id="tSeries">Series</button>
-</div>
-<form id="f"><input id="q" placeholder="Search title..." autocomplete="off"><button class="primary">Search</button></form>
-<div id="results"></div>
+<main>
+<section id="v-downloads" aria-label="Downloads">
+  <div id="dlNotices"></div>
+  <div id="dlEmpty" class="empty" hidden>
+    <h2>Nothing on your server yet</h2>
+    <p class="msg">Downloads start from Stremio:</p>
+    <ol>
+      <li>In Stremio, open a movie or an episode.</li>
+      <li>Pick <q>⬇️ Download</q> in its list of streams.</li>
+      <li>It shows up here, and Stremio's entry turns into <q>⏳ Your server 12%</q>. You can start watching while the rest downloads.</li>
+    </ol>
+    <label for="emptyUrl">Add-on not installed yet? Paste this URL into Stremio &rarr; Add-ons:</label>
+    <div class="copyrow"><input id="emptyUrl" class="manifest-url" readonly><button type="button" data-copy="#emptyUrl"><span class="lbl">Copy</span></button></div>
+    <p class="msg">Or <a href="#add">search for a title here</a> and download it without opening Stremio.</p>
+  </div>
+  <div id="downloads" tabindex="-1"></div>
 </section>
 
-<dialog id="picker">
-  <div class="row" style="margin-top:0"><strong id="pickTitle" class="grow"></strong><button type="button" id="pickClose">Close</button></div>
+<section id="v-add" aria-label="Add" hidden>
+  <div class="tabs" role="group" aria-label="What to search">
+    <button type="button" id="tMovie" aria-pressed="true">Movies</button>
+    <button type="button" id="tSeries" aria-pressed="false">Series</button>
+  </div>
+  <form id="f" role="search">
+    <label for="q" class="sr-only">Title</label>
+    <input id="q" type="search" placeholder="Search movies" autocomplete="off" enterkeyhint="search">
+    <button class="primary">Search</button>
+  </form>
+  <div id="results"></div>
+</section>
+
+<section id="v-settings" aria-label="Settings" hidden>
+  <fieldset>
+    <legend>Stremio</legend>
+    <div class="field">
+      <label for="manifestUrl">Install URL</label>
+      <div class="copyrow"><input id="manifestUrl" class="manifest-url" readonly aria-describedby="manifestHelp"><button type="button" data-copy="#manifestUrl"><span class="lbl">Copy</span></button></div>
+      <div class="help" id="manifestHelp">Paste into Stremio &rarr; Add-ons to install the add-on.</div>
+    </div>
+    <div class="row">
+      <button type="button" id="rotate"><span class="lbl">Rotate token</span></button>
+      <span class="msg" id="rotateMsg" role="status">Creates a new secret URL. The old one stops working; reinstall the add-on in Stremio.</span>
+    </div>
+  </fieldset>
+  <form id="settingsForm" novalidate></form>
+</section>
+</main>
+
+<dialog id="picker" aria-labelledby="pickTitle">
+  <div class="dlg-head"><h2 id="pickTitle"></h2><button type="button" id="pickClose"><span class="lbl">Close</span></button></div>
   <div id="pickBody"></div>
 </dialog>
 
-<section id="v-downloads" hidden>
-<div id="downloads"></div>
-</section>
-
-<section id="v-settings" hidden>
-<form id="settingsForm" novalidate></form>
-<fieldset>
-  <legend>Stremio</legend>
-  <div class="field"><label>Install URL (paste into Stremio &rarr; Add-ons)</label><code id="manifestUrl"></code></div>
-  <div class="row">
-    <button type="button" id="rotate">Rotate token</button>
-    <span class="msg">Creates a new secret URL. The old one stops working; reinstall the add-on in Stremio.</span>
-  </div>
-</fieldset>
-</section>
-
 <script>
 const BASE = location.pathname.replace(/\/?$/, '/');
-const $ = (s) => document.querySelector(s);
-const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
-let type = 'movie';
+const TOKEN = BASE.split('/').filter(Boolean).pop() || '';
+const APP = 'Local Download & Watch';
+const $ = (s, root = document) => root.querySelector(s);
+const el = (tag, { role, ...props } = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props);
+  if (role) e.setAttribute('role', role);
+  e.append(...kids.filter((k) => k != null && k !== false));
+  return e;
+};
+const attrs = (e, a) => { for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); return e; };
+const setText = (e, t) => { if (e.textContent !== t) e.textContent = t; };
+
+// Line icons, one stroke weight (decorative: buttons carry their own text).
+const ICONS = {
+  more: '<circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5z"/>',
+  film: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 4.5v15M16.5 4.5v15M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/>',
+  alert: '<path d="M12 3.5l9 16h-18z"/><path d="M12 10v4.5M12 17.2v.1"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+};
+function icon(name) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  attrs(s, { viewBox: '0 0 24 24', 'aria-hidden': 'true', class: `i i-${name}` });
+  s.innerHTML = ICONS[name];
+  return s;
+}
+// Buttons keep their text in .lbl so busy states can swap it without touching icons.
+function button(text, { cls = '', ico, title } = {}) {
+  const b = el('button', { type: 'button', className: cls }, ico ? icon(ico) : null, el('span', { className: 'lbl', textContent: text }));
+  if (title) b.title = title;
+  return b;
+}
+const setLabel = (b, text) => setText($('.lbl', b), text);
+function busy(b, text) {
+  b.dataset.label = $('.lbl', b).textContent;
+  b.disabled = true;
+  b.setAttribute('aria-busy', 'true');
+  setLabel(b, text);
+}
+function idle(b) {
+  b.disabled = false;
+  b.removeAttribute('aria-busy');
+  if (b.dataset.label) setLabel(b, b.dataset.label);
+}
+
+// Screen reader announcements for things that change without moving focus.
+function announce(msg) {
+  const r = $('#live');
+  r.textContent = '';
+  setTimeout(() => (r.textContent = msg), 60);
+}
 
 async function api(p, opts) {
   const r = await fetch(BASE + p, opts);
@@ -117,192 +334,6 @@ async function api(p, opts) {
 }
 const send = (method, p, body) => api(p, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
 
-// ---- views ----
-function show() {
-  const v = (location.hash.slice(1) || 'add').split('?')[0];
-  const name = ['add', 'downloads', 'settings'].includes(v) ? v : 'add';
-  document.querySelectorAll('nav a').forEach((a) => a.classList.toggle('on', a.dataset.view === name));
-  document.querySelectorAll('section').forEach((x) => (x.hidden = x.id !== 'v-' + name));
-  if (name === 'settings') loadSettings();
-}
-window.addEventListener('hashchange', show);
-
-function setType(t) {
-  type = t;
-  $('#tMovie').classList.toggle('on', t === 'movie');
-  $('#tSeries').classList.toggle('on', t === 'series');
-  $('#results').replaceChildren();
-}
-$('#tMovie').onclick = () => setType('movie');
-$('#tSeries').onclick = () => setType('series');
-
-async function startDownload(t, id, btn) {
-  btn.disabled = true; btn.textContent = 'Queued...';
-  try {
-    await send('POST', 'api/download', { type: t, id });
-    btn.textContent = 'Started';
-  } catch (e) {
-    btn.textContent = 'Failed'; btn.title = e.message; btn.disabled = false;
-  }
-  refresh();
-}
-
-// Latest download list by ID, so open episode lists can show what is already on the server.
-let known = new Map();
-let pendingIds = new Set();
-const openLists = new Set(); // re-render callbacks of open episode lists
-
-function epState(id) {
-  const d = known.get(id);
-  if (!d) return pendingIds.has(id) ? { text: 'Looking for a torrent...', busy: true } : null;
-  const pct = Math.round((d.progress || 0) * 100);
-  if (d.status === 'complete') return { text: 'On server', busy: true, cls: 'ok' };
-  if (d.status === 'downloading' || d.status === 'queued') return { text: d.paused ? `Paused ${pct}%` : `${pct}%`, busy: true };
-  if (d.status === 'error') return { text: 'Failed', title: d.error, cls: 'err' };
-  return null; // missing: can be downloaded again
-}
-
-async function batchDownload(id, season, btn, msg) {
-  btn.disabled = true;
-  msg.className = 'msg'; msg.textContent = 'Queueing...';
-  try {
-    const r = await send('POST', 'api/download/batch', season ? { id, season } : { id });
-    const why = {};
-    r.skipped.forEach((x) => (why[x.reason] = (why[x.reason] || 0) + 1));
-    const skipped = Object.entries(why).map(([k, n]) => `${n} ${k}`).join(', ');
-    msg.className = 'msg ok';
-    msg.textContent = `Queued ${r.queued.length} episode${r.queued.length === 1 ? '' : 's'}` + (skipped ? ` · skipped: ${skipped}` : '');
-  } catch (e) {
-    msg.className = 'msg err'; msg.textContent = e.message;
-  }
-  btn.disabled = false;
-  refresh();
-}
-
-function episodes(meta, box, seriesId) {
-  const vids = (meta.videos || []).filter((v) => v.season > 0);
-  const seasons = [...new Set(vids.map((v) => v.season))].sort((a, b) => a - b);
-  if (!seasons.length) return box.replaceChildren(el('div', { className: 's', textContent: 'No episodes found.' }));
-  const sel = el('select');
-  seasons.forEach((s) => sel.append(el('option', { value: s, textContent: 'Season ' + s })));
-  const msg = el('div', { className: 'msg' });
-  const seasonBtn = el('button', { type: 'button', textContent: 'Download season' });
-  const showBtn = el('button', { type: 'button', textContent: 'Download whole show', title: `All ${seasons.length} seasons, skipping what is already on the server` });
-  seasonBtn.onclick = () => batchDownload(seriesId, +sel.value, seasonBtn, msg);
-  showBtn.onclick = () => batchDownload(seriesId, null, showBtn, msg);
-  const list = el('div');
-  const now = Date.now();
-  const render = () => {
-    if (!box.isConnected) return openLists.delete(render);
-    list.replaceChildren();
-    vids.filter((v) => v.season === +sel.value).sort((a, b) => a.episode - b.episode).forEach((v) => {
-      const st = epState(v.id);
-      const future = v.released && Date.parse(v.released) > now;
-      const b = el('button', { type: 'button', textContent: st && st.cls === 'err' ? 'Retry' : 'Download' });
-      b.disabled = !!(st && st.busy) || future;
-      b.onclick = () => startDownload('series', v.id, b);
-      const state = el('span', { className: 'msg ' + (st && st.cls ? st.cls : ''), textContent: future ? 'Not released yet' : st ? st.text : '', title: (st && st.title) || '' });
-      const choose = el('button', { type: 'button', textContent: '...', title: 'Choose a specific torrent' });
-      choose.disabled = future;
-      choose.onclick = () => openPicker('series', v.id, `${meta.name || seriesId} S${v.season}E${v.episode}`);
-      list.append(el('div', { className: 'ep' }, el('span', { className: 'grow', textContent: `${v.episode}. ${v.name || v.title || ''}` }), state, b, choose));
-    });
-  };
-  sel.onchange = render;
-  box.replaceChildren(el('div', { className: 'row' }, sel, seasonBtn, showBtn), msg, list);
-  openLists.add(render);
-  render();
-}
-
-// ---- manual torrent picker ----
-$('#pickClose').onclick = () => $('#picker').close();
-
-async function openPicker(type, id, label) {
-  const dlg = $('#picker');
-  $('#pickTitle').textContent = 'Choose a torrent: ' + label;
-  const body = $('#pickBody');
-  body.replaceChildren(el('div', { className: 'msg', textContent: 'Searching...' }));
-  if (!dlg.open) dlg.showModal();
-  let data;
-  try {
-    data = await api(`api/candidates/${type}/${encodeURIComponent(id)}`);
-  } catch (e) {
-    return body.replaceChildren(el('div', { className: 'msg err', textContent: e.message }));
-  }
-  if (!data.candidates.length) return body.replaceChildren(el('div', { className: 'msg', textContent: 'No torrents found.' }));
-  body.replaceChildren(...data.candidates.map((c) => {
-    const isCurrent = c.infoHash === data.current;
-    const facts = [c.res ? c.res + 'p' : '', c.size ? fmtBytes(c.size) : '', `${c.seeders} seeders`, c.languages.join('/'), c.pack ? 'season pack' : '', c.source].filter(Boolean).join(' · ');
-    // Above the resolution cap the score is only a sort key, so leave it out.
-    const why = c.rejected ? 'Filtered out: ' + c.rejected : c.reasons.join(', ') + (c.score > -500 ? ` (score ${c.score})` : '');
-    const b = el('button', { type: 'button', textContent: isCurrent ? 'Current' : 'Download', className: c.rejected ? '' : 'primary' });
-    b.disabled = isCurrent;
-    b.onclick = async () => {
-      if (data.current && !confirm('Replace the current torrent with this one?\nThe current one is removed from the torrent client; files already downloaded stay on disk.')) return;
-      b.disabled = true; b.textContent = 'Starting...';
-      try {
-        await send('POST', 'api/download', { type, id, infoHash: c.infoHash });
-        dlg.close();
-      } catch (e) {
-        b.disabled = false; b.textContent = 'Failed'; b.title = e.message;
-      }
-      refresh();
-    };
-    return el('div', { className: 'cand' + (c.rejected ? ' rejected' : '') + (isCurrent ? ' current' : '') },
-      el('div', { className: 'grow' }, el('div', { className: 't', textContent: c.title }), el('div', { className: 's', textContent: facts }), el('div', { className: 's', textContent: why })),
-      b);
-  }));
-}
-
-let searchSeq = 0; // a slow search that finishes after a newer one must not overwrite its results
-async function search(e) {
-  e.preventDefault();
-  const q = $('#q').value.trim();
-  if (!q) return;
-  const seq = ++searchSeq;
-  const out = $('#results');
-  const status = el('div', { className: 's', textContent: 'Searching...' });
-  out.replaceChildren(status);
-  const slow = setTimeout(() => (status.textContent = 'Searching... Cinemeta is slow for new searches, this can take up to 45 s'), 5000);
-  try {
-    const { metas = [] } = await api(`api/search?type=${type}&q=${encodeURIComponent(q)}`);
-    if (seq !== searchSeq) return;
-    out.replaceChildren();
-    metas.slice(0, 12).forEach((m) => {
-      const id = m.imdb_id || m.id;
-      const btn = el('button', { textContent: type === 'movie' ? 'Download' : 'Episodes' });
-      const epBox = el('div', { className: 'eps' });
-      epBox.hidden = true;
-      btn.onclick = async () => {
-        if (type === 'movie') return startDownload('movie', id, btn);
-        epBox.hidden = !epBox.hidden;
-        if (!epBox.hidden && !epBox.children.length) {
-          try { episodes((await api(`api/meta/series/${id}`)).meta || {}, epBox, id); }
-          catch (err) { epBox.textContent = err.message; }
-        }
-      };
-      const buttons = [btn];
-      if (type === 'movie') {
-        const choose = el('button', { type: 'button', textContent: 'Choose...', title: 'Pick a specific torrent' });
-        choose.onclick = () => openPicker('movie', id, m.name);
-        buttons.push(choose);
-      }
-      out.append(
-        el('div', { className: 'item' },
-          el('img', { src: m.poster || '', alt: '', loading: 'lazy' }),
-          el('div', { className: 'grow' }, el('div', { className: 't', textContent: m.name }), el('div', { className: 's', textContent: `${m.releaseInfo || ''} ${id}` })),
-          ...buttons),
-        epBox);
-    });
-    if (!metas.length) out.textContent = 'No results.';
-  } catch (err) {
-    if (seq === searchSeq) out.textContent = 'Search failed: ' + err.message;
-  } finally {
-    clearTimeout(slow);
-  }
-}
-$('#f').onsubmit = search;
-
 const fmtBytes = (n) => {
   if (!n && n !== 0) return '';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -311,122 +342,775 @@ const fmtBytes = (n) => {
   return `${n.toFixed(n < 10 && i ? 1 : 0)} ${u[i]}`;
 };
 const fmtEta = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m` : s >= 60 ? `${Math.round(s / 60)}m` : `${s}s`);
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function statusText(d) {
+// ---- views ----
+const VIEWS = ['downloads', 'add', 'settings'];
+function show() {
+  const v = (location.hash.slice(1) || 'downloads').split('?')[0];
+  const name = VIEWS.includes(v) ? v : 'downloads';
+  document.querySelectorAll('nav a').forEach((a) => {
+    if (a.dataset.view === name) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('main > section').forEach((x) => (x.hidden = x.id !== 'v-' + name));
+  if (name === 'settings') loadSettings();
+}
+window.addEventListener('hashchange', show);
+
+// ---- titles and posters (Cinemeta, cached in the browser) ----
+// Downloads only know IMDb IDs and release names; the names people know come from Cinemeta.
+const META_KEY = 'ldw-meta:';
+const metas = new Map(); // IMDb ID -> { name, poster, year, eps: { 'season:episode': name }, full } | null (lookup failed)
+const metaWanted = new Set();
+const metaQueue = [];
+let metaBusy = 0;
+
+function storedMeta(tt) {
+  try { return JSON.parse(localStorage.getItem(META_KEY + tt)); } catch { return null; }
+}
+function metaFor(type, tt) {
+  let m = metas.get(tt);
+  if (m === undefined) {
+    m = storedMeta(tt) || undefined;
+    if (m) metas.set(tt, m);
+  }
+  const enough = m === null || (m && (m.full || type === 'movie'));
+  if (!enough && !metaWanted.has(tt)) {
+    metaWanted.add(tt);
+    metaQueue.push({ type, tt });
+    pumpMeta();
+  }
+  return m || null;
+}
+function pumpMeta() {
+  while (metaBusy < 3 && metaQueue.length) {
+    const { type, tt } = metaQueue.shift();
+    metaBusy++;
+    api(`api/meta/${type}/${tt}`)
+      .then(({ meta = {} }) => {
+        const eps = {};
+        (meta.videos || []).forEach((v) => { if (v.season > 0) eps[`${v.season}:${v.episode}`] = v.name || v.title || ''; });
+        const m = { name: meta.name || '', poster: meta.poster || '', year: meta.releaseInfo || meta.year || '', eps, full: true };
+        metas.set(tt, m);
+        try { localStorage.setItem(META_KEY + tt, JSON.stringify(m)); } catch { /* storage full or blocked: memory only */ }
+      })
+      .catch(() => { if (!metas.get(tt)) metas.set(tt, null); })
+      .finally(() => { metaBusy--; renderSoon(); pumpMeta(); });
+  }
+}
+// Search results already carry name, poster and year.
+function seedMeta(m, id) {
+  if (metas.get(id) || storedMeta(id)) return;
+  metas.set(id, { name: m.name || '', poster: m.poster || '', year: m.releaseInfo || '', eps: {}, full: false });
+}
+// "Breaking.Bad.S01.1080p..." -> "Breaking Bad": a stand-in while Cinemeta answers.
+const guessName = (s) => (s ? s.replace(/[._]+/g, ' ').replace(/\s*[[(]?\b(S\d{1,2}(E\d+)?|(19|20)\d\d|\d{3,4}p)\b.*$/i, '').trim() : '');
+const epCode = (s, e) => `S${String(s).padStart(2, '0')}E${String(e).padStart(2, '0')}`;
+
+function names(d) {
+  const [tt, s, e] = d.id.split(':');
+  const m = metaFor(d.type, tt);
+  if (d.type === 'series' && e) {
+    const ep = m && m.eps && m.eps[`${s}:${e}`];
+    const show = (m && m.name) || guessName(d.title) || tt;
+    return { tt, show, title: ep ? `${epCode(s, e)} · ${ep}` : epCode(s, e), full: `${show} ${epCode(s, e)}`, year: m && m.year, poster: m && m.poster };
+  }
+  const title = (m && m.name) || guessName(d.label || d.title) || d.label || d.title || `Unknown title (${tt})`;
+  return { tt, title, full: title, year: m && m.year, poster: m && m.poster };
+}
+
+function posterInto(slot, url) {
+  if (slot.dataset.url === (url || '')) return;
+  slot.dataset.url = url || '';
+  const ph = () => el('div', { className: 'poster ph' }, icon('film'));
+  if (!url) return slot.replaceChildren(ph());
+  const img = el('img', { className: 'poster', src: url, alt: '', loading: 'lazy', decoding: 'async' });
+  img.onerror = () => img.replaceWith(ph());
+  slot.replaceChildren(img);
+}
+
+// ---- downloads ----
+let lastData = null;
+let serverDown = false;
+let known = new Map(); // latest download list by ID, so the Add view can show what is already on the server
+let pendingIds = new Set();
+const openLists = new Set(); // update callbacks of the Add view's result rows and open episode lists
+const freshIds = new Set(); // just finished: highlighted once
+let prevStatus = null;
+
+const bucket = (d) => (d.status === 'error' || d.status === 'missing' ? 'attention' : d.status === 'complete' ? 'done' : 'active');
+const SECTIONS = [['attention', 'Needs attention'], ['active', 'Downloading'], ['done', 'On your server']];
+
+function stateCls(d) {
+  if (d.status === 'complete') return 'ok';
+  if (d.status === 'error') return 'bad';
+  if (d.status === 'missing') return 'gone';
+  return d.paused ? 'paused' : 'active';
+}
+
+function statusText(d, stale) {
   const pct = Math.round((d.progress || 0) * 100);
-  if (d.status === 'error') return 'Error: ' + (d.error || '');
-  if (d.status === 'missing') return 'Not downloaded (removed)';
-  if (d.status === 'complete') return 'On your server' + (d.inClient ? '' : ' (removed from torrent client)');
-  const parts = [d.paused ? `Paused at ${pct}%` : d.status === 'queued' ? 'Queued' : `Downloading ${pct}%`];
-  if (d.paused) return parts.join(' · ');
-  // Why nothing arrives: the client's own queue, missing torrent info, or no one to download from.
-  if (d.clientState === 'queued') parts.push("waiting in the torrent client's queue");
-  else if (d.clientState === 'metadata') parts.push('fetching torrent info');
-  else if (d.clientState === 'checking') parts.push('checking files');
-  else if (d.inClient && !d.dlSpeed) parts.push(d.seeds === 0 ? 'no seeders connected' : 'stalled');
-  if (d.dlSpeed) parts.push(fmtBytes(d.dlSpeed) + '/s');
-  if (d.eta) parts.push(fmtEta(d.eta) + ' left');
-  const still = d.progressAt ? Math.floor((Date.now() - d.progressAt) / 1000) : 0;
-  if (still >= 120) parts.push(`no progress for ${fmtEta(still)}`);
-  if (d.tried) parts.push(`trying torrent ${d.tried + 1}`);
-  return parts.join(' · ');
-}
-
-// Runs a per-item action and refreshes the list. `confirmText` asks first.
-async function action(d, name, method, confirmText) {
-  if (confirmText && !confirm(confirmText)) return;
-  try {
-    await api(`api/downloads/${encodeURIComponent(d.id)}${name ? '/' + name : ''}`, { method });
-  } catch (e) {
-    alert(`${name || 'forget'} failed: ${e.message}`);
+  const playable = Math.floor((d.playable || 0) * 100);
+  const parts = [d.size ? fmtBytes(d.size) : ''];
+  if (d.status === 'error') parts.push(d.error ? `Failed: ${d.error}` : 'Failed');
+  else if (d.status === 'missing') parts.push('No longer on the server or in the torrent client');
+  else if (d.status === 'complete') parts.push('On your server', !stale && !d.inClient ? 'no longer in the torrent client' : '');
+  else if (stale) parts.push(`Status unknown, last seen at ${pct}%`);
+  else if (d.paused) parts.push(`Paused at ${pct}%`, playable && playable < pct ? `playable up to ${playable}%` : '');
+  else {
+    parts.push(d.status === 'queued' ? 'Queued' : `Downloading ${pct}%`);
+    // Why nothing arrives: the client's own queue, missing torrent info, or no one to download from.
+    if (d.clientState === 'queued') parts.push("waiting in the torrent client's queue");
+    else if (d.clientState === 'metadata') parts.push('fetching torrent info');
+    else if (d.clientState === 'checking') parts.push('checking files');
+    else {
+      if (d.status === 'downloading') parts.push(!playable ? 'not playable yet' : playable < pct ? `playable up to ${playable}%` : '');
+      if (d.inClient && !d.dlSpeed) parts.push(d.seeds === 0 ? 'no seeders connected' : 'stalled');
+      if (d.dlSpeed) parts.push(fmtBytes(d.dlSpeed) + '/s');
+      if (d.eta) parts.push(fmtEta(d.eta) + ' left');
+    }
+    const still = d.progressAt ? Math.floor((Date.now() - d.progressAt) / 1000) : 0;
+    if (still >= 120) parts.push(`no progress for ${fmtEta(still)}`);
+    if (d.tried) parts.push(`trying torrent ${d.tried + 1}`);
   }
-  refresh();
+  return parts.filter(Boolean).join(' · ');
 }
 
-function itemButtons(d) {
-  const label = d.label || d.title || d.id;
-  const out = [];
-  const btn = (text, fn, title) => { const b = el('button', { type: 'button', textContent: text, title: title || '' }); b.onclick = fn; out.push(b); };
+const ACTS = {
+  pause: { label: 'Pause', busy: 'Pausing...', done: 'Paused', path: 'pause', method: 'POST' },
+  resume: { label: 'Resume', busy: 'Resuming...', done: 'Resumed', path: 'resume', method: 'POST' },
+  redownload: { label: 'Try again', busy: 'Starting...', done: 'Started again', path: 'redownload', method: 'POST' },
+  choose: { label: 'Choose another torrent', hint: 'Pick a different release by hand' },
+  remove: {
+    label: 'Remove from torrent client', hint: 'Stops downloading; the files stay on disk', busy: 'Removing...', done: 'Removed from the torrent client', path: 'remove', method: 'POST',
+    confirm: (d, name) => `Remove "${name}" from the torrent client?\nFiles stay on disk${d.status === 'complete' ? ' and it stays playable' : ''}.`,
+  },
+  forget: {
+    label: 'Forget', hint: 'Removes it from this list only', busy: 'Forgetting...', done: 'Forgotten', path: '', method: 'DELETE',
+    confirm: (d, name) => `Forget "${name}"? The torrent client and the files are not touched.`,
+  },
+  delete: {
+    label: 'Delete files...', hint: 'Deletes the file from disk for good', danger: true, busy: 'Deleting...', done: 'Deleted', path: 'delete-files', method: 'POST',
+    confirm: (d, name) => `Permanently delete "${name}" from disk?\n${d.fileName || ''}\nThis cannot be undone.`,
+  },
+};
+
+function actionsFor(d) {
+  const primary = [];
+  const menu = ['choose'];
   const active = d.status === 'queued' || d.status === 'downloading';
-  if (active && d.inClient) {
-    if (d.paused) btn('Resume', () => action(d, 'resume', 'POST'));
-    else btn('Pause', () => action(d, 'pause', 'POST'), d.shared ? 'Pauses the whole torrent (shared with other episodes)' : '');
-  }
-  if (d.status === 'complete' || d.status === 'downloading') {
-    out.push(el('a', { className: 'btn', textContent: 'Play', target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Open in the browser, or copy the link into VLC' }));
-  }
-  if (d.status === 'error' || d.status === 'missing') btn('Re-download', () => action(d, 'redownload', 'POST'));
-  if (d.inClient) {
-    btn('Remove', () => action(d, 'remove', 'POST',
-      `Remove "${label}" from the torrent client?\nFiles stay on disk${d.status === 'complete' ? ' and it stays playable' : ''}.`),
-      'Remove from the torrent client, keep files');
-  }
-  if (d.fileName || d.inClient) {
-    btn('Delete files', () => action(d, 'delete-files', 'POST',
-      `Permanently delete "${label}" from disk?\n${d.fileName || ''}\nThis cannot be undone.`));
-  }
-  btn('✕', () => action(d, '', 'DELETE', `Forget "${label}"? The torrent client and the files are not touched.`), 'Forget (remove from this list only)');
-  return out;
+  if (d.status === 'error' || d.status === 'missing') primary.push('redownload');
+  if (d.status === 'complete' || (d.status === 'downloading' && d.playable > 0)) primary.push('play');
+  if (active && d.inClient) primary.push(d.paused ? 'resume' : 'pause');
+  if (d.inClient) menu.push('remove');
+  menu.push('forget');
+  if (d.fileName || d.inClient) menu.push('delete');
+  return { primary, menu };
 }
 
+// Runs a per-item action. Feedback stays on the card: busy label, then an announcement or an inline error.
+async function runAction(card, key, btn) {
+  const d = card._d;
+  const A = ACTS[key];
+  const name = names(d).full;
+  if (A.confirm && !confirm(A.confirm(d, name))) return;
+  const msg = $('.cardmsg', card);
+  msg.hidden = true;
+  busy(btn, A.busy);
+  try {
+    await api(`api/downloads/${encodeURIComponent(d.id)}${A.path ? '/' + A.path : ''}`, { method: A.method });
+    announce(`${A.done}: ${name}`);
+  } catch (e) {
+    msg.textContent = `${A.label.replace(/\.+$/, '')} failed: ${e.message}`;
+    msg.hidden = false;
+  }
+  idle(btn);
+  await refresh();
+}
+
+function renderActs(card) {
+  const d = card._d;
+  const a = actionsFor(d);
+  const n = names(d);
+  const sig = JSON.stringify([a, n.full, d.shared, d.status]);
+  if (card.dataset.sig === sig) return;
+  card.dataset.sig = sig;
+  const box = $('.acts', card);
+  const hadFocus = box.contains(document.activeElement);
+  const out = a.primary.map((k) => {
+    if (k === 'play') {
+      const link = el('a', { className: d.status === 'complete' ? 'btn primary' : 'btn', target: '_blank', rel: 'noopener', href: `play/${d.type}/${encodeURIComponent(d.id)}`, title: 'Opens in the browser; or copy the link into VLC' },
+        icon('play'), el('span', { className: 'lbl', textContent: 'Play' }));
+      link.setAttribute('aria-label', `Play ${n.full}`);
+      return link;
+    }
+    const A = ACTS[k];
+    const label = k === 'redownload' && d.status === 'missing' ? 'Download again' : A.label;
+    const b = button(label, { cls: k === 'redownload' ? 'primary' : '', title: k === 'pause' && d.shared ? 'Pauses the whole season pack (other episodes share it)' : '' });
+    b.setAttribute('aria-label', `${label} ${n.full}`);
+    b.onclick = () => runAction(card, k, b);
+    return b;
+  });
+  const more = el('details', { className: 'more' });
+  const sum = el('summary', { className: 'btn' }, icon('more'), el('span', { className: 'lbl', textContent: 'More' }));
+  sum.setAttribute('aria-label', `More actions for ${n.full}`);
+  const menu = el('div', { className: 'menu' });
+  a.menu.forEach((k) => {
+    const A = ACTS[k];
+    if (A.danger) menu.append(el('hr'));
+    const b = el('button', { type: 'button', className: A.danger ? 'danger' : '' }, el('span', { className: 'lbl', textContent: A.label }), A.hint ? el('small', { textContent: A.hint }) : null);
+    b.onclick = () => {
+      more.open = false;
+      sum.focus();
+      if (k === 'choose') openPicker(d.type, d.id, n.full);
+      else runAction(card, k, sum);
+    };
+    menu.append(b);
+  });
+  more.append(sum, menu);
+  out.push(more);
+  box.replaceChildren(...out);
+  if (hadFocus) (box.querySelector('button, a, summary') || card).focus();
+}
+
+function makeCard(d, withPoster) {
+  const card = el('article', { className: 'dl' });
+  const bar = attrs(el('div', { className: 'bar' }, el('div', { className: 'got' }), el('div', { className: 'play' })), { role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100' });
+  if (withPoster) card.append(el('div', { className: 'poster-slot' }));
+  card.append(
+    el('div', { className: 'body' },
+      el('h3', { className: 'title' }, el('span', { className: 'tx' }), el('span', { className: 'year' })),
+      el('div', { className: 'file' }),
+      el('p', { className: 'status' }),
+      bar,
+      el('p', { className: 'cardmsg', hidden: true, role: 'alert' })),
+    el('div', { className: 'acts' }));
+  return card;
+}
+
+function updateCard(card, d, stale) {
+  card._d = d;
+  const n = names(d);
+  const unknown = stale && (d.status === 'downloading' || d.status === 'queued');
+  card.className = `dl ${stateCls(d)}${unknown ? ' stale' : ''}${freshIds.has(d.id) ? ' fresh' : ''}`;
+  setText($('.title .tx', card), n.title);
+  setText($('.title .year', card), d.type === 'movie' && n.year ? n.year : '');
+  const file = $('.file', card);
+  const release = d.label || d.title || '';
+  setText(file, release);
+  file.title = d.fileName || release;
+  file.hidden = !release || release === n.title;
+  setText($('.status', card), statusText(d, stale));
+  const pct = Math.round((d.progress || 0) * 100);
+  const playable = d.status === 'complete' ? 100 : Math.min(pct, Math.floor((d.playable || 0) * 100));
+  const bar = $('.bar', card);
+  bar.hidden = d.status === 'error' && !pct;
+  $('.got', bar).style.width = pct + '%';
+  $('.play', bar).style.width = playable + '%';
+  bar.setAttribute('aria-valuenow', String(pct));
+  bar.setAttribute('aria-label', `${n.full}: download progress`);
+  bar.setAttribute('aria-valuetext', d.status === 'complete' ? 'Complete' : `${pct}% downloaded, playable up to ${playable}%`);
+  const slot = $('.poster-slot', card);
+  if (slot) posterInto(slot, n.poster);
+  renderActs(card);
+}
+
+// Keyed list update: existing nodes are patched in place (focus, open menus and scroll survive the 5 s poll).
+function reconcile(parent, entries) {
+  const old = new Map([...parent.children].map((n) => [n.dataset.key, n]));
+  let prev = null;
+  for (const e of entries) {
+    let n = old.get(e.key);
+    if (n) old.delete(e.key);
+    else {
+      n = e.create();
+      n.dataset.key = e.key;
+    }
+    e.update(n);
+    const want = prev ? prev.nextElementSibling : parent.firstElementChild;
+    if (n !== want) {
+      const f = n.contains(document.activeElement) ? document.activeElement : null;
+      parent.insertBefore(n, want);
+      if (f && document.activeElement !== f) f.focus({ preventScroll: true });
+    }
+    prev = n;
+  }
+  for (const n of old.values()) {
+    const lostFocus = n.contains(document.activeElement);
+    const next = n.nextElementSibling || n.previousElementSibling;
+    n.remove();
+    if (lostFocus) (next && !old.has(next.dataset.key) && next.querySelector('a, button, summary') || $('#downloads')).focus({ preventScroll: true });
+  }
+}
+
+function listEntries(items, stale) {
+  const entries = [];
+  const shows = new Map();
+  for (const d of items) {
+    if (d.type !== 'series' || !d.id.includes(':')) {
+      entries.push({ key: 'm:' + d.id, create: () => makeCard(d, true), update: (n) => updateCard(n, d, stale) });
+      continue;
+    }
+    const tt = d.id.split(':')[0];
+    if (!shows.has(tt)) {
+      const eps = [];
+      shows.set(tt, eps);
+      entries.push({ key: 's:' + tt, create: makeShow, update: (n) => updateShow(n, tt, eps, stale) });
+    }
+    shows.get(tt).push(d);
+  }
+  return entries;
+}
+
+function makeShow() {
+  const g = el('div', { className: 'show' });
+  g.append(
+    el('header', {}, el('div', { className: 'poster-slot' }), el('div', {}, el('h3', { className: 'show-name' }), el('div', { className: 'show-meta' }))),
+    el('div', { className: 'eps-list' }));
+  return g;
+}
+function updateShow(g, tt, eps, stale) {
+  const n = names(eps[0]);
+  setText($('.show-name', g), n.show);
+  setText($('.show-meta', g), [n.year, plural(eps.length, 'episode')].filter(Boolean).join(' · '));
+  posterInto($('.poster-slot', g), n.poster);
+  const order = (d) => d.id.split(':').slice(1).map(Number);
+  const sorted = [...eps].sort((a, b) => { const [as, ae] = order(a); const [bs, be] = order(b); return as - bs || ae - be; });
+  reconcile($('.eps-list', g), sorted.map((d) => ({ key: d.id, create: () => makeCard(d, false), update: (n2) => updateCard(n2, d, stale) })));
+}
+
+function makeSection(key, title) {
+  const s = el('section', { className: 'grp' });
+  s.dataset.key = key;
+  const h = el('h2', { id: 'grp-' + key }, el('span', { textContent: title }), el('span', { className: 'count' }));
+  s.setAttribute('aria-labelledby', h.id);
+  s.append(h, el('div', { className: 'list' }));
+  return s;
+}
+
+function notice(kind, ico, title, text, extra) {
+  const n = el('div', { className: 'notice ' + kind }, icon(ico), el('div', {}, el('strong', { textContent: title }), text ? el('p', { textContent: text }) : null, extra || null));
+  if (kind === 'bad') n.setAttribute('role', 'alert');
+  return n;
+}
+let noticeSig = '';
+function renderNotices(data) {
+  const sig = JSON.stringify([serverDown, data && data.clientError, pendingIds.size]);
+  if (sig === noticeSig) return;
+  noticeSig = sig;
+  const out = [];
+  if (serverDown) out.push(notice('bad', 'alert', "Can't reach the add-on server", 'The list below is from the last time it answered. Retrying every few seconds.'));
+  else if (data && data.clientError) {
+    out.push(notice('bad', 'alert', "Can't reach the torrent client", `${data.clientError}. Statuses below are from the last check.`,
+      el('a', { href: '#settings', textContent: 'Check the connection in Settings' })));
+  }
+  if (pendingIds.size) out.push(notice('', 'search', `Looking for torrents for ${plural(pendingIds.size, 'more episode')}...`));
+  $('#dlNotices').replaceChildren(...out);
+}
+
+function renderDownloads() {
+  const data = lastData;
+  renderNotices(data);
+  if (!data) return;
+  const stale = serverDown || !!data.clientError;
+  const by = { attention: [], active: [], done: [] };
+  data.items.forEach((d) => by[bucket(d)].push(d));
+  $('#dlEmpty').hidden = !!(data.items.length || pendingIds.size);
+  reconcile($('#downloads'), SECTIONS.filter(([k]) => by[k].length).map(([k, title]) => ({
+    key: k,
+    create: () => makeSection(k, title),
+    update: (s) => {
+      setText($('h2 .count', s), String(by[k].length));
+      reconcile($('.list', s), listEntries(by[k], stale));
+    },
+  })));
+  const c = $('#dlCount');
+  c.hidden = !by.active.length;
+  c.replaceChildren(String(by.active.length), el('span', { className: 'sr-only', textContent: ' downloading' }));
+  const b = $('#dlBad');
+  b.hidden = !by.attention.length;
+  b.replaceChildren(String(by.attention.length), el('span', { className: 'sr-only', textContent: ' need attention' }));
+  document.title = by.active.length ? `(${by.active.length}) ${APP}` : APP;
+}
+let renderQueued = false;
+function renderSoon() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; renderDownloads(); openLists.forEach((f) => f()); });
+}
+
+function noticeFinished(items) {
+  const now = new Map(items.map((d) => [d.id, d.status]));
+  if (prevStatus) {
+    for (const d of items) {
+      if (d.status !== 'complete' || !prevStatus.has(d.id) || prevStatus.get(d.id) === 'complete') continue;
+      announce(`Finished: ${names(d).full} is on your server`);
+      freshIds.add(d.id);
+      setTimeout(() => freshIds.delete(d.id), 3000);
+    }
+  }
+  prevStatus = now;
+}
+
+let refreshSeq = 0;
 async function refresh() {
+  const seq = ++refreshSeq;
   let data;
   try {
     data = await api('api/downloads');
-  } catch { return; }
+  } catch {
+    if (seq !== refreshSeq) return;
+    serverDown = true;
+    return renderDownloads();
+  }
+  if (seq !== refreshSeq) return;
+  serverDown = false;
+  lastData = data;
   known = new Map(data.items.map((d) => [d.id, d]));
   pendingIds = new Set(data.batchPending || []);
-  openLists.forEach((render) => render());
-  const box = $('#downloads');
-  box.replaceChildren();
-  if (pendingIds.size) box.append(el('div', { className: 'msg', textContent: `Looking for torrents for ${pendingIds.size} more episode${pendingIds.size === 1 ? '' : 's'}...` }));
-  if (data.clientError) box.append(el('div', { className: 'msg err', textContent: 'Torrent client unreachable: ' + data.clientError }));
-  if (!data.items.length) box.append(el('div', { className: 's', textContent: 'Nothing yet. Search for something under Add.' }));
-  data.items.forEach((d) => {
-    const pct = Math.round((d.progress || 0) * 100);
-    const meta = [d.id, d.size ? fmtBytes(d.size) : '', statusText(d)].filter(Boolean).join(' · ');
-    box.append(
-      el('div', { className: 'item dl ' + d.status + (d.paused ? ' paused' : '') },
-        el('div', { className: 'grow' },
-          el('div', { className: 't', textContent: d.label || d.title || d.id, title: d.title || '' }),
-          el('div', { className: 's', textContent: meta, title: d.fileName || '' }),
-          el('div', { className: 'bar' }, el('div', { style: `width:${pct}%` })),
-          el('div', { className: 'actions' }, ...itemButtons(d)))));
-  });
+  noticeFinished(data.items);
+  openLists.forEach((f) => f());
+  renderDownloads();
 }
+
+// Menus: one open at a time; outside click or Escape closes.
+document.addEventListener('toggle', (e) => {
+  if (!e.target.matches || !e.target.matches('details.more') || !e.target.open) return;
+  document.querySelectorAll('details.more[open]').forEach((d) => { if (d !== e.target) d.open = false; });
+}, true);
+document.addEventListener('click', (e) => {
+  document.querySelectorAll('details.more[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const d = $('details.more[open]');
+  if (d) { d.open = false; $('summary', d).focus(); }
+});
+
+// ---- add: search, episodes, picker ----
+let type = 'movie';
+function setType(t) {
+  type = t;
+  $('#tMovie').setAttribute('aria-pressed', String(t === 'movie'));
+  $('#tSeries').setAttribute('aria-pressed', String(t === 'series'));
+  $('#q').placeholder = t === 'movie' ? 'Search movies' : 'Search series';
+  $('#results').replaceChildren();
+}
+$('#tMovie').onclick = () => setType('movie');
+$('#tSeries').onclick = () => setType('series');
+
+// What the server has for an ID, for result and episode rows.
+function itemState(id) {
+  const d = known.get(id);
+  if (!d) return pendingIds.has(id) ? { text: 'Looking for a torrent...', busy: true } : null;
+  const pct = Math.round((d.progress || 0) * 100);
+  if (d.status === 'complete') return { text: 'On your server', busy: true, cls: 'ok' };
+  if (d.status === 'queued') return { text: 'Queued', busy: true };
+  if (d.status === 'downloading') return { text: d.paused ? `Paused at ${pct}%` : `Downloading ${pct}%`, busy: true };
+  if (d.status === 'error') return { text: 'Failed: ' + (d.error || 'unknown error'), cls: 'err', retry: true };
+  return null; // missing: can be downloaded again
+}
+function showState(a, st) {
+  a.hidden = !st;
+  if (!st) return;
+  setText(a, st.text);
+  a.className = 'state' + (st.cls ? ' ' + st.cls : '');
+  a.title = st.cls === 'err' ? '' : 'Show in Downloads';
+}
+
+async function startDownload(t, id, btn, row) {
+  const hadFocus = document.activeElement === btn;
+  row.fail = null;
+  busy(btn, 'Starting...');
+  try {
+    await send('POST', 'api/download', { type: t, id });
+    announce('Download started. It is listed under Downloads.');
+  } catch (e) {
+    row.fail = e.message;
+  }
+  idle(btn);
+  await refresh();
+  row.update();
+  // The button hides once the server has the item; keep keyboard focus on the row's status link.
+  if (hadFocus && btn.hidden) $('a.state:not([hidden])', row.node)?.focus();
+}
+
+function episodes(meta, box, seriesId) {
+  const vids = (meta.videos || []).filter((v) => v.season > 0);
+  const seasons = [...new Set(vids.map((v) => v.season))].sort((a, b) => a - b);
+  if (!seasons.length) return box.replaceChildren(el('p', { className: 'msg', textContent: 'No episodes found.' }));
+  const sel = el('select', { id: 'season-' + seriesId });
+  seasons.forEach((s) => sel.append(el('option', { value: s, textContent: 'Season ' + s })));
+  const msg = el('div', { className: 'msg', role: 'status' });
+  const seasonBtn = button('Download season');
+  const showBtn = button('Download whole show', { title: `All ${plural(seasons.length, 'season')}, skipping what is already on the server` });
+  seasonBtn.onclick = () => batchDownload(seriesId, +sel.value, seasonBtn, msg);
+  showBtn.onclick = () => batchDownload(seriesId, null, showBtn, msg);
+  const list = el('div', { className: 'ep-list' });
+  let rows = [];
+  const update = () => {
+    if (!box.isConnected) return openLists.delete(update);
+    rows.forEach((r) => r.update());
+  };
+  const build = () => {
+    rows = vids.filter((v) => v.season === +sel.value).sort((a, b) => a.episode - b.episode).map((v) => epRow(v, meta, seriesId));
+    list.replaceChildren(...rows.map((r) => r.node));
+  };
+  sel.onchange = build;
+  build();
+  box.replaceChildren(
+    el('div', { className: 'row' }, el('label', { htmlFor: sel.id, className: 'sr-only', textContent: 'Season' }), sel, seasonBtn, showBtn),
+    msg, list);
+  openLists.add(update);
+}
+
+function epRow(v, meta, seriesId) {
+  const future = v.released && Date.parse(v.released) > Date.now();
+  const title = v.name || v.title || '';
+  const who = `episode ${v.episode}${title ? `, ${title}` : ''}`;
+  const state = el('a', { className: 'state', href: '#downloads' });
+  const b = button('Download');
+  b.setAttribute('aria-label', `Download ${who}`);
+  const choose = button('Choose...', { title: 'Pick a specific torrent' });
+  choose.setAttribute('aria-label', `Choose a torrent for ${who}`);
+  choose.disabled = future;
+  choose.onclick = () => openPicker('series', v.id, `${meta.name || seriesId} ${epCode(v.season, v.episode)}`);
+  const row = {
+    node: el('div', { className: 'ep' }, el('span', { className: 'ep-name', textContent: `${v.episode}. ${title}` }), state, el('div', { className: 'ep-acts' }, b, choose)),
+    fail: null,
+    update() {
+      if (b.getAttribute('aria-busy')) return;
+      const st = future ? { text: 'Not released yet' } : itemState(v.id) || (row.fail ? { text: 'Failed: ' + row.fail, cls: 'err', retry: true } : null);
+      showState(state, st);
+      if (future) {
+        state.removeAttribute('href');
+        state.title = '';
+      }
+      b.hidden = !!(st && st.busy) || future;
+      setLabel(b, st && st.retry ? 'Try again' : 'Download');
+    },
+  };
+  b.onclick = () => startDownload('series', v.id, b, row);
+  row.update();
+  return row;
+}
+
+async function batchDownload(id, season, btn, msg) {
+  busy(btn, 'Queueing...');
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const r = await send('POST', 'api/download/batch', season ? { id, season } : { id });
+    const why = {};
+    r.skipped.forEach((x) => (why[x.reason] = (why[x.reason] || 0) + 1));
+    const skipped = Object.entries(why).map(([k, n]) => `${n} ${k}`).join(', ');
+    msg.className = 'msg ok';
+    msg.textContent = `Queued ${plural(r.queued.length, 'episode')}` + (skipped ? ` · skipped: ${skipped}` : '');
+  } catch (e) {
+    msg.className = 'msg err';
+    msg.textContent = 'Could not queue: ' + e.message;
+  }
+  idle(btn);
+  refresh();
+}
+
+function resultRow(m) {
+  const id = m.imdb_id || m.id;
+  seedMeta(m, id);
+  const slot = el('div', { className: 'poster-slot' });
+  posterInto(slot, m.poster);
+  const state = el('a', { className: 'state', href: '#downloads', hidden: true });
+  const node = el('div', { className: 'item' }, slot,
+    el('div', {}, el('h3', { className: 'title', textContent: m.name }), m.releaseInfo ? el('div', { className: 'sub', textContent: m.releaseInfo }) : null, state),
+    el('div', { className: 'acts' }));
+  const row = { node, fail: null, update: () => {} };
+  if (type === 'movie') {
+    const dlBtn = button('Download', { cls: 'primary' });
+    dlBtn.setAttribute('aria-label', `Download ${m.name}`);
+    dlBtn.onclick = () => startDownload('movie', id, dlBtn, row);
+    const choose = button('Choose...', { title: 'Pick a specific torrent' });
+    choose.setAttribute('aria-label', `Choose a torrent for ${m.name}`);
+    choose.onclick = () => openPicker('movie', id, m.name);
+    $('.acts', node).append(dlBtn, choose);
+    row.update = () => {
+      if (!node.isConnected) return openLists.delete(row.update);
+      if (dlBtn.getAttribute('aria-busy')) return;
+      const st = itemState(id) || (row.fail ? { text: 'Failed: ' + row.fail, cls: 'err', retry: true } : null);
+      showState(state, st);
+      dlBtn.hidden = !!(st && st.busy);
+      setLabel(dlBtn, st && st.retry ? 'Try again' : 'Download');
+    };
+    openLists.add(row.update);
+    return [node];
+  }
+  const epBox = el('div', { className: 'eps', id: 'eps-' + id, hidden: true });
+  const epBtn = button('Episodes');
+  attrs(epBtn, { 'aria-expanded': 'false', 'aria-controls': epBox.id, 'aria-label': `Episodes of ${m.name}` });
+  epBtn.onclick = async () => {
+    epBox.hidden = !epBox.hidden;
+    epBtn.setAttribute('aria-expanded', String(!epBox.hidden));
+    node.classList.toggle('open', !epBox.hidden);
+    if (!epBox.hidden && !epBox.children.length) {
+      epBox.append(el('p', { className: 'msg', textContent: 'Loading episodes...' }));
+      try { episodes((await api(`api/meta/series/${id}`)).meta || {}, epBox, id); } catch (err) { epBox.replaceChildren(el('p', { className: 'msg err', textContent: 'Could not load episodes: ' + err.message })); }
+    }
+  };
+  $('.acts', node).append(epBtn);
+  return [node, epBox];
+}
+
+let searchSeq = 0; // a slow search that finishes after a newer one must not overwrite its results
+async function search(e) {
+  if (e) e.preventDefault();
+  const q = $('#q').value.trim();
+  if (!q) return $('#q').focus();
+  const seq = ++searchSeq;
+  const out = $('#results');
+  out.setAttribute('aria-busy', 'true');
+  const status = el('p', { className: 'msg', textContent: 'Searching...' });
+  out.replaceChildren(status);
+  const slow = setTimeout(() => (status.textContent = 'Searching... Cinemeta is slow for new searches, this can take up to 45 s'), 5000);
+  try {
+    const { metas: found = [] } = await api(`api/search?type=${type}&q=${encodeURIComponent(q)}`);
+    if (seq !== searchSeq) return;
+    const shown = found.slice(0, 12);
+    out.replaceChildren(...shown.flatMap(resultRow));
+    if (!shown.length) out.replaceChildren(el('div', { className: 'note' }, `No ${type === 'movie' ? 'movies' : 'series'} found for "${q}". Check the spelling, or switch between Movies and Series.`));
+    announce(shown.length ? `${plural(shown.length, 'result')} for ${q}` : 'No results');
+    openLists.forEach((f) => f());
+  } catch (err) {
+    if (seq !== searchSeq) return;
+    const retry = button('Try again');
+    retry.onclick = () => search();
+    out.replaceChildren(el('div', { className: 'note err', role: 'alert' }, el('span', { textContent: 'Search failed: ' + err.message }), retry));
+  } finally {
+    clearTimeout(slow);
+    if (seq === searchSeq) out.removeAttribute('aria-busy');
+  }
+}
+$('#f').onsubmit = search;
+
+$('#pickClose').onclick = () => $('#picker').close();
+
+async function openPicker(t, id, label) {
+  const dlg = $('#picker');
+  $('#pickTitle').textContent = 'Choose a torrent: ' + label;
+  const body = $('#pickBody');
+  body.replaceChildren(el('p', { className: 'msg', textContent: 'Searching for torrents...' }));
+  if (!dlg.open) dlg.showModal();
+  let data;
+  try {
+    data = await api(`api/candidates/${t}/${encodeURIComponent(id)}`);
+  } catch (e) {
+    return body.replaceChildren(el('p', { className: 'msg err', textContent: 'Search failed: ' + e.message }));
+  }
+  if (!data.candidates.length) return body.replaceChildren(el('p', { className: 'msg', textContent: 'No torrents found for this title.' }));
+  let best = true; // the first acceptable one is the one that would be picked automatically
+  body.replaceChildren(...data.candidates.map((c) => {
+    const isCurrent = c.infoHash === data.current;
+    const facts = [c.res ? c.res + 'p' : '', c.size ? fmtBytes(c.size) : '', `${c.seeders} seeders`, c.languages.join('/'), c.pack ? 'season pack' : '', c.source].filter(Boolean).join(' · ');
+    const reasons = c.reasons.filter((r) => !/ seeders$/.test(r));
+    const why = c.rejected ? 'Filtered out: ' + c.rejected : reasons.join(', ');
+    const cmsg = el('div', { className: 'cmsg', hidden: true });
+    let action;
+    if (isCurrent) action = el('span', { className: 'tag', textContent: 'Current' });
+    else {
+      const primary = !c.rejected && best;
+      action = button(c.rejected ? 'Download anyway' : 'Download', { cls: primary ? 'primary' : '' });
+      action.setAttribute('aria-label', `${c.rejected ? 'Download anyway' : 'Download'}: ${c.title}`);
+      action.onclick = async () => {
+        if (data.current && !confirm('Replace the current torrent with this one?\nThe current one is removed from the torrent client; files already downloaded stay on disk.')) return;
+        busy(action, 'Starting...');
+        cmsg.hidden = true;
+        try {
+          await send('POST', 'api/download', { type: t, id, infoHash: c.infoHash });
+          dlg.close();
+          announce('Download started with the chosen torrent.');
+        } catch (e) {
+          idle(action);
+          cmsg.textContent = 'Could not start: ' + e.message;
+          cmsg.hidden = false;
+        }
+        refresh();
+      };
+    }
+    if (!c.rejected) best = false;
+    // Above the resolution cap the score is only a sort key, so leave it out.
+    const whyEl = why ? el('div', { className: 'why', textContent: why }) : null;
+    if (whyEl && !c.rejected && c.score > -500) whyEl.title = `Ranking score ${c.score}`;
+    return el('div', { className: 'cand' + (c.rejected ? ' rejected' : '') + (isCurrent ? ' current' : '') },
+      el('div', {}, el('div', { className: 't', textContent: c.title }), el('div', { className: 's', textContent: facts }), whyEl, cmsg),
+      action);
+  }));
+}
+
 // ---- settings ----
 let current = null;
+const ADVANCED = new Set(['Timeouts', 'Security']);
 
-function fieldInput(f, value) {
+function manifestUrl() {
+  const pub = current && current.values && current.values.publicUrl;
+  return pub ? `${pub}/${TOKEN}/manifest.json` : new URL('manifest.json', location.origin + BASE).href;
+}
+function fillManifestUrls() {
+  document.querySelectorAll('.manifest-url').forEach((i) => (i.value = manifestUrl()));
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest && e.target.closest('[data-copy]');
+  if (!btn) return;
+  const input = $(btn.dataset.copy);
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(input.value);
+    ok = true;
+  } catch {
+    // No clipboard API over plain http on a LAN address: fall back to selecting the text.
+    input.focus();
+    input.select();
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+  }
+  setLabel(btn, ok ? 'Copied' : 'Press Ctrl+C');
+  announce(ok ? 'Install URL copied' : 'Install URL selected; press Ctrl+C to copy');
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => setLabel(btn, 'Copy'), 2500);
+});
+
+function fieldInput(f, value, id, describedBy) {
+  let input;
   if (f.options) {
-    const sel = el('select', { name: f.key });
-    f.options.forEach((o) => sel.append(el('option', { value: o.value, textContent: o.label })));
-    sel.value = value;
-    return sel;
+    input = el('select', { name: f.key, id });
+    f.options.forEach((o) => input.append(el('option', { value: o.value, textContent: o.label })));
+    input.value = value;
+  } else {
+    input = el('input', { name: f.key, id, value: value ?? '', autocomplete: 'off', spellcheck: false });
+    if (f.type === 'int') input.inputMode = 'numeric';
+    if (f.type === 'url') input.type = 'url';
+    if (f.type === 'secret') {
+      input.type = 'password';
+      input.autocomplete = 'new-password';
+      input.placeholder = current.secretsSet[f.key] ? 'Saved, leave empty to keep' : 'Not set';
+    }
   }
-  const input = el('input', { name: f.key, value: value ?? '', autocomplete: 'off', spellcheck: false });
-  if (f.type === 'int') input.inputMode = 'numeric';
-  if (f.type === 'url') input.type = 'url';
-  if (f.type === 'secret') {
-    input.type = 'password';
-    input.autocomplete = 'new-password';
-    input.placeholder = current.secretsSet[f.key] ? '(saved; leave empty to keep)' : '(not set)';
-  }
+  if (describedBy.length) input.setAttribute('aria-describedby', describedBy.join(' '));
   return input;
 }
 
 // Connection test for one client, using what is in the form right now (blank password = saved one).
 function testButton(client, keys) {
-  const msg = el('span', { className: 'msg' });
-  const btn = el('button', { type: 'button', textContent: 'Test connection' });
+  const msg = el('span', { className: 'msg', role: 'status' });
+  const btn = button('Test connection');
   btn.onclick = async () => {
-    btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Testing...';
+    busy(btn, 'Testing...');
+    msg.className = 'msg';
+    msg.textContent = '';
     try {
       const r = await send('POST', 'api/settings/test-client', { client, values: formValues(keys) });
       msg.className = 'msg ' + (!r.ok ? 'err' : r.warning ? 'warn' : 'ok');
       msg.textContent = r.ok ? `Connected: ${r.version}` + (r.warning ? `. ${r.warning}` : '') : 'Failed: ' + r.error;
     } catch (e) { msg.className = 'msg err'; msg.textContent = e.message; }
-    btn.disabled = false;
+    idle(btn);
   };
   return el('div', { className: 'row' }, btn, msg);
 }
@@ -439,25 +1123,35 @@ function showClientGroups() {
 
 function renderSettings() {
   const form = $('#settingsForm');
+  const advOpen = !!$('details.advanced[open]', form);
   form.replaceChildren();
   const groups = new Map();
+  const adv = el('details', { className: 'advanced', open: advOpen },
+    el('summary', {}, el('span', { textContent: 'Advanced' }), el('small', { textContent: 'Timeouts, rate limits and lockout' })));
   for (const f of current.fields) {
     if (!groups.has(f.group)) {
       const fs = el('fieldset', {}, el('legend', { textContent: f.group }));
       if (f.client) fs.dataset.client = f.client;
       groups.set(f.group, fs);
-      form.append(fs);
+      (ADVANCED.has(f.group) ? adv : form).append(fs);
     }
-    const label = el('label', { textContent: f.label });
+    const id = 'in-' + f.key;
+    const head = el('div', { className: 'labelrow' }, el('label', { htmlFor: id, textContent: f.label }));
     if (current.overridden.includes(f.key)) {
-      const reset = el('a', { className: 'reset', textContent: 'reset to default', title: 'Default: ' + (current.defaults[f.key] || '(empty)') });
-      reset.onclick = () => saveSettings({ [f.key]: null });
-      label.append(reset);
+      const def = current.defaults[f.key] || '(empty)';
+      const reset = el('button', { type: 'button', className: 'link', textContent: 'Reset to default', title: 'Default: ' + def });
+      reset.setAttribute('aria-label', `Reset ${f.label} to its default (${def})`);
+      reset.onclick = () => saveSettings({ [f.key]: null }, id);
+      head.append(reset);
     }
-    const box = el('div', { className: 'field', id: 'f-' + f.key }, label, fieldInput(f, current.values[f.key]));
-    if (f.help) box.append(el('div', { className: 'help', textContent: f.help }));
-    groups.get(f.group).append(box);
+    const describedBy = [];
+    const help = f.help ? el('div', { className: 'help', id: 'help-' + f.key, textContent: f.help }) : null;
+    if (help) describedBy.push(help.id);
+    const ferr = el('div', { className: 'ferr', id: 'err-' + f.key, hidden: true });
+    describedBy.push(ferr.id);
+    groups.get(f.group).append(el('div', { className: 'field', id: 'f-' + f.key }, head, fieldInput(f, current.values[f.key], id, describedBy), help, ferr));
   }
+  if (adv.children.length > 1) form.append(adv);
   for (const [group, fs] of groups) {
     if (!fs.dataset.client) continue;
     const keys = current.fields.filter((f) => f.group === group).map((f) => f.key);
@@ -465,9 +1159,10 @@ function renderSettings() {
   }
   form.elements.torrentClient.onchange = showClientGroups;
   showClientGroups();
-  const status = el('span', { className: 'msg', id: 'saveMsg' });
-  form.append(el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Save settings' }), status));
-  $('#manifestUrl').textContent = new URL('manifest.json', location.origin + BASE).href;
+  form.append(el('div', { className: 'savebar' },
+    el('button', { className: 'primary', id: 'saveBtn' }, el('span', { className: 'lbl', textContent: 'Save settings' })),
+    el('span', { className: 'msg', id: 'saveMsg', role: 'status' })));
+  fillManifestUrls();
 }
 
 function formValues(keys) {
@@ -479,19 +1174,39 @@ function formValues(keys) {
   return out;
 }
 
-async function saveSettings(patch) {
-  document.querySelectorAll('.field.bad').forEach((x) => x.classList.remove('bad'));
-  const msg = $('#saveMsg');
+async function saveSettings(patch, focusId) {
+  document.querySelectorAll('.field.bad').forEach((x) => {
+    x.classList.remove('bad');
+    $('.ferr', x).hidden = true;
+    $('input, select', x).removeAttribute('aria-invalid');
+  });
+  const btn = $('#saveBtn');
+  busy(btn, 'Saving...');
+  setText($('#saveMsg'), '');
   try {
     current = await send('PUT', 'api/settings', patch);
     renderSettings();
     $('#saveMsg').className = 'msg ok';
     $('#saveMsg').textContent = 'Saved. Changes apply right away.';
+    ($(focusId ? '#' + focusId : '#saveBtn') || $('#saveBtn')).focus({ preventScroll: true });
   } catch (e) {
+    idle(btn);
+    const msg = $('#saveMsg');
     msg.className = 'msg err';
-    msg.textContent = e.message;
-    const bad = e.field && $('#f-' + e.field);
-    if (bad) { bad.classList.add('bad'); bad.closest('fieldset').hidden = false; }
+    const box = e.field && $('#f-' + e.field);
+    if (!box) { msg.textContent = 'Not saved: ' + e.message; return; }
+    msg.textContent = 'Not saved: fix the highlighted field.';
+    box.classList.add('bad');
+    const ferr = $('.ferr', box);
+    ferr.textContent = e.message;
+    ferr.hidden = false;
+    const input = $('input, select', box);
+    input.setAttribute('aria-invalid', 'true');
+    box.closest('fieldset').hidden = false;
+    const adv = box.closest('details');
+    if (adv) adv.open = true;
+    input.focus({ preventScroll: true });
+    input.scrollIntoView({ block: 'center' });
   }
 }
 
@@ -511,21 +1226,28 @@ async function loadSettings() {
     current = await api('api/settings');
     renderSettings();
   } catch (e) {
-    $('#settingsForm').textContent = 'Could not load settings: ' + e.message;
+    $('#settingsForm').replaceChildren(el('div', { className: 'note err', role: 'alert' }, 'Could not load settings: ' + e.message));
   }
 }
 
 $('#rotate').onclick = async () => {
   if (!confirm('Create a new secret URL? The current URL (and the add-on installed in Stremio) stops working right away.')) return;
+  const btn = $('#rotate');
+  const msg = $('#rotateMsg');
+  busy(btn, 'Rotating...');
   try {
     const r = await send('POST', 'api/settings/rotate-token');
     location.href = new URL(r.uiUrl).pathname + '#settings';
   } catch (e) {
-    alert('Rotating failed: ' + e.message);
+    idle(btn);
+    msg.className = 'msg err';
+    msg.textContent = 'Rotating failed: ' + e.message;
   }
 };
 
+fillManifestUrls();
 show();
+if (!current) loadSettings();
 refresh();
 setInterval(refresh, 5000);
 </script>
