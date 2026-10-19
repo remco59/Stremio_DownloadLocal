@@ -30,13 +30,13 @@ test.before(async () => {
 test.after(() => env.close());
 
 async function put(patch) {
-  const r = await fetch(`${env.base}/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+  const r = await env.api(`/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
   assert.equal(r.status, 200, await r.clone().text());
   return r.json();
 }
-const cands = async (type, id) => (await fetch(`${env.base}/api/candidates/${type}/${encodeURIComponent(id)}`)).json();
+const cands = async (type, id) => (await env.api(`/api/candidates/${type}/${encodeURIComponent(id)}`)).json();
 const download = (body) =>
-  fetch(`${env.base}/api/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  env.api(`/api/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 test('both sources are merged and de-duplicated by info hash', async () => {
   const { candidates } = await cands('movie', 'tt1');
@@ -113,7 +113,7 @@ test('Torznab season pack: the episode file is found by name', async () => {
 
 test('Torznab errors are reported', async () => {
   await put({ torznabApiKey: 'wrong' });
-  const r = await fetch(`${env.base}/api/candidates/movie/tt1`);
+  const r = await env.api(`/api/candidates/movie/tt1`);
   assert.equal(r.status, 502);
   assert.match((await r.json()).error, /Incorrect user credentials/);
   await put({ torznabApiKey: 'tz-key', sources: null });

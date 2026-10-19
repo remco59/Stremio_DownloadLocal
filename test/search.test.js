@@ -14,8 +14,8 @@ test.before(async () => {
 
 test.after(() => env && env.close());
 
-const search = () => fetch(`${env.base}/api/search?type=movie&q=dragons`);
-const meta = (id) => fetch(`${env.base}/api/meta/series/${id}`);
+const search = () => env.api(`/api/search?type=movie&q=dragons`);
+const meta = (id) => env.api(`/api/meta/series/${id}`);
 /** Runs `fn` and returns its response plus how many requests reached the mock Cinemeta. */
 async function counted(fn) {
   const before = env.mock.cinemetaCalls;
