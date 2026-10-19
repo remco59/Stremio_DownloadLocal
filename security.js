@@ -1,4 +1,4 @@
-// Token check, rate limits and wrong-token lockout. In memory, no deps; limits come from settings (0 = off).
+// Token check, rate limits and lockout after wrong tokens or passwords. In memory, no deps; limits come from settings (0 = off).
 const crypto = require('crypto');
 const cfg = require('./config');
 
@@ -47,14 +47,16 @@ function takePlayStart(ip) {
 
 const takeApiWrite = (ip) => apiWrites.take(ip, cfg.apiWritesPerIpPerMin);
 
-// Wrong-token lockout: after `tokenFailuresLockout` misses within 10 minutes an IP is locked out for a minute,
-// doubling with every further lockout up to an hour.
-const fails = new Map(); // ip -> { n, first, strikes, until }
+// Lockout: after `tokenFailuresLockout` misses within 10 minutes an IP is locked out for a minute, doubling with
+// every further lockout up to an hour. Wrong URLs and wrong web UI passwords are counted apart (`kind`), so a
+// request with the add-on token does not wipe out the count of wrong passwords.
+const fails = new Map(); // `${kind}:${ip}` -> { n, first, strikes, until }
 
-function noteFailure(ip) {
+function noteFailure(ip, kind = 'url') {
   if (!cfg.tokenFailuresLockout) return;
   const now = Date.now();
-  const f = fails.get(ip) || { n: 0, first: now, strikes: 0, until: 0 };
+  const key = `${kind}:${ip}`;
+  const f = fails.get(key) || { n: 0, first: now, strikes: 0, until: 0 };
   if (now - f.first > FAIL_WINDOW_MS) Object.assign(f, { n: 0, first: now });
   f.n++;
   if (f.n >= cfg.tokenFailuresLockout) {
@@ -62,20 +64,20 @@ function noteFailure(ip) {
     f.until = now + Math.min(MINUTE * 2 ** (f.strikes - 1), MAX_LOCK_MS);
     Object.assign(f, { n: 0, first: now });
   }
-  fails.set(ip, f);
+  fails.set(key, f);
   if (fails.size > 10000) for (const [k, v] of fails) if (v.until < now && now - v.first > FAIL_WINDOW_MS) fails.delete(k);
 }
 
-/** A request with the right token: forget earlier misses (the lockout itself still runs out on its own). */
-function noteSuccess(ip) {
-  const f = fails.get(ip);
+/** A request with the right token or password: forget earlier misses (the lockout itself still runs out on its own). */
+function noteSuccess(ip, kind = 'url') {
+  const f = fails.get(`${kind}:${ip}`);
   if (f) f.n = 0;
 }
 
 /** ms this IP is still locked out for (0 = not locked). */
 function lockedFor(ip) {
-  const f = fails.get(ip);
-  return f ? Math.max(0, f.until - Date.now()) : 0;
+  const now = Date.now();
+  return Math.max(0, ...['url', 'login'].map((k) => (fails.get(`${k}:${ip}`)?.until || 0) - now));
 }
 
 function reset() {

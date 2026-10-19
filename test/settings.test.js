@@ -22,7 +22,7 @@ test.after(async () => {
 });
 
 const call = (method, p, body) =>
-  fetch(env.base + p, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  env.api(p, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
 const json = async (method, p, body) => {
   const r = await call(method, p, body);
   return { status: r.status, body: await r.json() };
@@ -65,7 +65,7 @@ test('valid values are saved, applied and can be reset to the env default', asyn
   assert.equal(saved().maxRes, 720);
 
   // The stream URL now uses the public URL.
-  const s = await (await call('GET', '/stream/movie/tt0000001.json')).json();
+  const s = await (await fetch(`${env.base}/stream/movie/tt0000001.json`)).json();
   assert.match(s.streams[0].url, /^https:\/\/stremio\.example\.com\//);
 
   ({ body } = await json('PUT', '/api/settings', { publicUrl: null }));

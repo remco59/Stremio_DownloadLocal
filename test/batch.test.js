@@ -41,14 +41,14 @@ test.before(async () => {
 test.after(() => env.close());
 
 const post = async (body) => {
-  const r = await fetch(`${env.base}/api/download/batch`, {
+  const r = await env.api(`/api/download/batch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   return { status: r.status, body: await r.json() };
 };
-const pending = async () => (await (await fetch(`${env.base}/api/downloads`)).json()).batchPending;
+const pending = async () => (await (await env.api(`/api/downloads`)).json()).batchPending;
 
 test('a season queues the missing episodes and shares one season pack', async () => {
   const { status, body } = await post({ id: SHOW, season: 1 });

@@ -7,6 +7,7 @@ const { createMockQb } = require('./mock-qb');
 const { createMockTransmission } = require('./mock-transmission');
 
 const TOKEN = 'test-token-0123456789';
+const UI = { user: 'admin', password: 'test-password-123' };
 
 /**
  * @param {object} env extra env vars
@@ -23,6 +24,9 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
 
   Object.assign(process.env, {
     ADDON_TOKEN: TOKEN,
+    // The web UI login. UI_PASSWORD: '' boots without one (the setup page).
+    UI_USER: UI.user,
+    UI_PASSWORD: UI.password,
     DATA_DIR: dataDir,
     TORRENT_CLIENT: client,
     QB_URL: mockUrl,
@@ -57,6 +61,19 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
   });
   const origin = `http://127.0.0.1:${server.address().port}`;
 
+  // The web UI's API (/api/...) needs a session: log in once and send its cookie along.
+  let cookie = '';
+  if (process.env.UI_PASSWORD) {
+    const r = await fetch(`${origin}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: process.env.UI_USER, password: process.env.UI_PASSWORD }),
+    });
+    if (!r.ok) throw new Error(`boot: login failed (${r.status})`);
+    cookie = r.headers.get('set-cookie').split(';')[0];
+  }
+  const api = (p, opts = {}) => fetch(origin + p, { ...opts, headers: { Cookie: cookie, ...(opts.headers || {}) } });
+
   return {
     TOKEN,
     app,
@@ -64,6 +81,8 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
     mockUrl,
     origin,
     base: `${origin}/${TOKEN}`,
+    api,
+    cookie,
     downloads,
     mock: qb.mock,
     db,
@@ -96,4 +115,4 @@ function pattern(size, seed = 0) {
   return b;
 }
 
-module.exports = { boot, waitFor, pattern, TOKEN };
+module.exports = { boot, waitFor, pattern, TOKEN, UI };

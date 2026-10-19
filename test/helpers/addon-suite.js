@@ -76,7 +76,7 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
   });
 
   test('queueing picks the best <= MAX_RES torrent and selects only the needed file', async () => {
-    const r = await get('/api/download', {
+    const r = await env.api('/api/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'movie', id: ID }),

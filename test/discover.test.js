@@ -29,7 +29,7 @@ test.before(async () => {
 test.after(() => env && env.close());
 
 const get = async (q = '') => {
-  const r = await fetch(`${env.base}/api/discover${q}`);
+  const r = await env.api(`/api/discover${q}`);
   return { status: r.status, body: await r.json() };
 };
 const ids = (row) => row.items.map((x) => x.id);
@@ -73,13 +73,13 @@ test('recommends what fits the library, and never what is already there', async 
 });
 
 test('Not interested hides a title until shown again', async () => {
-  let r = await fetch(`${env.base}/api/discover/hidden`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dune.id }) });
+  let r = await env.api(`/api/discover/hidden`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: dune.id }) });
   assert.equal(r.status, 200);
   let { body } = await get();
   assert.ok(!body.rows.flatMap(ids).includes(dune.id));
   assert.equal(body.hidden, 1);
 
-  r = await fetch(`${env.base}/api/discover/hidden`, { method: 'DELETE' });
+  r = await env.api(`/api/discover/hidden`, { method: 'DELETE' });
   assert.equal(r.status, 200);
   ({ body } = await get());
   assert.ok(body.rows.flatMap(ids).includes(dune.id));
@@ -87,7 +87,7 @@ test('Not interested hides a title until shown again', async () => {
 });
 
 test('a bad id cannot be hidden', async () => {
-  const r = await fetch(`${env.base}/api/discover/hidden`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: '../x' }) });
+  const r = await env.api(`/api/discover/hidden`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: '../x' }) });
   assert.equal(r.status, 400);
 });
 

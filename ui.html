@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
 <title>Local Download &amp; Watch</title>
@@ -12,11 +12,12 @@
     --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --raise:#1f232c; --line:#2a2f3a; --line-hi:#3a4150;
     --acc:#6c50f5; --acc-press:#5b3fe0; --acc-hi:#a48fff; --ok:#3ecf8e; --err:#ff6b6b; --warn:#f5b84b;
     --r:10px;
+    --navh: 58px; --below: calc(var(--navh) + env(safe-area-inset-bottom)); /* room the bottom nav takes */
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html { scrollbar-color: var(--line-hi) var(--bg); }
-  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 16px 40px; max-width: 960px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right)) calc(40px + var(--below)) max(16px, env(safe-area-inset-left)); max-width: 960px; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
   ::selection { background: rgba(164, 143, 255, .35); }
   :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
   [tabindex="-1"]:focus { outline: none; } /* list containers: focus targets only, and the URL hash (#downloads) focuses them */
@@ -26,16 +27,43 @@
   .i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   .i-more, .i-play, .i-pause { fill: currentColor; }
 
-  /* header + nav */
-  header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 16px; }
-  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 10px; }
-  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
-  nav a { color: var(--mut); text-decoration: none; padding: 9px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 7px; align-items: center; }
-  nav a:hover { color: var(--fg); }
-  nav a[aria-current="page"] { color: var(--fg); border-color: var(--acc-hi); }
-  @media (max-width: 420px) { nav { gap: 0; } nav a { padding: 9px 8px; } }
+  /* header + nav: a bar along the bottom on phones, a sidebar on wide screens */
+  header.top { padding-top: 16px; }
+  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 16px; }
+  .title-row { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; }
+  .title-row button.logout { color: var(--mut); font-size: 13px; }
+  .title-row button.logout:hover { color: var(--fg); }
   .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line); color: var(--fg); text-align: center; font-variant-numeric: tabular-nums; }
   .count.bad { background: #4a1f24; color: #ffc2c2; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: var(--card); border-top: 1px solid var(--line); }
+  nav a { height: var(--navh); display: grid; justify-items: center; align-content: center; gap: 3px; color: var(--mut); text-decoration: none; font-size: 12px; font-weight: 500; -webkit-tap-highlight-color: transparent; }
+  nav a:hover { color: var(--fg); }
+  nav a[aria-current="page"] { color: var(--acc-hi); }
+  nav .ni { position: relative; display: grid; place-items: center; width: 56px; height: 28px; border-radius: 999px; transition: background .2s; }
+  nav a[aria-current="page"] .ni { background: rgba(164, 143, 255, .16); }
+  nav .i { width: 22px; height: 22px; }
+  nav .badges { position: absolute; left: calc(50% + 7px); top: -5px; display: flex; gap: 3px; }
+  nav .count { font-size: 11px; line-height: 16px; min-width: 16px; padding: 0 4px; background: var(--acc); color: #fff; box-shadow: 0 0 0 2px var(--card); }
+  nav .count.bad { background: #c43d3d; }
+  @media (min-width: 840px) {
+    :root { --side: 216px; --below: 0px; }
+    body { max-width: none; padding: 0 32px 40px calc(var(--side) + 32px); }
+    main { max-width: 960px; margin: 0 auto; padding-top: 28px; }
+    header.top { position: fixed; top: 0; bottom: 0; left: 0; z-index: 5; width: var(--side); display: flex; flex-direction: column; overflow-y: auto; padding: 20px 12px 20px max(12px, env(safe-area-inset-left)); background: var(--bg); border-right: 1px solid var(--line); }
+    h1 { font-size: 16px; margin: 0 0 18px; padding: 0 10px; }
+    .title-row { display: contents; } /* log out moves to the foot of the sidebar */
+    .title-row button.logout { order: 1; margin-top: auto; align-self: flex-start; padding: 9px 10px; }
+    nav { position: static; display: flex; flex-direction: column; gap: 2px; padding: 0; background: none; border: 0; }
+    nav a { height: auto; display: flex; gap: 12px; align-items: center; padding: 9px 10px; border-radius: 8px; font-size: 15px; font-weight: 400; }
+    nav a:hover { background: var(--card); }
+    nav a[aria-current="page"] { color: var(--fg); background: var(--raise); }
+    nav a[aria-current="page"] .i { color: var(--acc-hi); }
+    nav .ni { display: contents; }
+    nav .i { width: 18px; height: 18px; }
+    nav .badges { position: static; order: 1; margin-left: auto; }
+    nav .count { font-size: 12px; line-height: 18px; min-width: 20px; padding: 0 6px; background: var(--line); color: var(--fg); box-shadow: none; }
+    nav .count.bad { background: #4a1f24; color: #ffc2c2; }
+  }
 
   /* controls */
   input, select, button, .btn { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
@@ -257,7 +285,7 @@
   button.danger-solid:hover { background: #ad3131; border-color: #ad3131; }
   button.del { color: var(--err); }
   button.del:hover { border-color: rgba(255, 107, 107, .5); }
-  #toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 150; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
+  #toasts { position: fixed; left: 50%; bottom: calc(20px + var(--below)); transform: translateX(-50%); z-index: 150; display: grid; gap: 8px; justify-items: center; width: max-content; max-width: calc(100vw - 32px); pointer-events: none; }
   .toast { padding: 10px 16px; border-radius: 999px; background: #262b36; border: 1px solid var(--line-hi); font-size: 14px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, .8); animation: toast-in .3s cubic-bezier(.16, 1, .3, 1); transition: opacity .3s, transform .3s; }
   .toast.err { background: #3a1c20; border-color: #6b2a31; color: #ffd0d0; }
   .toast.out { opacity: 0; transform: translateY(6px); }
@@ -387,7 +415,7 @@
   details.advanced > summary small { color: var(--mut); font-size: 13px; }
   details.advanced[open] > summary { margin-bottom: 14px; }
   .row { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-  .savebar { position: sticky; bottom: 0; z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0 12px; background: linear-gradient(rgba(15, 17, 21, 0), var(--bg) 35%); }
+  .savebar { position: sticky; bottom: var(--below); z-index: 4; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0 12px; background: linear-gradient(rgba(15, 17, 21, 0), var(--bg) 35%); }
   .msg { font-size: 13px; color: var(--mut); }
   .msg.ok { color: var(--ok); }
   .msg.err { color: var(--err); }
@@ -470,12 +498,15 @@
 </head>
 <body>
 <header class="top">
-  <h1>Local Download &amp; Watch</h1>
+  <div class="title-row">
+    <h1>Local Download &amp; Watch</h1>
+    <button type="button" class="link logout" id="logout" title="Log out of the web UI">Log out</button>
+  </div>
   <nav aria-label="Sections">
-    <a href="#downloads" data-view="downloads">Downloads<span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></a>
-    <a href="#library" data-view="library">Library</a>
-    <a href="#discover" data-view="discover">Discover</a>
-    <a href="#settings" data-view="settings">Settings</a>
+    <a href="#downloads" data-view="downloads"><span class="ni"><span class="badges"><span class="count" id="dlCount" hidden></span><span class="count bad" id="dlBad" hidden></span></span></span><span>Downloads</span></a>
+    <a href="#library" data-view="library"><span class="ni"></span><span>Library</span></a>
+    <a href="#discover" data-view="discover"><span class="ni"></span><span>Discover</span></a>
+    <a href="#settings" data-view="settings"><span class="ni"></span><span>Settings</span></a>
   </nav>
 </header>
 <div id="live" class="sr-only" role="status" aria-live="polite"></div>
@@ -567,6 +598,33 @@
       <span class="msg" id="rotateMsg" role="status">Creates a new secret URL. The old one stops working; reinstall the add-on in Stremio.</span>
     </div>
   </fieldset>
+  <form id="accountForm" novalidate>
+    <fieldset>
+      <legend>Web UI login</legend>
+      <p class="msg" id="acEnv" hidden>Set with <code>UI_USER</code> and <code>UI_PASSWORD</code> on the container: change it there.</p>
+      <div class="field">
+        <label for="acUser">Username</label>
+        <input id="acUser" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="acNew">New password</label>
+        <input id="acNew" type="password" autocomplete="new-password" aria-describedby="acNewHelp">
+        <div class="help" id="acNewHelp">Leave empty to keep the current one. Changing the login logs out every other browser.</div>
+      </div>
+      <div class="field">
+        <label for="acNew2">Repeat new password</label>
+        <input id="acNew2" type="password" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="acCur">Current password</label>
+        <input id="acCur" type="password" autocomplete="current-password">
+      </div>
+      <div class="row">
+        <button class="primary" id="acSave"><span class="lbl">Change login</span></button>
+        <span class="msg" id="acMsg" role="status"></span>
+      </div>
+    </fieldset>
+  </form>
   <form id="settingsForm" novalidate></form>
 </section>
 </main>
@@ -622,7 +680,7 @@
 
 <script>
 const BASE = location.pathname.replace(/\/?$/, '/');
-const TOKEN = BASE.split('/').filter(Boolean).pop() || '';
+let TOKEN = ''; // the add-on token (api/session): Stremio's install URL and the /<token>/play URLs
 const APP = 'Local Download & Watch';
 const $ = (s, root = document) => root.querySelector(s);
 const el = (tag, { role, ...props } = {}, ...kids) => {
@@ -660,6 +718,11 @@ const ICONS = {
   download: '<path d="M12 4.5v11M7 11l5 5 5-5M5 19.5h14"/>',
   next: '<path d="M9.5 6l6 6-6 6"/>',
   x: '<path d="M7 7l10 10M17 7L7 17"/>',
+  // Section icons, from Lucide (lucide.dev, ISC license): download, library-big, compass, settings.
+  downloads: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
+  library: '<rect width="8" height="18" x="3" y="3" rx="1"/><path d="M7 3v18"/><path d="M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z"/>',
+  discover: '<path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
 };
 function icon(name) {
   const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -719,8 +782,14 @@ function ask({ title, body = '', ok = 'OK', danger = false }) {
   return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true }));
 }
 
+// Logged out (the session ran out, or the login changed in another browser): back to the login page.
+const loggedOut = (r) => r.status === 401 || r.status === 410;
 async function api(p, opts) {
   const r = await fetch(BASE + p, opts);
+  if (loggedOut(r)) {
+    location.replace(BASE);
+    return new Promise(() => {});
+  }
   if (!r.ok) {
     const text = await r.text();
     let err;
@@ -1248,6 +1317,7 @@ function segment(box, current, onPick) {
   mark(current);
   btns.forEach((b) => (b.onclick = () => { mark(b.dataset.v); onPick(b.dataset.v); }));
 }
+document.querySelectorAll('nav a').forEach((a) => $('.ni', a).prepend(icon(a.dataset.view)));
 $('#libSearch').prepend(icon('search'));
 $('#libViews [data-v="grid"]').append(icon('grid'));
 $('#libViews [data-v="list"]').append(icon('list'));
@@ -2178,7 +2248,7 @@ const ADVANCED = new Set(['Timeouts', 'Security']);
 
 function manifestUrl() {
   const pub = current && current.values && current.values.publicUrl;
-  return pub ? `${pub}/${TOKEN}/manifest.json` : new URL('manifest.json', location.origin + BASE).href;
+  return `${pub || location.origin}/${TOKEN}/manifest.json`;
 }
 function fillManifestUrls() {
   document.querySelectorAll('.manifest-url').forEach((i) => (i.value = manifestUrl()));
@@ -2364,13 +2434,65 @@ $('#rotate').onclick = async () => {
   busy(btn, 'Rotating...');
   try {
     const r = await send('POST', 'api/settings/rotate-token');
-    location.href = new URL(r.uiUrl).pathname + '#settings';
+    TOKEN = r.token;
+    fillManifestUrls();
+    idle(btn);
+    msg.className = 'msg ok';
+    msg.textContent = 'New install URL above. Reinstall the add-on in Stremio with it.';
   } catch (e) {
     idle(btn);
     msg.className = 'msg err';
     msg.textContent = 'Rotating failed: ' + e.message;
   }
 };
+
+// ---- login ----
+$('#logout').onclick = async () => {
+  try { await send('POST', 'api/logout'); } catch { /* already logged out */ }
+  location.replace(BASE);
+};
+
+function renderAccount(session) {
+  const env = session.fromEnv;
+  $('#acEnv').hidden = !env;
+  $('#acUser').value = session.user || '';
+  $('#acNewHelp').textContent = `At least ${session.minPassword} characters. Leave empty to keep the current one. Changing the login logs out every other browser.`;
+  $('#accountForm').querySelectorAll('input, button').forEach((x) => (x.disabled = env));
+}
+
+$('#accountForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('#acSave');
+  const msg = $('#acMsg');
+  const fail = (t, focus) => { msg.className = 'msg err'; msg.textContent = t; if (focus) $(focus).focus(); };
+  const user = $('#acUser').value.trim();
+  const current = $('#acCur').value;
+  const next = $('#acNew').value;
+  if (!user) return fail('Fill in a username.', '#acUser');
+  if (next !== $('#acNew2').value) return fail('The new passwords do not match.', '#acNew2');
+  if (!current) return fail('Fill in your current password.', '#acCur');
+  busy(btn, 'Saving...');
+  msg.className = 'msg';
+  msg.textContent = '';
+  try {
+    const r = await send('POST', 'api/account', { currentPassword: current, user, password: next || current });
+    ['#acCur', '#acNew', '#acNew2'].forEach((s) => ($(s).value = ''));
+    $('#acUser').value = r.user;
+    msg.className = 'msg ok';
+    msg.textContent = 'Login changed.';
+  } catch (err) {
+    fail(err.message, err.field === 'currentPassword' ? '#acCur' : null);
+  } finally {
+    idle(btn);
+  }
+};
+
+async function loadSession() {
+  const session = await api('api/session');
+  TOKEN = session.token;
+  fillManifestUrls();
+  renderAccount(session);
+}
 
 // ---- player: plays a download in the page, with audio track and subtitle choice ----
 // Files the browser plays as they are (MP4/WebM with codecs it knows) use the /play URL and seek natively.
@@ -2540,7 +2662,7 @@ async function load(t, { paused = false } = {}) {
   const direct = !info || (info.direct && can(info.direct.mime) && W.audio === info.direct.audio && W.burn == null && !W.triedStream);
   if (direct) {
     W.mode = 'direct';
-    src = `play/${W.type}/${encodeURIComponent(W.id)}`;
+    src = `${TOKEN}/play/${W.type}/${encodeURIComponent(W.id)}`;
   } else {
     W.mode = 'stream';
     const fmt = streamFormat();
@@ -2749,6 +2871,7 @@ async function loadSub(s) {
   renderPanel();
   try {
     const r = await fetch(BASE + url, { signal: ctl.signal });
+    if (loggedOut(r)) return location.replace(BASE);
     if (!r.ok) {
       let msg = r.statusText;
       try { msg = (await r.json()).error || msg; } catch { /* plain text */ }
@@ -3059,7 +3182,7 @@ $('#wSubs').onclick = () => togglePanel('subs');
 $('#wFs').onclick = toggleFs;
 $('#wPip').onclick = () => (document.pictureInPictureElement ? document.exitPictureInPicture() : wv.requestPictureInPicture()).catch(() => {});
 $('#wLink').onclick = async () => {
-  const url = new URL(`play/${W.type}/${encodeURIComponent(W.id)}`, location.href.split('#')[0]).href;
+  const url = new URL(`${TOKEN}/play/${W.type}/${encodeURIComponent(W.id)}`, location.href.split('#')[0]).href;
   try {
     await navigator.clipboard.writeText(url);
     note('Stream URL copied: paste it into VLC (Media → Open Network Stream)');
@@ -3173,11 +3296,13 @@ $('#watch').addEventListener('pointerdown', (e) => {
   }
 });
 
-fillManifestUrls();
-show();
-if (!current) loadSettings();
-refresh();
-setInterval(refresh, 5000);
+// The token first: the player and the install URL need it.
+loadSession().catch((e) => announce('Could not load the session: ' + e.message)).then(() => {
+  show();
+  if (!current) loadSettings();
+  refresh();
+  setInterval(refresh, 5000);
+});
 </script>
 </body>
 </html>
