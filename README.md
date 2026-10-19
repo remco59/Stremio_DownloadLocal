@@ -177,9 +177,14 @@ Season packs are shared between episodes: removing or deleting one episode only 
 
 ## Library
 
-The **Library** page shows everything that is fully downloaded. Movies are listed with their size and when they were added. Series are listed once per show: open a show to see its seasons, and a season to see its episodes. You can filter by title, show only movies or only series, and sort A to Z or by recently added.
+The **Library** page shows everything that is fully downloaded, as a poster grid or a list (the toggle top right; the choice is remembered). Search by title, show only movies or only series, and sort A to Z or by recently added. A show appears once, with its number of episodes and a badge when more are still downloading.
 
-**Play** works the same as on the Downloads page. **Delete** removes files from disk after a confirmation, for one movie or episode, a whole season (**Delete season**) or a whole show (**Delete show**). Deleting works like *Delete files* on the Downloads page, including for season packs. Episodes that are still downloading are not in the Library, so a season or show delete leaves them alone.
+On the main page a movie has **Play** right there; everything else for a title sits under its **⋯** menu (**Details**, **Delete**). Click a poster or title to open its details page:
+
+- **Movie:** artwork, year, runtime, rating, genres, description, director and cast from Cinemeta; **Play** (or **Download** / **Try again** / **Pause** while it is not on the server yet) and **Choose another torrent**; and an *On disk* panel with the file, size, date added, torrent and torrent client state, with **Remove from torrent client**, **Forget** and **Delete file**.
+- **Series:** the same show details plus how many episodes are on the server, **Download missing episodes** and **Delete show**. Below that, season tabs (with *on the server / total* per season), **Download missing episodes** and **Delete season** per season, and every episode with its thumbnail, air date and summary. Each episode shows whether it is on the server, downloading, failed or not released yet, with **Play** or **Download** and a **⋯** menu for the rest (choose another torrent, pause, remove from the torrent client, forget, delete).
+
+Titles on the **Downloads** page link to the same details page. Deleting always asks first and works like *Delete files* on the Downloads page, including for season packs. A season or show delete only removes finished episodes; ones still downloading are left alone.
 
 ## Security
 
