@@ -80,7 +80,7 @@ module.exports = function realSuite({ client, image }) {
   });
 
   const api = (p, method = 'GET', body) =>
-    fetch(env.base + p, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+    env.api(p, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
   const item = async () => (await (await api('/api/downloads')).json()).items.find((x) => x.id === ID);
   const range = async (a, b) => {
     const res = await fetch(`${env.base}/play/movie/${ID}`, { headers: { Range: `bytes=${a}-${b}` } });

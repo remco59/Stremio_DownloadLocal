@@ -59,7 +59,7 @@ test.before(async () => {
 });
 test.after(() => env && env.close());
 
-const get = (p) => fetch(env.base + p);
+const get = (p) => env.api(p);
 const json = async (p) => {
   const r = await get(p);
   return { status: r.status, body: await r.json() };
@@ -92,7 +92,7 @@ test('nothing to play before the download exists', opts, async () => {
 });
 
 test('the subtitle files that come with the video are downloaded too', opts, async () => {
-  await fetch(env.base + '/api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'movie', id: ID }) });
+  await env.api('/api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'movie', id: ID }) });
   const rec = await waitFor(() => env.db.get(ID)?.selected && env.db.get(ID));
   assert.deepEqual(rec.subFiles, [{ index: 1, name: SUB }]);
   assert.deepEqual(env.mock.torrents.get(HASH).files.map((f) => f.priority), [1, 1, 0]);
@@ -185,7 +185,7 @@ test('stream: bad parameters are refused before ffmpeg starts', opts, async () =
 test('deleting the files also deletes the subtitle files that came with it', opts, async () => {
   // Torrent gone from the client: the add-on deletes the files itself.
   env.mock.torrents.delete(HASH);
-  const r = await fetch(`${env.base}/api/downloads/${ID}/delete-files`, { method: 'POST' });
+  const r = await env.api(`/api/downloads/${ID}/delete-files`, { method: 'POST' });
   assert.equal(r.status, 200);
   assert.ok(!fs.existsSync(path.join(env.downloads, MOVIE)));
   assert.ok(!fs.existsSync(path.join(env.downloads, SUB)));

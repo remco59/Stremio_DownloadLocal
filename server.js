@@ -10,6 +10,7 @@ const settings = require('./settings');
 const { serveFile, parseRange, availableUntil } = require('./stream');
 const { decide } = require('./play');
 const security = require('./security');
+const auth = require('./auth');
 const player = require('./player');
 const subtitles = require('./subtitles');
 const discover = require('./discover');
@@ -37,33 +38,40 @@ const app = express();
 app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 app.disable('x-powered-by');
 app.use((req, res, next) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Headers', '*');
+  // Stremio (web) fetches the add-on from other origins; the web UI's API is same-origin only.
+  if (!req.path.startsWith('/api/')) {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', '*');
+  }
   res.set('X-Content-Type-Options', 'nosniff');
-  res.set('Referrer-Policy', 'no-referrer'); // the token is in every URL: never leak it via Referer
+  res.set('Referrer-Policy', 'no-referrer'); // the token is in every add-on URL: never leak it via Referer
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   const locked = security.lockedFor(req.ip);
   if (locked) return res.status(429).set('Retry-After', String(Math.ceil(locked / 1000))).type('text').send('Too many requests');
   next();
 });
 
+// Two parts: the add-on for Stremio under /<token>/ (manifest, streams, playback), and the web UI at / with its
+// JSON API under /api/, behind a username/password login (auth.js).
+const addon = express.Router();
 const router = express.Router();
-router.use(express.json({ limit: '32kb' }));
+const json = express.json({ limit: '32kb' });
+addon.use(json);
 
 // Per-IP limit on everything that changes something.
-router.use('/api', (req, res, next) => {
+function limitWrites(req, res, next) {
   if (req.method === 'GET' || req.method === 'HEAD') return next();
   const r = security.takeApiWrite(req.ip);
   if (r.ok) return next();
   res.status(429).set('Retry-After', String(Math.ceil(r.retryMs / 1000))).json({ error: 'Too many requests, try again in a minute' });
-});
+}
 
 const baseUrl = (req) => `${cfg.publicUrl || `${req.protocol}://${req.get('host')}`}/${cfg.token}`;
 
-router.get('/manifest.json', (req, res) => res.json(manifest));
+addon.get('/manifest.json', (req, res) => res.json(manifest));
 
 // What Stremio asks for on every title/episode page
-router.get('/stream/:type/:id.json', (req, res) => {
+addon.get('/stream/:type/:id.json', (req, res) => {
   const { type, id } = req.params;
   res.set('Cache-Control', 'max-age=0, no-cache');
   if (!valid(type, id)) return res.json({ streams: [] });
@@ -100,7 +108,7 @@ router.get('/stream/:type/:id.json', (req, res) => {
 
 // Play URL: starts the download if needed, then plays the file as soon as its start is there. A first tap that
 // would take too long gets a short status clip instead (Stremio would otherwise show a playback error).
-router.all('/play/:type/:id', async (req, res) => {
+addon.all('/play/:type/:id', async (req, res) => {
   const { type, id } = req.params;
   if (!valid(type, id)) return res.status(400).send('bad id');
   if (req.method !== 'GET' && req.method !== 'HEAD') return res.sendStatus(405);
@@ -163,11 +171,36 @@ const CLIPS = new Set(['started', 'metadata', 'error']);
 function clip(req, res, name) {
   res.set('Cache-Control', 'no-store').redirect(302, `${baseUrl(req)}/clip/${name}.mp4`);
 }
-router.get('/clip/:name.mp4', (req, res) => {
+addon.get('/clip/:name.mp4', (req, res) => {
   if (!CLIPS.has(req.params.name)) return res.sendStatus(404);
   res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'clips', `${req.params.name}.mp4`));
 });
+
+// The web UI used to live here (/<token>/): send it to / once there is a login, show the page that creates one until
+// then. Holding the token proves this is the owner, so only the first login can be made this way.
+const toRoot = (req) => (req.originalUrl.split('?')[0].endsWith('/') ? '../' : './');
+addon.get('/', async (req, res, next) => {
+  try {
+    if (await auth.configured()) return res.redirect(302, toRoot(req));
+    page(res, 'login.html', 'setup');
+  } catch (e) {
+    next(e);
+  }
+});
+addon.post('/setup', limitWrites, async (req, res, next) => {
+  const { user, password } = req.body || {};
+  try {
+    if (await auth.configured()) return res.status(409).json({ error: 'A login already exists' });
+    auth.startSession(req, res, await auth.setAccount(user, password));
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    next(e);
+  }
+});
+// An old web UI tab still polling its former API: answer instead of counting towards the wrong-URL lockout.
+addon.use('/api', (req, res) => res.status(410).json({ error: 'The web UI moved: reload the page', login: true }));
 
 // ---- Web UI + JSON API -------------------------------------------------------------------------
 const UI_CSP = [
@@ -181,9 +214,72 @@ const UI_CSP = [
   "form-action 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
-router.get('/', (req, res) => {
+function page(res, file, mode) {
   res.set({ 'Content-Security-Policy': UI_CSP, 'X-Frame-Options': 'DENY', 'Cache-Control': 'no-store' });
-  res.type('html').send(fs.readFileSync(path.join(__dirname, 'ui.html')));
+  let html = fs.readFileSync(path.join(__dirname, file), 'utf8');
+  if (mode) html = html.replace('data-mode="login"', `data-mode="${mode}"`);
+  res.type('html').send(html);
+}
+router.get('/', async (req, res, next) => {
+  try {
+    if (await auth.sessionUser(req, res)) return page(res, 'ui.html');
+    page(res, 'login.html', (await auth.configured()) ? 'login' : 'none');
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/login', json, limitWrites, async (req, res, next) => {
+  const { user, password } = req.body || {};
+  try {
+    const acc = await auth.login(user, password);
+    if (!acc) {
+      security.noteFailure(req.ip, 'login');
+      return res.status(401).json({ error: 'Wrong username or password' });
+    }
+    security.noteSuccess(req.ip, 'login');
+    auth.startSession(req, res, acc);
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.use('/api', json, async (req, res, next) => {
+  try {
+    if (await auth.sessionUser(req, res)) return next();
+  } catch (e) {
+    return next(e);
+  }
+  res.status(401).json({ error: 'Not logged in', login: true });
+}, limitWrites);
+
+router.post('/api/logout', (req, res) => {
+  auth.endSession(req, res);
+  res.json({ ok: true });
+});
+
+// Who is logged in, and the add-on token (the UI shows the Stremio install URL and plays through /<token>/play).
+router.get('/api/session', async (req, res) => {
+  res.json({ user: await auth.sessionUser(req), token: cfg.token, fromEnv: auth.fromEnv(), minPassword: auth.MIN_PASSWORD });
+});
+
+// Changes the login. Needs the current password; logs every other session out.
+router.post('/api/account', async (req, res, next) => {
+  const { currentPassword, user, password } = req.body || {};
+  try {
+    const current = await auth.login(await auth.sessionUser(req), currentPassword);
+    if (!current) {
+      security.noteFailure(req.ip, 'login');
+      return res.status(403).json({ error: 'Current password is wrong', field: 'currentPassword' });
+    }
+    const acc = await auth.setAccount(typeof user === 'string' && user.trim() ? user.trim() : current.user, password);
+    auth.startSession(req, res, acc);
+    res.json({ ok: true, user: acc.user });
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message });
+    next(e);
+  }
 });
 
 router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list()), batchPending: batch.pending() }));
@@ -332,8 +428,7 @@ router.post('/api/settings/test-client', async (req, res) => {
 router.post('/api/settings/rotate-token', (req, res) => {
   try {
     const token = settings.rotateToken((req.body || {}).token);
-    const base = baseUrl(req);
-    res.json({ token, uiUrl: `${base}/`, manifestUrl: `${base}/manifest.json` });
+    res.json({ token, manifestUrl: `${baseUrl(req)}/manifest.json` });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -410,11 +505,12 @@ router.get('/api/meta/:type/:id', (req, res) => {
   cinemeta(`/meta/${req.params.type}/${req.params.id}.json`, res);
 });
 
+app.use(router);
 // The token is read per request so a rotation from the settings page applies immediately.
 app.use('/:token', (req, res, next) => {
   if (!security.tokenOk(req.params.token)) return next();
   security.noteSuccess(req.ip);
-  router(req, res, next);
+  addon(req, res, next);
 });
 
 // Anything else: a plain 404 that does not echo the path, and a strike towards the wrong-token lockout.
@@ -438,10 +534,11 @@ if (require.main === module) {
     process.exit(1);
   }
   dl.startSync();
-  app.listen(cfg.port, () => {
+  app.listen(cfg.port, async () => {
     const shown = cfg.publicUrl || `http://<server-ip>:${cfg.port}`;
     console.log(`Listening on :${cfg.port} (torrent client: ${cfg.torrentClient})`);
     console.log(`Install in Stremio: ${shown}/${cfg.token}/manifest.json`);
-    console.log(`Download UI:        ${shown}/${cfg.token}/`);
+    console.log(`Web UI:             ${shown}/`);
+    if (!(await auth.configured())) console.log(`No web UI login yet, create one at ${shown}/${cfg.token}/`);
   });
 }

@@ -88,10 +88,11 @@ docker compose up -d --build
 sleep 5; docker logs --tail 20 stremio-local-addon
 curl -fsS "http://localhost:7000/$ADDON_TOKEN/manifest.json" >/dev/null && echo "Add-on is running"
 echo "Stremio add-on URL: $PUBLIC_URL/$ADDON_TOKEN/manifest.json"
-echo "Web UI:             $PUBLIC_URL/$ADDON_TOKEN/"
+echo "Create your login:  $PUBLIC_URL/$ADDON_TOKEN/"
+echo "Web UI:             $PUBLIC_URL/"
 ```
 
-Save the two URLs (the container log prints them too). Lost them? `grep ADDON_TOKEN /mnt/user/appdata/stremio-local-addon/app/docker-compose.override.yml` shows the token (use your `APP_DIR` if you changed it).
+Save these URLs (the container log prints them too). Lost them? `grep ADDON_TOKEN /mnt/user/appdata/stremio-local-addon/app/docker-compose.override.yml` shows the token (use your `APP_DIR` if you changed it).
 
 ### 6. HTTPS and Stremio
 
@@ -101,7 +102,7 @@ Stremio only installs remote add-ons over HTTPS. In Nginx Proxy Manager, add a p
 - **Forward**: `http`, the Docker host's IP, port `7000`
 - **SSL**: request a Let's Encrypt certificate, tick *Force SSL*
 
-Then open the web UI URL, go to **Settings** and click **Test connection** for your torrent client. In Stremio go to Add-ons, paste the add-on URL in the search box and install it.
+Then open the *Create your login* URL once and pick a username and password for the web UI (see [Web UI login](#web-ui-login)). From then on the web UI is at `PUBLIC_URL/` and asks for that login. Go to **Settings** and click **Test connection** for your torrent client. In Stremio go to Add-ons, paste the add-on URL in the search box and install it.
 
 ### Updating
 
@@ -212,11 +213,28 @@ The search box at the top finds any movie or series on Cinemeta; its results rep
 
 How it plays: an MP4 or WebM the browser can play as it is streams straight from the file. Anything else (MKV, HEVC in browsers without it, AC-3/DTS audio, another audio track, image subtitles) goes through **ffmpeg** on the server: the video is copied when the browser can play its codec, otherwise converted to H.264 (or VP9 for browsers without H.264) at up to 1080p (*Settings → Player*); audio becomes stereo AAC/Opus. Copying costs next to nothing; converting video takes real CPU (a 1080p HEVC file needs a few modern cores; there is no hardware acceleration). ffmpeg is in the Docker image; without it the player plays only what the browser plays itself, with online subtitles. Safari (iPhone/iPad) only plays files it supports as they are; use another browser there for the rest, or VLC.
 
+## Web UI login
+
+Stremio and the web UI are protected separately:
+
+- **Stremio** uses the secret token in the add-on URL (`PUBLIC_URL/<token>/manifest.json`), because Stremio cannot log in. Treat that URL like a password.
+- **The web UI** is at `PUBLIC_URL/` and needs a username and password. Sessions last 30 days and are renewed while you use the UI.
+
+Create the login in one of two ways:
+
+- **In the browser**: open `PUBLIC_URL/<token>/` (the old web UI URL, printed in the container log). While no login exists it shows a form to create one; afterwards it just leads to the web UI. Only the first login can be made this way.
+- **With env vars**: set `UI_USER` (default `admin`) and `UI_PASSWORD`. The env login then wins over one made in the browser, and can only be changed in the env.
+
+Change the username or password under **Settings → Web UI login**; that logs out every other browser. **Log out** (top right) ends the session in this browser.
+
+Forgot the password? Stop the container, delete `DATA_DIR/auth.json` (all sessions end too) and open `PUBLIC_URL/<token>/` again, or set `UI_PASSWORD`.
+
 ## Security
 
-The token is the only auth, so treat the URL like a password. On top of that:
+On top of the token and the login:
 
-- The token is compared in constant time. Wrong URLs get a plain `404 Not found`, and an IP that keeps guessing (20 misses in 10 minutes by default) is locked out for a minute, doubling up to an hour.
+- The token is compared in constant time. Wrong URLs get a plain `404 Not found`, and an IP that keeps guessing (20 misses in 10 minutes by default) is locked out for a minute, doubling up to an hour. Wrong web UI passwords count the same way, separately from wrong URLs.
+- Passwords are stored as scrypt hashes in `DATA_DIR/auth.json` (readable by the owner only), next to the key that signs session cookies. Cookies are `HttpOnly` and `SameSite=Strict`, and `Secure` behind an HTTPS reverse proxy that sends `X-Forwarded-Proto`.
 - New downloads started from Stremio are limited per IP (10/min) and in total (30/min), and web UI actions per IP (120/min). Playing what is already there is never limited. All limits are under Settings → Security (0 = off).
 - The client IP is only taken from `X-Forwarded-For` when the request comes from a private or loopback address (your reverse proxy), so clients cannot fake it.
 - The web UI sends a strict Content-Security-Policy and `Referrer-Policy: no-referrer`, so the token never leaks via the `Referer` header, e.g. when posters load.
@@ -225,7 +243,7 @@ The token is the only auth, so treat the URL like a password. On top of that:
 
 Everything below can be changed on the **Settings** page of the web UI: torrent client (with a *Test connection* button per client), connection details, path mapping, torrent source, timeouts and the public URL. Changes are stored in `DATA_DIR/settings.json`, override the env vars, and apply right away without a restart. *Reset to default* goes back to the env value. Passwords are never shown again once saved; leave the field empty to keep the saved one.
 
-**Rotate token** creates a new secret URL. The old URL stops working immediately, so reinstall the add-on in Stremio with the new manifest URL shown on the page.
+**Rotate token** creates a new secret add-on URL. The old URL stops working immediately, so reinstall the add-on in Stremio with the new manifest URL shown on the page. The web UI and your login are not affected.
 
 ## Env vars
 
@@ -233,7 +251,8 @@ These are the defaults for the settings page.
 
 | Var | Default | |
 |---|---|---|
-| `ADDON_TOKEN` | required | secret path segment |
+| `ADDON_TOKEN` | required | secret path segment of the Stremio add-on URL |
+| `UI_USER` / `UI_PASSWORD` | `admin` / none | env only: the web UI login; without `UI_PASSWORD` you create it in the browser (see [Web UI login](#web-ui-login)) |
 | `PUBLIC_URL` | from request | public HTTPS base URL |
 | `TORRENT_CLIENT` | `qbittorrent` | `qbittorrent` or `transmission` |
 | `QB_URL` / `QB_USER` / `QB_PASS` | `http://qbittorrent:8080` | qBittorrent WebUI |
@@ -263,7 +282,7 @@ These are the defaults for the settings page.
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | env only: where the player finds ffmpeg |
 | `PLAY_STARTS_PER_IP_PER_MIN` / `PLAY_STARTS_PER_MIN` | `10` / `30` | new downloads from Stremio per minute (0 = off) |
 | `API_WRITES_PER_IP_PER_MIN` | `120` | web UI actions per minute (0 = off) |
-| `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs within 10 minutes before an IP is locked out (0 = off) |
+| `TOKEN_FAILURES_LOCKOUT` | `20` | wrong URLs (or, counted apart, wrong web UI passwords) within 10 minutes before an IP is locked out (0 = off) |
 
 ## How it works
 

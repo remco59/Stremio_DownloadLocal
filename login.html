@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<title>Log in · Local Download &amp; Watch</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:#0f1115; --fg:#e6e8ec; --mut:#8b93a1; --card:#181b22; --raise:#1f232c; --line:#2a2f3a; --line-hi:#3a4150;
+    --acc:#6c50f5; --acc-press:#5b3fe0; --acc-hi:#a48fff; --err:#ff6b6b;
+    --r:10px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 16px; min-height: 100vh; display: grid; place-items: center; caret-color: var(--acc-hi); accent-color: var(--acc); -webkit-text-size-adjust: 100%; }
+  :focus-visible { outline: 2px solid var(--acc-hi); outline-offset: 2px; }
+  main { width: 100%; max-width: 360px; }
+  h1 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 4px; text-wrap: balance; }
+  .sub { color: var(--mut); font-size: 14px; margin: 0 0 20px; }
+  form { background: var(--card); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; }
+  .field { display: grid; gap: 5px; }
+  label { font-size: 13px; }
+  .help { color: var(--mut); font-size: 12px; }
+  input, button { font: inherit; color: var(--fg); border: 1px solid var(--line); border-radius: 8px; }
+  input { background: var(--bg); padding: 9px 12px; width: 100%; }
+  input:hover { border-color: var(--line-hi); }
+  button { background: var(--acc); border-color: var(--acc); color: #fff; font-weight: 600; padding: 10px 14px; cursor: pointer; }
+  button:hover { background: var(--acc-press); border-color: var(--acc-press); }
+  button:disabled { opacity: .55; cursor: progress; }
+  .msg { font-size: 13px; color: var(--err); margin: 0; }
+  .note { background: var(--card); border-radius: var(--r); padding: 18px; color: var(--mut); font-size: 14px; }
+  .note p { margin: 0 0 8px; }
+  .note p:last-child { margin: 0; }
+  code { font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
+  @media (pointer: coarse) { input, button { min-height: 44px; } }
+</style>
+</head>
+<body data-mode="login">
+<main>
+  <h1>Local Download &amp; Watch</h1>
+  <p class="sub" id="sub">Log in to manage your downloads.</p>
+
+  <form id="f" novalidate>
+    <div class="field">
+      <label for="user">Username</label>
+      <input id="user" name="user" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="pwHelp">
+      <div class="help" id="pwHelp" hidden>At least 8 characters.</div>
+    </div>
+    <div class="field" id="confirmField" hidden>
+      <label for="confirm">Repeat password</label>
+      <input id="confirm" name="confirm" type="password" autocomplete="new-password">
+    </div>
+    <p class="msg" id="msg" role="alert" hidden></p>
+    <button id="go">Log in</button>
+  </form>
+
+  <div class="note" id="none" hidden>
+    <p>No login has been set up yet.</p>
+    <p>Open the web UI link from the server log once, the one that ends in your add-on token (<code>https://your-server/&lt;token&gt;/</code>), to create it. Or set <code>UI_USER</code> and <code>UI_PASSWORD</code> on the container.</p>
+  </div>
+</main>
+<script>
+const mode = document.body.dataset.mode; // login | setup (on /<token>/) | none (no login yet)
+const here = location.pathname.replace(/\/?$/, '/');
+const $ = (s) => document.querySelector(s);
+const msg = (t) => { $('#msg').textContent = t || ''; $('#msg').hidden = !t; };
+
+if (mode === 'none') {
+  $('#f').hidden = true;
+  $('#none').hidden = false;
+  $('#sub').hidden = true;
+} else if (mode === 'setup') {
+  document.title = 'Create a login · Local Download & Watch';
+  $('#sub').textContent = 'Create the login for the web UI. Stremio keeps using its own add-on URL.';
+  $('#password').autocomplete = 'new-password';
+  $('#pwHelp').hidden = false;
+  $('#confirmField').hidden = false;
+  $('#go').textContent = 'Create login';
+}
+$('#user').focus();
+
+$('#f').onsubmit = async (e) => {
+  e.preventDefault();
+  const user = $('#user').value.trim();
+  const password = $('#password').value;
+  if (!user || !password) return msg('Fill in a username and a password.');
+  if (mode === 'setup' && password !== $('#confirm').value) return msg('The passwords do not match.');
+  msg('');
+  $('#go').disabled = true;
+  try {
+    const r = await fetch(here + (mode === 'setup' ? 'setup' : 'login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user, password }),
+    });
+    let body = {};
+    try { body = await r.json(); } catch { /* not JSON: a lockout or proxy error */ }
+    if (!r.ok) throw new Error(body.error || (r.status === 429 ? 'Too many tries, wait a minute' : `Error ${r.status}`));
+    location.replace(mode === 'setup' ? new URL('..', location.origin + here).href : here);
+  } catch (err) {
+    $('#go').disabled = false;
+    msg(err.message);
+    $('#password').select();
+  }
+};
+</script>
+</body>
+</html>

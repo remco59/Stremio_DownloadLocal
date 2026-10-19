@@ -6,7 +6,10 @@ services:
     ports:
       - "7000:7000"
     environment:
-      ADDON_TOKEN: "change-me-to-a-long-random-string"   # 16+ chars, letters/digits/-/_
+      ADDON_TOKEN: "change-me-to-a-long-random-string"   # 16+ chars, letters/digits/-/_ (Stremio's add-on URL)
+      # Web UI login. Leave out to create it in the browser instead (see README).
+      # UI_USER: "admin"
+      # UI_PASSWORD: "a-long-password"
       PUBLIC_URL: "https://stremio.example.com"           # the HTTPS URL you expose via your reverse proxy
       TORRENT_CLIENT: "qbittorrent"                       # or "transmission" (4.1+, see README)
       QB_URL: "http://192.168.1.10:8090"                  # your qBittorrent WebUI (qBittorrent's WEBUI_PORT must be 8090 too, see README)

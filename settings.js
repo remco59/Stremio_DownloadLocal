@@ -66,8 +66,8 @@ const FIELDS = [
     help: '0 = no limit. Playing what is already downloading or downloaded is never limited.' },
   { key: 'playStartsPerMin', group: 'Security', label: 'New downloads from Stremio per minute, everyone together', type: 'int', min: 0, max: 10000 },
   { key: 'apiWritesPerIpPerMin', group: 'Security', label: 'Web UI actions per minute, per IP', type: 'int', min: 0, max: 100000 },
-  { key: 'tokenFailuresLockout', group: 'Security', label: 'Wrong URLs before an IP is locked out', type: 'int', min: 0, max: 100000,
-    help: 'Within 10 minutes. The lockout starts at 1 minute and doubles up to an hour. 0 = never.' },
+  { key: 'tokenFailuresLockout', group: 'Security', label: 'Wrong URLs or passwords before an IP is locked out', type: 'int', min: 0, max: 100000,
+    help: 'Within 10 minutes, wrong URLs and wrong web UI passwords counted apart. The lockout starts at 1 minute and doubles up to an hour. 0 = never.' },
 ];
 const BY_KEY = new Map(FIELDS.map((f) => [f.key, f]));
 
