@@ -213,6 +213,10 @@ The search box at the top finds any movie or series on Cinemeta; its results rep
 
 How it plays: an MP4 or WebM the browser can play as it is streams straight from the file. Anything else (MKV, HEVC in browsers without it, AC-3/DTS audio, another audio track, image subtitles) goes through **ffmpeg** on the server: the video is copied when the browser can play its codec, otherwise converted to H.264 (or VP9 for browsers without H.264) at up to 1080p (*Settings → Player*); audio becomes stereo AAC/Opus. Copying costs next to nothing; converting video takes real CPU (a 1080p HEVC file needs a few modern cores; there is no hardware acceleration). ffmpeg is in the Docker image; without it the player plays only what the browser plays itself, with online subtitles. Safari (iPhone/iPad) only plays files it supports as they are; use another browser there for the rest, or VLC.
 
+## Install as an app
+
+The web UI is a PWA: it has a favicon and can be installed on a phone or desktop (Chrome/Edge: *Install app*; iPhone/iPad Safari: *Share → Add to Home Screen*) and then opens in its own window without browser bars. It needs HTTPS (or `localhost`), which you already have if you followed the HTTPS step. Nothing is cached offline: the UI is behind a login and everything it shows is live, so without a connection you only get a short "You are offline" page. The icons live in `public/`; `scripts/make-icons.py` redraws the PNGs.
+
 ## Web UI login
 
 Stremio and the web UI are protected separately:
