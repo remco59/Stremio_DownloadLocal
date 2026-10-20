@@ -100,6 +100,9 @@ function createMockTransmission({ user = 'admin', pass = 'secret', version = '4.
           if (Array.isArray(args.labels)) t.label = args.labels[0] || null;
         }
         return ok();
+      case 'torrent-verify':
+        pick(args.ids).forEach((t) => model.rechecked.push(t.hash));
+        return ok();
       case 'torrent-start':
       case 'torrent-stop':
         pick(args.ids).forEach((t) => (t.paused = method === 'torrent-stop'));

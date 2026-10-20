@@ -193,6 +193,7 @@ module.exports = {
 
   stop: (hash) => stopStart(hash, 'stop', 'pause'),
   start: (hash) => stopStart(hash, 'start', 'resume'),
+  recheck: (hash) => call('/torrents/recheck', { method: 'POST', form: { hashes: hash } }),
 
   async remove(hash, { deleteFiles = false } = {}) {
     await call('/torrents/delete', { method: 'POST', form: { hashes: hash, deleteFiles: String(!!deleteFiles) } });

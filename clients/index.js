@@ -15,6 +15,7 @@
 //   pieces(hash) -> { pieceSize, have: boolean[] }
 //   setWanted(hash, wantedIndexes, fileCount)   download only these files
 //   stop(hash) / start(hash)
+//   recheck(hash)                    verify the data on disk; what is missing gets downloaded again
 //   remove(hash, { deleteFiles })
 //   testConnection({ url, user, pass }) -> { ok, version?, warning?, error? }   (no args = saved settings)
 //   partialSuffixes: string[]        suffixes the client adds to incomplete files ('.!qB', '.part')
@@ -46,6 +47,7 @@ module.exports = {
   setWanted: (hash, wanted, fileCount) => active().setWanted(hash, wanted, fileCount),
   stop: (hash) => active().stop(hash),
   start: (hash) => active().start(hash),
+  recheck: (hash) => active().recheck(hash),
   remove: (hash, opts) => active().remove(hash, opts),
   testConnection: (opts) => active().testConnection(opts),
   partialSuffixes: () => active().partialSuffixes,

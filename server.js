@@ -152,6 +152,7 @@ addon.all('/play/:type/:id', async (req, res) => {
         start = range.start;
         try {
           avail = await availableUntil(rec, start);
+          if (rec.status !== 'complete' && avail > start && (await dl.missingOnDisk(rec))) avail = start;
         } catch {
           /* client hiccup: treat as not there yet */
         }

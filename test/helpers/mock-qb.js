@@ -103,6 +103,9 @@ function createMockQb({ user = 'admin', pass = 'secret', v4 = false, v52 = false
         if (nt) Object.assign(nt, { sequential: f.sequentialDownload === 'true', label: f.category });
         return send(res, 200, 'Ok.');
       }
+      case '/api/v2/torrents/recheck':
+        many(f.hashes).forEach((x) => model.rechecked.push(x.hash));
+        return send(res, 200, '');
       case '/api/v2/torrents/stop':
       case '/api/v2/torrents/start':
         if (v4) return send(res, 404, 'Not Found');

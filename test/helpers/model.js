@@ -17,6 +17,7 @@ function createModel() {
     cinemetaCalls: 0,
     torznab: {}, // "tt123" or "tt123:1:2" -> [{ title, hash, size, seeders, magnet? }] served at /torznab/api
     torznabQueries: [], // query params of every Torznab request
+    rechecked: [], // hashes the client was asked to verify
     added: [], // normalized { magnet, label, sequential, raw } for every add call
     calls: [], // "METHOD /path" or RPC method names
     onAdd: null, // (hash, added) => void - create the torrent in reaction to an add
