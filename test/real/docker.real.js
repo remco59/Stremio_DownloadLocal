@@ -82,6 +82,13 @@ test('add-on container talks to the qBittorrent container and keeps its settings
   const clip = await fetch(`${base}/clip/started.mp4`, { headers: { Range: 'bytes=0-9' } });
   assert.equal(clip.status, 206, 'status clips are in the image');
 
+  // The live status screen: the image's ffmpeg has to draw text (freetype) and the fonts and backdrops have to be in it.
+  const live = await fetch(`${base}/clip/live/movie/tt0000001.mp4`);
+  assert.equal(live.status, 200, 'live status screen');
+  const reader = live.body.getReader();
+  assert.equal(Buffer.from((await reader.read()).value).subarray(4, 8).toString(), 'ftyp', 'a video, not a redirect to a fixed clip');
+  await reader.cancel();
+
   // The web player's conversions: ffmpeg with the encoders player.js uses.
   const encoders = await d.sh('docker', ['exec', ADDON, 'ffmpeg', '-hide_banner', '-encoders']);
   for (const e of ['libx264', 'aac', 'libvpx-vp9', 'libopus', 'webvtt']) assert.match(encoders, new RegExp(` ${e} `), e);

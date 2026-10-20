@@ -81,6 +81,7 @@ Done and checked locally (boot, manifest, stream entries, range serving against 
 - [x] Auth hardening: constant-time token check, plain 404s, rate limits for new downloads and UI actions, wrong-token lockout, security headers, body size limits
 - [x] Web UI login: username/password (scrypt) with signed session cookies, set up via the token URL or `UI_USER`/`UI_PASSWORD`; Stremio keeps the URL token
 - [x] Playback UX: first tap plays or shows a status clip, clean 503 when seeking past the downloaded part, "playable up to NN%" in Stremio
+- [x] Live status screen in Stremio: while a download cannot play yet, `/play` sends Stremio to a video ffmpeg draws as it plays (searching, progress, speed, time left, ready), with the fixed clips as fallback (`statusclip.js`, `statusscreen.js`)
 - [x] Torrent picker: Torrentio and/or Jackett/Prowlarr (Torznab), filters + scoring from settings, manual pick in the web UI
 - [x] Pre-download a whole season or show from the web UI (background queue, season-pack preference, skips what is there)
 - [x] Download management in the web UI and API (pause/resume, remove, delete files, re-download, play link, forget), season-pack aware

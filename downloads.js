@@ -89,6 +89,9 @@ async function ensureDownload(type, id, opts = {}) {
   return p;
 }
 
+/** Is a torrent being looked up and added for this id right now? */
+const searching = (id) => inflight.has(id);
+
 /** Exclusive end (within the file) of the downloaded run starting at `pos`, given the piece map. `pos` if none. */
 function availableFrom(rec, have, pos) {
   const ps = rec.pieceSize;
@@ -507,6 +510,7 @@ async function list() {
 
 module.exports = {
   availableFrom,
+  searching,
   isEpisode,
   ensureDownload,
   startSync,
