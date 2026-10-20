@@ -42,6 +42,8 @@ async function boot(env = {}, { client = 'qbittorrent', mockOpts = {} } = {}) {
     SUBTITLES_URL: mockUrl,
     WAIT_FOR_START_MS: '3000',
     STALL_MS: '300',
+    // The live status screen is a stream that never ends; tests that want it turn it on (statusclip.test.js).
+    LIVE_STATUS: '0',
     SYNC_INTERVAL_MS: '50',
     // Limits off unless a test turns them on (suites fire many requests from one IP).
     PLAY_STARTS_PER_IP_PER_MIN: '0',

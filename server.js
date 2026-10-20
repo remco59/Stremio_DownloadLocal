@@ -14,6 +14,7 @@ const auth = require('./auth');
 const player = require('./player');
 const subtitles = require('./subtitles');
 const discover = require('./discover');
+const statusclip = require('./statusclip');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -131,13 +132,13 @@ addon.all('/play/:type/:id', async (req, res) => {
     // Stremio wait for them. Show the status clip now; the next tap finds the record (or the error) in place.
     // A title whose last attempt failed is retried the same way, and shows that failure meanwhile.
     dl.ensureDownload(type, id).catch((e) => console.error('[play]', id, e.message));
-    return clip(req, res, known && known.status === 'error' ? 'error' : 'started');
+    return clip(req, res, known && known.status === 'error' ? 'error' : 'started', { type, id });
   }
   try {
     await dl.ensureDownload(type, id);
   } catch (e) {
     console.error('[play]', id, e.message);
-    return clip(req, res, 'error');
+    return clip(req, res, 'error', { type, id });
   }
   try {
     for (;;) {
@@ -157,7 +158,7 @@ addon.all('/play/:type/:id', async (req, res) => {
       }
       const next = decide({ rec, start, avail, elapsed: Date.now() - since, cfg });
       if (next.action === 'serve') return await serveFile(req, res, rec);
-      if (next.action === 'clip') return clip(req, res, next.clip);
+      if (next.action === 'clip') return clip(req, res, next.clip, { type, id });
       if (next.action === 'unavailable') {
         return res
           .status(503)
@@ -174,12 +175,26 @@ addon.all('/play/:type/:id', async (req, res) => {
   }
 });
 
-// Status clips (clips/*.mp4, see scripts/make-clips.sh). Redirecting keeps the player's range requests on the
-// clip itself instead of mixing it up with the real file behind the same /play URL.
+// What Stremio is sent to while a download cannot play yet. Redirecting keeps the player's range requests on the
+// clip itself instead of mixing it up with the real file behind the same /play URL. Normally that is the live status
+// screen of the title (statusclip.js); where ffmpeg cannot draw it, a fixed clip (clips/*.mp4, scripts/make-clips.js).
 const CLIPS = new Set(['started', 'metadata', 'error']);
-function clip(req, res, name) {
-  res.set('Cache-Control', 'no-store').redirect(302, `${baseUrl(req)}/clip/${name}.mp4`);
+async function clip(req, res, name, { type, id }) {
+  res.set('Cache-Control', 'no-store');
+  if (await statusclip.available()) return res.redirect(302, `${baseUrl(req)}/clip/live/${type}/${encodeURIComponent(id)}.mp4`);
+  res.redirect(302, `${baseUrl(req)}/clip/${name}.mp4`);
 }
+addon.get('/clip/live/:type/:id.mp4', async (req, res) => {
+  const { type, id } = req.params;
+  if (!valid(type, id)) return res.sendStatus(404);
+  try {
+    if (await statusclip.stream(req, res, id)) return;
+  } catch (e) {
+    console.error('[status]', id, e.message);
+    if (res.headersSent) return res.destroy();
+  }
+  res.set('Cache-Control', 'no-store').redirect(302, `${baseUrl(req)}/clip/${statusclip.fixedClip(db.get(id))}.mp4`);
+});
 addon.get('/clip/:name.mp4', (req, res) => {
   if (!CLIPS.has(req.params.name)) return res.sendStatus(404);
   res.set('Cache-Control', 'no-store');

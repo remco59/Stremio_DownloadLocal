@@ -56,8 +56,12 @@ const FIELDS = [
     options: [480, 720, 1080, 2160].map((v) => ({ value: v, label: `${v}p` })),
     help: 'Video the browser cannot play as it is gets converted on the fly; lower is easier on the server CPU.' },
 
-  { key: 'waitForStartMs', group: 'Timeouts', label: 'First tap: wait before showing the status clip (ms)', type: 'int', min: 1000, max: 600000,
-    help: 'If the start of the file is there by then it plays right away; otherwise Stremio shows a short "download started" clip.' },
+  { key: 'liveStatus', group: 'Status screen', label: 'Status screen in Stremio', type: 'int',
+    options: [{ value: 1, label: 'Live: progress, speed and time left' }, { value: 0, label: 'Fixed clips' }],
+    help: 'What Stremio shows after you tap Download, until the video can play. Live is drawn by ffmpeg while it plays; if ffmpeg cannot do that, the fixed clips are used.' },
+
+  { key: 'waitForStartMs', group: 'Timeouts', label: 'First tap: wait before showing the status screen (ms)', type: 'int', min: 1000, max: 600000,
+    help: 'If the start of the file is there by then it plays right away; otherwise Stremio shows the status screen.' },
   { key: 'seekWaitMs', group: 'Timeouts', label: 'Seek past the downloaded part: wait (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'stallMs', group: 'Timeouts', label: 'While playing: wait for missing pieces (ms)', type: 'int', min: 1000, max: 600000 },
   { key: 'syncIntervalMs', group: 'Timeouts', label: 'Client poll interval (ms)', type: 'int', min: 1000, max: 600000 },
