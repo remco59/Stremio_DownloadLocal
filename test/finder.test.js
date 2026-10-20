@@ -51,6 +51,21 @@ test('a torrent already used by a sibling episode wins', async () => {
   assert.equal((await finder.resolve('series', 'tt4:1:2', { preferHashes: [h('e')] })).infoHash, h('e'));
 });
 
+test('a torrent of another season is rejected, however well seeded', async () => {
+  streams('tt6:2:1', [
+    ['Dragons Race to the Edge Сезон: 4 Серии: 1-26\n👤 25', h('a'), { fileIdx: 20 }],
+    ['Dragons Defenders of Berk Сезон: 2 Серии: 1-20\n👤 23', h('b')],
+    ['Dragons.Complete.Collection\n👤 3', h('c')],
+  ]);
+  const all = await finder.candidates('series', 'tt6:2:1');
+  assert.deepEqual(all.map((c) => c.infoHash), [h('b'), h('c'), h('a')]);
+  assert.equal(all.at(-1).rejected, 'not season 2');
+  assert.equal((await finder.resolve('series', 'tt6:2:1')).infoHash, h('b'));
+  // Nothing else but the wrong season: an error, not a wrong download.
+  streams('tt7:2:1', [['Dragons Race to the Edge S04\n👤 25', h('a')]]);
+  await assert.rejects(finder.resolve('series', 'tt7:2:1'), /not season 2/);
+});
+
 test('season pack detection', () => {
   assert.equal(finder.isPack('Game.of.Thrones.S01.1080p'), true);
   assert.equal(finder.isPack('Game of Thrones Season 1'), true);

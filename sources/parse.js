@@ -43,6 +43,34 @@ function languages(text) {
 // Season packs: "S01" / "Season 1" / "Complete" without a single-episode marker like "S01E02".
 const isPack = (t) => /\b(s\d{1,2}(?!\s*e\d)|season\s*\d+|complete)\b/i.test(t) && !/\bs\d{1,2}\s*e\d{1,3}\b/i.test(t);
 
+/** "tt123:2:1" -> { season: 2, episode: 1 }; null for movies and non-IMDb ids (kitsu:1:5 has no season). */
+function episodeOf(id) {
+  const m = /^tt\d+:(\d+):(\d+)$/.exec(id || '');
+  return m ? { season: +m[1], episode: +m[2] } : null;
+}
+
+// Season markers in a release name: "S02", "S04E21", "S01-S03", "Season 2", "Seasons 1-3", "Сезон: 4" (and a few
+// other languages). Letters and digits around a marker rule out "DTS5" or "mp3".
+const SEASON_WORD = 'seasons?|сезон(?:ы|а)?|saison|staffel|temporada|stagione';
+const SEASON_RE = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:s(\\d{1,2})(?:e\\d{1,3})?|(?:${SEASON_WORD})\\s*[:.#]?\\s*(\\d{1,2}))` +
+    `(?:\\s*[-–~]\\s*s?(\\d{1,2}))?(?![\\p{L}\\p{N}])`,
+  'giu'
+);
+
+/**
+ * Does a release name claim to hold season `s`? true / false, or null when it names no season at all
+ * (then nothing is known, e.g. "The.Complete.Series").
+ */
+function coversSeason(title, s) {
+  const ranges = [...String(title).matchAll(SEASON_RE)].map((m) => {
+    const from = +(m[1] || m[2]);
+    return [from, m[3] ? +m[3] : from];
+  });
+  if (!ranges.length) return null;
+  return ranges.some(([from, to]) => from <= s && s <= to);
+}
+
 function magnetFor(infoHash, title, trackers = []) {
   return (
     `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}` +
@@ -50,4 +78,4 @@ function magnetFor(infoHash, title, trackers = []) {
   );
 }
 
-module.exports = { resolution, parseSize, languages, isPack, magnetFor };
+module.exports = { resolution, parseSize, languages, isPack, episodeOf, coversSeason, magnetFor };

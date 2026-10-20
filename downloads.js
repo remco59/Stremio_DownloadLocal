@@ -7,6 +7,7 @@ const db = require('./db');
 const client = require('./clients');
 const finder = require('./finder');
 const { sidecarIndexes } = require('./subtitles');
+const { episodeOf } = require('./sources/parse');
 
 const VIDEO = /\.(mkv|mp4|m4v|avi|mov|webm|ts)$/i;
 const inflight = new Map();
@@ -103,19 +104,39 @@ function isEpisode(name, s, e) {
   return new RegExp(`(?:^|[^a-z0-9])(?:s0*${s}[ ._-]?e0*${e}|0*${s}x0*${e})(?![0-9])`, 'i').test(n);
 }
 
+/** Does the file name carry a season/episode code (S01E02, 1x02) of another episode? Double episodes (S01E01-E02) never do. */
+function isOtherEpisode(name, s, e) {
+  const n = path.posix.basename(name);
+  const coded = /(?:^|[^a-z0-9])(?:s\d+[ ._-]?e\d+|\d+x\d+)(?![0-9])/i.test(n);
+  const double = /e\d+(?:-?e\d+|-\d{1,3}(?![\dp]))/i.test(n);
+  return coded && !double && !isEpisode(n, s, e);
+}
+
 /** File indexes a record needs from its torrent: the video and its subtitle files. */
 const wantedBy = (r) => [r.fileIndex, ...(r.subFiles || []).map((f) => f.index)];
 
+/**
+ * Picks the record's video (and sidecar subtitles) in the torrent and starts downloading only those.
+ * A torrent that has files of other episodes but not this one is dropped for the next best one; resolves null
+ * then, and when the record was changed meanwhile.
+ */
 async function selectFile(rec, files, t) {
+  const ep = episodeOf(rec.id);
   let idx = Number.isInteger(rec.fileIdx) && files[rec.fileIdx] ? rec.fileIdx : -1;
+  // The source's file index is not always right: Torrentio counts Riders of Berk S02E01 as episode 21 and hands out
+  // file 21 of a Race to the Edge pack, "[S04E21] Gold Rush.mkv". A file that names another episode is ignored.
+  if (idx >= 0 && ep && isOtherEpisode(files[idx].name, ep.season, ep.episode)) idx = -1;
   if (idx < 0) {
     const all = files.map((f, i) => ({ f, i }));
     let vids = all.filter((x) => VIDEO.test(x.f.name));
     // Episode inside a season pack without a known file index: find it by name.
-    const [, season, episode] = rec.id.split(':');
-    if (episode) {
-      const match = vids.filter((x) => isEpisode(x.f.name, season, episode));
+    if (ep) {
+      const match = vids.filter((x) => isEpisode(x.f.name, ep.season, ep.episode));
       if (match.length) vids = match;
+      else if (vids.some((x) => isOtherEpisode(x.f.name, ep.season, ep.episode))) {
+        await rejectTorrent(rec, `no S${ep.season}E${ep.episode} in "${t.name || rec.title}"`);
+        return null;
+      }
     }
     idx = (vids.length ? vids : all).sort((a, b) => b.f.size - a.f.size)[0].i;
   }
@@ -244,6 +265,30 @@ async function switchTorrent(rec) {
   if (!cur || cur.infoHash !== rec.infoHash || cur.status !== rec.status) return;
   console.log('[stall]', rec.id, `no progress for ${cfg.stallSwitchMin} min, switching to ${pick.title}`);
   await ensureDownload(rec.type, rec.id, { pick, tried }).catch((e) => console.error('[stall]', rec.id, e.message));
+}
+
+/**
+ * Gives up on a torrent that turned out not to hold the episode: the next best untried one replaces it, or the
+ * record becomes an error (and the torrent leaves the client) when there is none.
+ */
+async function rejectTorrent(rec, why) {
+  const tried = [...new Set([...(rec.tried || []), rec.infoHash])];
+  let pick = null;
+  try {
+    pick = await finder.resolve(rec.type, rec.id, { exclude: tried });
+  } catch (e) {
+    console.error('[sync]', rec.id, `${why}; no other torrent to try: ${e.message}`);
+  }
+  // Same check as syncPatch: the user may have removed, deleted or re-picked it while we searched.
+  const cur = db.get(rec.id);
+  if (!cur || cur.infoHash !== rec.infoHash || cur.status !== rec.status) return;
+  console.log('[sync]', rec.id, why + (pick ? `, switching to ${pick.title}` : ''));
+  if (pick) {
+    await ensureDownload(rec.type, rec.id, { pick, tried }).catch((e) => console.error('[sync]', rec.id, e.message));
+    return;
+  }
+  await removeFromClient(rec.id);
+  db.update(rec.id, { status: 'error', error: `${why}, and no other torrent to try` });
 }
 
 /** Polls the torrent client forever; the interval is re-read from settings each round. Returns a stop function. */

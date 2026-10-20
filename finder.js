@@ -1,7 +1,7 @@
 // Picks a torrent for a Stremio ID: asks the enabled sources (sources/), merges and de-duplicates their
 // results by info hash, filters and scores them against the settings, and returns them best first.
 const cfg = require('./config');
-const { isPack } = require('./sources/parse');
+const { isPack, episodeOf, coversSeason } = require('./sources/parse');
 
 const SOURCES = {
   torrentio: require('./sources/torrentio'),
@@ -28,12 +28,19 @@ function enabledSources() {
 
 /**
  * Scores one candidate; `reasons` explain the score in the manual picker.
- * Hard filters (blocked words, size bounds, min seeders) set `rejected` instead.
+ * Hard filters (blocked words, size bounds, min seeders, wrong season) set `rejected` instead.
+ * `season`: the episode's season, to catch torrents of another season or of a spin-off with its own seasons.
  */
-function score(c, { preferHashes = [], preferPack = false } = {}) {
+function score(c, { preferHashes = [], preferPack = false, season = null } = {}) {
   const reasons = [];
   let s = Math.log2(c.seeders + 1) * 10;
   reasons.push(`${c.seeders} seeders`);
+
+  // Torrentio also returns the neighbours of a franchise (Race to the Edge for Riders of Berk). A release that
+  // names other seasons than the one asked for is never right, however well it is seeded.
+  if (season != null && coversSeason(c.title, season) === false) {
+    return { ...c, score: -Infinity, rejected: `not season ${season}`, reasons };
+  }
 
   const blocked = list(cfg.blockKeywords).find((w) => hasWord(c.title, w));
   if (blocked) return { ...c, score: -Infinity, rejected: `blocked word "${blocked}"`, reasons };
@@ -83,7 +90,8 @@ function score(c, { preferHashes = [], preferPack = false } = {}) {
  * @param {object} [opts] { preferHashes, preferPack } - see score()
  */
 async function candidates(type, id, opts = {}) {
-  const scored = (await fetchAll(type, id)).map((c) => score(c, opts));
+  const season = episodeOf(id)?.season ?? null;
+  const scored = (await fetchAll(type, id)).map((c) => score(c, { season, ...opts }));
   scored.sort((a, b) => (a.rejected ? 1 : 0) - (b.rejected ? 1 : 0) || b.score - a.score || b.seeders - a.seeders);
   return scored;
 }
