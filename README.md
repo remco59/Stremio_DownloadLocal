@@ -144,7 +144,7 @@ Here the torrent client's `/downloads` must be reachable on this machine under t
 - **While downloading**, the file plays up to the downloaded part (sequential download). If playback catches up with the download, the player buffers for up to 30 s (*While playing* setting), then the connection drops and the player retries.
 - **Seeking past the downloaded part** waits up to 8 s (*Seek* setting) and then answers *503 Not downloaded this far yet*, so the player shows an error instead of hanging. Seek back to an earlier point, or wait.
 - The status screen is 10 minutes long on purpose: a clip that ends could make Stremio auto-play the next episode. *Download* entries are also kept out of Stremio's binge group, so the next episode never starts a download by itself. Close the clip with Back. Stremio may remember a few seconds of progress from the clip; just start from the beginning.
-- The status screen is a video that ffmpeg draws while it plays (`statusclip.js`, `statusscreen.js`; the backdrops and fonts are in `assets/`). It has no length and cannot be seeked, and while it is open it uses roughly a fifth of a CPU core (at most 3 screens at once). Where ffmpeg cannot draw text, or with the setting *Status screen in Stremio* on *Fixed clips* (`LIVE_STATUS=0`), Stremio gets the fixed clips in `clips/` instead: the same look, without the numbers. If a Stremio device does not play the live screen, switch to the fixed clips.
+- The status screen is a video that ffmpeg draws while it plays (`statusclip.js`, `statusscreen.js`; the backdrops and fonts are in `assets/`). It has no length and cannot be seeked, and while it is open it uses roughly a quarter of a CPU core (at most 3 screens at once). Where ffmpeg cannot draw text, or with the setting *Status screen in Stremio* on *Fixed clips* (`LIVE_STATUS=0`), Stremio gets the fixed clips in `clips/` instead: the same look, without the numbers. The live screen has a soft generated ambient sound (setting *Sound on the live status screen*, `STATUS_SOUND=0` for silence); the fixed clips are silent. If a Stremio device does not play the live screen, switch to the fixed clips.
 - Regenerate the fixed clips with `node scripts/make-clips.js` (needs ffmpeg), and the backdrops in `assets/` with `python3 scripts/make-scenes.py` (needs Pillow and numpy). The fonts (Inter, SIL Open Font License) are in `assets/fonts/`.
 
 ## Choosing torrents
@@ -278,6 +278,7 @@ These are the defaults for the settings page.
 | `CINEMETA_RETRY_MS` | `2000,4000,8000` | pauses between retries when Cinemeta answers with an error page or not at all (new searches often do) |
 | `CINEMETA_TIMEOUT_MS` | `15000` | how long one Cinemeta request may take; with the retries a search gives up after 45 s at most |
 | `WAIT_FOR_START_MS` | `15000` | first tap: how long `/play` waits before showing the status screen |
+| `STATUS_SOUND` | `1` | soft ambient sound under the live status screen (`0` = silent) |
 | `LIVE_STATUS` | `1` | status screen in Stremio: `1` = drawn live (progress, speed, time left; needs ffmpeg), `0` = the fixed clips |
 | `SEEK_WAIT_MS` | `8000` | seek past the downloaded part: how long to wait before answering 503 |
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |

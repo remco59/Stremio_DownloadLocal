@@ -97,7 +97,7 @@ async function stream(req, res, id) {
     await fetchStats();
     show();
 
-    const child = spawnFfmpeg(cfg.ffmpegPath, ffmpegArgs(screen, { live: true, withBar: true }), ['ignore', 'pipe', 'pipe']);
+    const child = spawnFfmpeg(cfg.ffmpegPath, ffmpegArgs(screen, { live: true, withBar: true, sound: !!cfg.statusSound }), ['ignore', 'pipe', 'pipe']);
     slot.child = child;
     let errors = '';
     child.stderr.on('data', (d) => (errors = (errors + d).slice(-2000)));

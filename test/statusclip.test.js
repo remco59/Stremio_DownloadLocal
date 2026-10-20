@@ -148,6 +148,14 @@ function hold(id) {
   return req;
 }
 
+/** Mean volume (dB) of the audio in a (cut off) live stream. */
+function meanVolume(body) {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-i', 'pipe:0', '-vn', '-af', 'volumedetect', '-f', 'null', '-'], { input: body, encoding: 'utf8' });
+  const m = /mean_volume: (-?[\d.]+|-inf) dB/.exec(r.stderr);
+  assert.ok(m, 'measured the audio');
+  return m[1] === '-inf' ? -Infinity : Number(m[1]);
+}
+
 /** Width of the bar's fill in the last picture of a (cut off) live stream. */
 function fillWidth(body) {
   const { bar } = ss.LAYOUT;
@@ -189,11 +197,24 @@ test('the live screen is a video stream that follows the download', { skip, time
   const [video, audio] = ['video', 'audio'].map((t) => probe.streams.find((s) => s.codec_type === t));
   assert.deepEqual([video.codec_name, video.width, video.height], ['h264', 1920, 1080]);
   assert.equal(audio.codec_name, 'aac');
+  assert.ok(meanVolume(got.body) > -60, 'the ambient sound is there');
 
   // 75% of the 1100 px bar; the picture lags the record by a second or two, so the 25% it started at is long gone.
   const w = fillWidth(got.body);
   assert.ok(Math.abs(w - 0.75 * ss.LAYOUT.bar.w) < 60, `bar fill ${w}px`);
 
+  await waitFor(() => statusclip.activeCount() === 0, { timeout: 5000 });
+});
+
+test('STATUS_SOUND=0 makes the live screen silent', { skip, timeout: 30000 }, async () => {
+  record('tt7770013');
+  cfg.statusSound = 0;
+  try {
+    const got = await watch('tt7770013', (body, ms) => ms > 3500);
+    assert.ok(meanVolume(got.body) < -80, 'silence');
+  } finally {
+    cfg.statusSound = 1;
+  }
   await waitFor(() => statusclip.activeCount() === 0, { timeout: 5000 });
 });
 

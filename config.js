@@ -66,6 +66,8 @@ const defaults = {
   // The status screen Stremio shows while a download is not playable yet: 1 = drawn live (progress, speed, ETA; needs
   // ffmpeg), 0 = the fixed clips in clips/.
   liveStatus: parseInt(env.LIVE_STATUS ?? '1', 10),
+  // Soft ambient sound under the live status screen (1) or silence (0).
+  statusSound: parseInt(env.STATUS_SOUND ?? '1', 10),
   // Seek past the downloaded part: how long to wait for that spot before answering 503.
   seekWaitMs: parseInt(env.SEEK_WAIT_MS || '8000', 10),
   stallMs: parseInt(env.STALL_MS || '30000', 10), // while playing: how long to wait for the next pieces before dropping the connection
