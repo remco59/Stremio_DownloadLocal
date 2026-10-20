@@ -321,6 +321,7 @@ router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list())
 const ACTIONS = {
   pause: dl.pause,
   resume: dl.resume,
+  verify: dl.verify,
   remove: dl.removeFromClient,
   'delete-files': dl.deleteFiles,
   redownload: dl.redownload,

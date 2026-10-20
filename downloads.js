@@ -403,6 +403,20 @@ async function resume(id) {
 }
 
 /**
+ * Has the client check the torrent's data on disk (all of it, for a season pack); what is gone gets downloaded again.
+ * A complete item whose file is gone shows as downloading meanwhile.
+ */
+async function verify(id) {
+  const rec = need(id);
+  if (!(await torrentOf(rec))) throw httpError(409, 'not in the torrent client');
+  await client.recheck(rec.infoHash);
+  const now = Date.now();
+  const patch = { verifies: 0, verifiedAt: now, progressAt: now };
+  if (rec.status === 'complete' && (await missingOnDisk(rec))) Object.assign(patch, { status: 'downloading', progress: 0, playable: 0 });
+  db.update(id, patch);
+}
+
+/**
  * Stops downloading this item but keeps whatever is on disk. A shared torrent (season pack) stays in the
  * client for the other episodes; only this file is dropped from it. A complete file stays playable.
  */
@@ -579,6 +593,7 @@ module.exports = {
   list,
   pause,
   resume,
+  verify,
   removeFromClient,
   deleteFiles,
   deleteMany,
