@@ -150,7 +150,7 @@ Here the torrent client's `/downloads` must be reachable on this machine under t
 
 Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Settings → Torrent source). Results from all sources are merged per info hash, then filtered and scored with the *Torrent choice* settings:
 
-- **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders.
+- **Filters** (never picked): blocked words / release groups (CAM and telesync releases by default), minimum/maximum size (season packs are exempt from the maximum), minimum seeders, and torrents that name another season than the episode's ("Сезон: 4" for S02E01). A torrent that turns out to hold no file for the episode is dropped for the next best one.
 - **Score**: seeders, then bonuses for the preferred resolution, a preferred language (`nl`, `en`, `multi`, ...; from release names and Torrentio's flags), preferred words / release groups, and season packs for batch downloads. Releases above the max resolution are only used when nothing else exists.
 
 The best one is picked automatically. To pick one yourself, use **Choose...** next to a movie or an episode in a **Discover** search, on a title's details page, or **More → Choose another torrent** on the **Downloads** page. This lists every candidate with size, seeders, language, source and why it scored as it did, including filtered ones. Choosing a different torrent for something that is already downloading replaces it; files already downloaded stay on disk.

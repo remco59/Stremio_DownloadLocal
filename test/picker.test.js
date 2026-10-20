@@ -118,3 +118,44 @@ test('Torznab errors are reported', async () => {
   assert.match((await r.json()).error, /Incorrect user credentials/);
   await put({ torznabApiKey: 'tz-key', sources: null });
 });
+
+test('a torrent without the episode is dropped for the next best one', async () => {
+  await put({ sources: 'torrentio' });
+  const id = 'tt8:2:1';
+  // The title names no season, and Torrentio points at "episode 21" of a pack of another season.
+  env.mock.torrentio[id] = {
+    streams: [
+      { name: 'Torrentio\n1080p', title: 'Dragons.Race.to.the.Edge.1080p\n👤 25', infoHash: h('1'), fileIdx: 1 },
+      { name: 'Torrentio\n1080p', title: 'Dragons.Defenders.of.Berk.1080p\n👤 23', infoHash: h('2') },
+    ],
+  };
+  const packs = {
+    [h('1')]: ['[S04E20] Gold.mkv', '[S04E21] Gold Rush.mkv', '[S04E22] Next.mkv'],
+    [h('2')]: ['[S02E01] Live and Let Fly.mkv', '[S02E02] Thawfest.mkv'],
+  };
+  env.mock.onAdd = (hash) =>
+    env.mock.addTorrent({ hash, name: hash, pieceSize: 1024, files: packs[hash].map((name) => ({ name, size: 4096 })) });
+
+  assert.equal((await download({ type: 'series', id })).status, 200);
+  const rec = await waitFor(() => env.db.get(id)?.selected && env.db.get(id));
+  assert.equal(rec.infoHash, h('2'));
+  assert.equal(rec.fileName, '[S02E01] Live and Let Fly.mkv');
+  assert.equal(env.mock.torrents.has(h('1')), false, 'the wrong torrent left the client');
+  assert.deepEqual(rec.tried, [h('1')]);
+});
+
+test('a torrent without the episode and no other torrent ends as an error', async () => {
+  const id = 'tt8:2:2';
+  env.mock.torrentio[id] = {
+    streams: [{ name: 'Torrentio\n1080p', title: 'Dragons.Race.to.the.Edge.1080p\n👤 25', infoHash: h('3'), fileIdx: 0 }],
+  };
+  env.mock.onAdd = (hash) =>
+    env.mock.addTorrent({ hash, name: hash, pieceSize: 1024, files: [{ name: '[S04E21] Gold Rush.mkv', size: 4096 }] });
+
+  assert.equal((await download({ type: 'series', id })).status, 200);
+  const rec = await waitFor(() => env.db.get(id)?.status === 'error' && env.db.get(id));
+  assert.match(rec.error, /no S2E2/);
+  assert.equal(rec.selected, false);
+  assert.equal(env.mock.torrents.has(h('3')), false, 'nothing keeps downloading the wrong show');
+  await put({ sources: null });
+});
