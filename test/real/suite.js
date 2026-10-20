@@ -136,7 +136,7 @@ module.exports = function realSuite({ client, image }) {
       const far = await fetch(`${env.base}/play/movie/${ID}`, { headers: { Range: `bytes=${Math.floor(movie.length * 0.92)}-` } });
       assert.equal(far.status, 503);
     }
-    const [s] = (await (await api(`/stream/movie/${ID}.json`)).json()).streams;
+    const [s] = (await (await fetch(`${env.base}/stream/movie/${ID}.json`)).json()).streams;
     assert.match(s.name, /^⏳ Your server \d+%$/);
     assert.match(s.description, /^Playable up to \d+%/);
   });
@@ -153,7 +153,7 @@ module.exports = function realSuite({ client, image }) {
     await d.waitFor(() => env.db.get(ID).status === 'complete', 150000, 'complete');
     // The client moves the file out of its incomplete dir into its download dir (e.g. /downloads/complete).
     await d.waitFor(() => fs.existsSync(finalPath()), 30000, 'file in its final place');
-    const [s] = (await (await api(`/stream/movie/${ID}.json`)).json()).streams;
+    const [s] = (await (await fetch(`${env.base}/stream/movie/${ID}.json`)).json()).streams;
     assert.equal(s.name, '🏠 Your server');
     const r = await fetch(`${env.base}/play/movie/${ID}`);
     assert.equal(r.status, 200);
