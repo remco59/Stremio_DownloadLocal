@@ -97,6 +97,9 @@ for (const [name, setup] of Object.entries(SETUPS)) {
     await clients.start(HASH);
     assert.equal((await clients.info([HASH]))[0].state, 'downloading');
 
+    await clients.recheck(HASH);
+    assert.deepEqual(mock.rechecked, [HASH]);
+
     mock.completeAll(HASH);
     assert.equal((await clients.info([HASH]))[0].state, 'seeding');
 

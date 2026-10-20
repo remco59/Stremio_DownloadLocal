@@ -176,6 +176,7 @@ module.exports = {
 
   stop: (hash) => rpc('torrent-stop', { ids: [hash] }),
   start: (hash) => rpc('torrent-start', { ids: [hash] }),
+  recheck: (hash) => rpc('torrent-verify', { ids: [hash] }),
 
   async remove(hash, { deleteFiles = false } = {}) {
     await rpc('torrent-remove', { ids: [hash], 'delete-local-data': !!deleteFiles });

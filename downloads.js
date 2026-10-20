@@ -41,12 +41,57 @@ async function localCandidates(rec) {
 }
 
 /**
+ * Is the record's file missing from disk? False when the downloads folder itself is not there (mount down):
+ * then nothing can be said about the file.
+ */
+async function missingOnDisk(rec) {
+  if (!rec.fileName || !fs.existsSync(cfg.localPathPrefix)) return false;
+  return !(await localCandidates(rec)).some((p) => fs.existsSync(p));
+}
+
+const REVERIFY_MS = 5 * 60000;
+const MAX_REVERIFY = 2;
+
+/**
+ * The client says the file is complete but it is not on disk (deleted behind the client's back; its resume data
+ * still lists the pieces). Has the client re-check the torrent so it downloads what is gone, and shows the record
+ * as downloading meanwhile. A client that still claims it after that points at a wrong path mapping: error.
+ */
+async function reverify(rec, t) {
+  const now = Date.now();
+  const patch = { status: 'downloading', progress: 0, playable: 0, progressAt: now };
+  const waiting = t.state === 'checking' || (rec.verifiedAt && now - rec.verifiedAt < REVERIFY_MS);
+  if (!waiting) {
+    if ((rec.verifies || 0) >= MAX_REVERIFY) {
+      const error = `${client.active().label} says it is complete, but ${localPath(rec)} is not on disk: check the path mapping`;
+      return syncPatch(rec, { status: 'error', error });
+    }
+    console.log('[sync]', rec.id, 'complete in the client but not on disk, having it verified');
+    await client.recheck(rec.infoHash);
+    Object.assign(patch, { verifies: (rec.verifies || 0) + 1, verifiedAt: now });
+  }
+  return syncPatch(rec, patch);
+}
+
+/**
  * Start (or reuse) a download for a Stremio ID. Safe to call repeatedly.
  * `opts.pick` is a torrent chosen by hand in the web UI: it replaces the current torrent if that differs
  * (the old one is removed from the client, its files stay). Other opts go to finder.resolve.
  */
 async function ensureDownload(type, id, opts = {}) {
-  const existing = db.get(id);
+  let existing = db.get(id);
+  if (existing && existing.status === 'complete' && !opts.pick && (await missingOnDisk(existing))) {
+    // Tapped while the file is gone: bring it back instead of serving nothing.
+    try {
+      const t = await torrentOf(existing);
+      if (t) {
+        await reverify(existing, t);
+        existing = db.get(id);
+      }
+    } catch (e) {
+      console.error('[play]', id, e.message);
+    }
+  }
   const replace = opts.pick && existing && ACTIVE(existing) && existing.infoHash !== opts.pick.infoHash;
   if (existing && ACTIVE(existing) && !replace) return existing;
   if (inflight.has(id)) return inflight.get(id);
@@ -194,7 +239,10 @@ async function syncOnce() {
     if (rec.status === 'complete') {
       // Finished files stay playable even if the torrent is later removed from the client.
       // (It may still sit in the client's incomplete dir if the torrent was removed right after finishing.)
-      if (!t && !(await localCandidates(rec)).some((p) => fs.existsSync(p))) syncPatch(rec, { status: 'missing' });
+      if (await missingOnDisk(rec)) {
+        if (!t) syncPatch(rec, { status: 'missing' });
+        else await reverify(rec, t);
+      }
       continue;
     }
     if (!t) {
@@ -237,8 +285,16 @@ async function syncOnce() {
         /* keep the last value */
       }
     }
+    if (progress >= 1 && (await missingOnDisk({ ...rec, savePath: t.savePath }))) {
+      // Never call it complete (and playable) without the file: the client's piece map can be out of date.
+      await reverify({ ...rec, savePath: t.savePath }, t);
+      continue;
+    }
     const progressAt = progress > (rec.progress || 0) ? Date.now() : rec.progressAt;
-    syncPatch(rec, { progress, playable, progressAt, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+    syncPatch(rec, {
+      progress, playable, progressAt, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath,
+      ...(progress >= 1 && rec.verifies ? { verifies: 0 } : {}),
+    });
   }
 }
 
@@ -344,6 +400,20 @@ async function resume(id) {
   const rec = need(id);
   if (!(await torrentOf(rec))) throw httpError(409, 'not in the torrent client');
   await client.start(rec.infoHash);
+}
+
+/**
+ * Has the client check the torrent's data on disk (all of it, for a season pack); what is gone gets downloaded again.
+ * A complete item whose file is gone shows as downloading meanwhile.
+ */
+async function verify(id) {
+  const rec = need(id);
+  if (!(await torrentOf(rec))) throw httpError(409, 'not in the torrent client');
+  await client.recheck(rec.infoHash);
+  const now = Date.now();
+  const patch = { verifies: 0, verifiedAt: now, progressAt: now };
+  if (rec.status === 'complete' && (await missingOnDisk(rec))) Object.assign(patch, { status: 'downloading', progress: 0, playable: 0 });
+  db.update(id, patch);
 }
 
 /**
@@ -510,6 +580,7 @@ async function list() {
 
 module.exports = {
   availableFrom,
+  missingOnDisk,
   searching,
   isEpisode,
   ensureDownload,
@@ -522,6 +593,7 @@ module.exports = {
   list,
   pause,
   resume,
+  verify,
   removeFromClient,
   deleteFiles,
   deleteMany,

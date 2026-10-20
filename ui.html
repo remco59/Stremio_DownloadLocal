@@ -993,6 +993,7 @@ function statusText(d, stale) {
 const ACTS = {
   pause: { label: 'Pause', busy: 'Pausing...', done: 'Paused', path: 'pause', method: 'POST' },
   resume: { label: 'Resume', busy: 'Resuming...', done: 'Resumed', path: 'resume', method: 'POST' },
+  verify: { label: 'Verify files', hint: 'Has the torrent client check the data on disk and download what is missing', busy: 'Verifying...', done: 'Verifying', path: 'verify', method: 'POST' },
   redownload: { label: 'Try again', busy: 'Starting...', done: 'Started again', path: 'redownload', method: 'POST' },
   choose: { label: 'Choose another torrent', hint: 'Pick a different release by hand' },
   remove: {
@@ -1016,7 +1017,7 @@ function actionsFor(d) {
   if (d.status === 'error' || d.status === 'missing') primary.push('redownload');
   if (d.status === 'complete' || (d.status === 'downloading' && d.playable > 0)) primary.push('play');
   if (active && d.inClient) primary.push(d.paused ? 'resume' : 'pause');
-  if (d.inClient) menu.push('remove');
+  if (d.inClient) menu.push('verify', 'remove');
   menu.push('forget');
   if (d.fileName || d.inClient) menu.push('delete');
   return { primary, menu };

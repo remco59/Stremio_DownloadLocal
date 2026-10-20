@@ -1,4 +1,4 @@
-// Download management (pause/resume, remove, delete files, re-download, forget) through the client interface.
+// Download management (pause/resume, verify, remove, delete files, re-download, forget) through the client interface.
 // Run once per client by manage.<client>.test.js.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -75,6 +75,15 @@ module.exports = function manageSuite({ client }) {
     assert.equal((await item(id)).paused, false);
   });
 
+  test('verify has the client check the torrent, and only when it has one', async () => {
+    const id = 'tt1000001';
+    const hash = env.db.get(id).infoHash;
+    env.mock.rechecked.length = 0;
+    assert.equal((await act(id, 'verify')).status, 200);
+    assert.deepEqual(env.mock.rechecked, [hash]);
+    assert.equal(env.db.get(id).status, 'downloading');
+  });
+
   test('remove an unfinished download: gone from the client, Download is offered again, re-download works', async () => {
     const id = 'tt1000001';
     const hash = env.db.get(id).infoHash;
@@ -87,6 +96,7 @@ module.exports = function manageSuite({ client }) {
     assert.match(s.streams[0].name, /Download/);
 
     assert.equal((await act(id, 'pause')).status, 409);
+    assert.equal((await act(id, 'verify')).status, 409);
     assert.equal((await act(id, 'redownload')).status, 200);
     assert.equal(env.mock.torrents.has(hash), true);
     await waitFor(() => env.db.get(id).status === 'downloading');

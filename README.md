@@ -168,6 +168,7 @@ The web UI opens on the **Downloads** page. It lists everything the add-on knows
 
 - **Play** opens the [player](#watching-in-the-browser). It shows up once the start of the file is there.
 - **Pause / Resume** the torrent.
+- **Verify files** (in the ⋯ menu): the torrent client re-checks the data on disk and downloads what is missing (a whole season pack for an episode). This also happens by itself when the client calls a file complete that is not on disk.
 - **Try again / Download again** an item that failed or was removed.
 - Under **More**:
   - **Choose another torrent** opens the torrent picker.
@@ -184,7 +185,7 @@ The **Library** page shows everything that is fully downloaded, as a poster grid
 On the main page a movie has **Play** right there; everything else for a title sits under its **⋯** menu (**Details**, **Delete**). Click a poster or title to open its details page:
 
 - **Movie:** artwork, year, runtime, rating, genres, description, director and cast from Cinemeta; **Play** (or **Download** / **Try again** / **Pause** while it is not on the server yet) and **Choose another torrent**; and an *On disk* panel with the file, size, date added, torrent and torrent client state, with **Remove from torrent client**, **Forget** and **Delete file**.
-- **Series:** the same show details plus how many episodes are on the server, **Download missing episodes** and **Delete show**. Below that, season tabs (with *on the server / total* per season), **Download missing episodes** and **Delete season** per season, and every episode with its thumbnail, air date and summary. Each episode shows whether it is on the server, downloading, failed or not released yet, with **Play** or **Download** and a **⋯** menu for the rest (choose another torrent, pause, remove from the torrent client, forget, delete).
+- **Series:** the same show details plus how many episodes are on the server, **Download missing episodes** and **Delete show**. Below that, season tabs (with *on the server / total* per season), **Download missing episodes** and **Delete season** per season, and every episode with its thumbnail, air date and summary. Each episode shows whether it is on the server, downloading, failed or not released yet, with **Play** or **Download** and a **⋯** menu for the rest (choose another torrent, pause, verify files, remove from the torrent client, forget, delete).
 
 Titles on the **Downloads** page link to the same details page. Deleting always asks first and works like *Delete files* on the Downloads page, including for season packs. A season or show delete only removes finished episodes; ones still downloading are left alone.
 

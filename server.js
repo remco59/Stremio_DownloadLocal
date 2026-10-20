@@ -152,6 +152,7 @@ addon.all('/play/:type/:id', async (req, res) => {
         start = range.start;
         try {
           avail = await availableUntil(rec, start);
+          if (rec.status !== 'complete' && avail > start && (await dl.missingOnDisk(rec))) avail = start;
         } catch {
           /* client hiccup: treat as not there yet */
         }
@@ -320,6 +321,7 @@ router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list())
 const ACTIONS = {
   pause: dl.pause,
   resume: dl.resume,
+  verify: dl.verify,
   remove: dl.removeFromClient,
   'delete-files': dl.deleteFiles,
   redownload: dl.redownload,

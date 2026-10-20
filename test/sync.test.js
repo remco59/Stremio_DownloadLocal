@@ -130,3 +130,59 @@ test('no switch while paused, after progress, or for records from before the wat
   assert.ok(env.db.get(id).progressAt, 'the clock starts now');
   assert.equal(env.mock.added.length, adds);
 });
+
+// The client's piece map can claim a file the disk no longer has (deleted behind its back).
+function claimedDone(id, hash, extra = {}) {
+  env.mock.addTorrent({ hash, files: [{ name: 'Season/Ep.mkv', size: 2048 }] });
+  env.mock.completeAll(hash);
+  env.db.set(id, {
+    id, type: 'movie', status: 'downloading', selected: true, infoHash: hash, fileIndex: 0, fileName: 'Season/Ep.mkv',
+    fileSize: 2048, fileOffset: 0, pieceSize: 16384, savePath: '/downloads', progress: 0.5, createdAt: Date.now(), ...extra,
+  });
+}
+
+test('a file the client calls complete is only complete once it is on disk', async () => {
+  const id = 'tt2000020';
+  const hash = hashOf('7');
+  claimedDone(id, hash);
+
+  await env.dl.syncOnce();
+  let rec = env.db.get(id);
+  assert.equal(rec.status, 'downloading');
+  assert.equal(rec.progress, 0);
+  assert.deepEqual(env.mock.rechecked, [hash], 'the client was asked to verify');
+
+  await env.dl.syncOnce();
+  assert.deepEqual(env.mock.rechecked, [hash], 'not again within the cooldown');
+
+  fs.mkdirSync(path.join(env.downloads, 'Season'));
+  fs.writeFileSync(path.join(env.downloads, 'Season/Ep.mkv'), Buffer.alloc(2048));
+  await env.dl.syncOnce();
+  rec = env.db.get(id);
+  assert.equal(rec.status, 'complete');
+  assert.equal(rec.verifies, 0);
+});
+
+test('a complete record whose file vanished is verified and shows as downloading again', async () => {
+  const id = 'tt2000021';
+  const hash = hashOf('8');
+  env.mock.rechecked.length = 0;
+  claimedDone(id, hash, { status: 'complete', progress: 1, playable: 1, fileName: 'Season/Gone.mkv' });
+
+  await env.dl.syncOnce();
+  const rec = env.db.get(id);
+  assert.equal(rec.status, 'downloading');
+  assert.deepEqual(env.mock.rechecked, [hash]);
+});
+
+test('a client that keeps claiming a missing file ends in an error naming the path', async () => {
+  const id = 'tt2000022';
+  const hash = hashOf('9');
+  claimedDone(id, hash, { fileName: 'Season/Nowhere.mkv', verifies: 2, verifiedAt: Date.now() - 6 * 60000 });
+
+  await env.dl.syncOnce();
+  const rec = env.db.get(id);
+  assert.equal(rec.status, 'error');
+  assert.match(rec.error, /not on disk: check the path mapping/);
+  assert.equal(env.mock.rechecked.includes(hash), false, 'no endless verifying');
+});
