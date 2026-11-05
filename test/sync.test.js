@@ -130,3 +130,24 @@ test('no switch while paused, after progress, or for records from before the wat
   assert.ok(env.db.get(id).progressAt, 'the clock starts now');
   assert.equal(env.mock.added.length, adds);
 });
+
+// Episodes of one season pack that have not picked their file yet still need the torrent: Dragons S4E1 dropped
+// a wrong pack, and S4E2-E13 (queued on the same pack) all went missing with it.
+test('dropping a season pack for one episode keeps it for episodes still waiting on it', async () => {
+  const hash = 'c'.repeat(40);
+  env.mock.addTorrent({ hash, files: [{ name: 'S01E01.mkv', size: 2048 }, { name: 'S01E02.mkv', size: 2048 }] });
+  const queued = (id, extra = {}) => env.db.set(id, {
+    id, type: 'series', status: 'queued', selected: false, infoHash: hash, fileIndex: null, progress: 0,
+    createdAt: Date.now(), progressAt: Date.now(), tried: [], ...extra,
+  });
+  queued('tt2000010:1:1', { status: 'downloading', selected: true, fileIndex: 0, fileName: 'S01E01.mkv' });
+  queued('tt2000010:1:2');
+  queued('tt2000010:1:3');
+
+  await env.dl.removeFromClient('tt2000010:1:1');
+  assert.equal(env.mock.torrents.has(hash), true, 'the pack stays for the waiting episodes');
+  await env.dl.deleteFiles('tt2000010:1:2');
+  assert.equal(env.mock.torrents.has(hash), true, 'still needed by 1:3');
+  await env.dl.syncOnce();
+  assert.notEqual(env.db.get('tt2000010:1:3').status, 'missing');
+});

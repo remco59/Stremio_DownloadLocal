@@ -325,9 +325,9 @@ function startSync() {
 
 const ACTIVE = (r) => r.status !== 'error' && r.status !== 'missing';
 
-/** Other records that still need this record's torrent (same season pack). */
+/** Other records that still need this record's torrent (same season pack), also those that have not picked their file yet. */
 function sharers(rec) {
-  return db.all().filter((r) => r.id !== rec.id && r.infoHash === rec.infoHash && r.selected && ACTIVE(r));
+  return db.all().filter((r) => r.id !== rec.id && r.infoHash === rec.infoHash && ACTIVE(r));
 }
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -373,6 +373,8 @@ async function removeFromClient(id) {
 
 async function dropFile(rec, others) {
   if (rec.fileIndex == null) return;
+  // An episode that has not picked its file yet leaves the selection alone; selectFile narrows it down later.
+  if (others.some((r) => !r.selected || r.fileIndex == null)) return;
   const files = await client.files(rec.infoHash);
   if (files && files.length) await client.setWanted(rec.infoHash, others.flatMap(wantedBy), files.length);
 }
