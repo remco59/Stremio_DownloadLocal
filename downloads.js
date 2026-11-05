@@ -8,6 +8,7 @@ const client = require('./clients');
 const finder = require('./finder');
 const { sidecarIndexes } = require('./subtitles');
 const { episodeOf } = require('./sources/parse');
+const { episodesOf, titleMatch } = require('./episodes');
 
 const VIDEO = /\.(mkv|mp4|m4v|avi|mov|webm|ts)$/i;
 const inflight = new Map();
@@ -125,18 +126,27 @@ const wantedBy = (r) => [r.fileIndex, ...(r.subFiles || []).map((f) => f.index)]
  */
 async function selectFile(rec, files, t) {
   const ep = episodeOf(rec.id);
+  const eps = ep ? await episodesOf(rec.id.split(':')[0]) : null;
+  // The episode title in a file name beats its season/episode code: packs number seasons their own way, and
+  // "[S03E14] Team Astrid.mkv" is Cinemeta's S4E1 while "[S04E02] Crash Course.mkv" is its S5E2.
+  const title = (name) => (ep ? titleMatch(eps, name, ep.season, ep.episode) : null);
+  const wrong = (name) => {
+    const t = title(name);
+    return t === 'other' || (t !== 'own' && !!ep && isOtherEpisode(name, ep.season, ep.episode));
+  };
   let idx = Number.isInteger(rec.fileIdx) && files[rec.fileIdx] ? rec.fileIdx : -1;
   // The source's file index is not always right: Torrentio counts Riders of Berk S02E01 as episode 21 and hands out
   // file 21 of a Race to the Edge pack, "[S04E21] Gold Rush.mkv". A file that names another episode is ignored.
-  if (idx >= 0 && ep && isOtherEpisode(files[idx].name, ep.season, ep.episode)) idx = -1;
+  if (idx >= 0 && wrong(files[idx].name)) idx = -1;
   if (idx < 0) {
     const all = files.map((f, i) => ({ f, i }));
     let vids = all.filter((x) => VIDEO.test(x.f.name));
-    // Episode inside a season pack without a known file index: find it by name.
+    // Episode inside a season pack without a known file index: find it by title, else by name.
     if (ep) {
-      const match = vids.filter((x) => isEpisode(x.f.name, ep.season, ep.episode));
+      const byTitle = vids.filter((x) => title(x.f.name) === 'own');
+      const match = byTitle.length ? byTitle : vids.filter((x) => isEpisode(x.f.name, ep.season, ep.episode) && !wrong(x.f.name));
       if (match.length) vids = match;
-      else if (vids.some((x) => isOtherEpisode(x.f.name, ep.season, ep.episode))) {
+      else if (vids.some((x) => wrong(x.f.name))) {
         await rejectTorrent(rec, `no S${ep.season}E${ep.episode} in "${t.name || rec.title}"`);
         return null;
       }

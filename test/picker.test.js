@@ -144,6 +144,37 @@ test('a torrent without the episode is dropped for the next best one', async () 
   assert.deepEqual(rec.tried, [h('1')]);
 });
 
+test('a pack that numbers seasons its own way is caught by the episode titles', async () => {
+  const id = 'tt9:4:1';
+  env.mock.metas.tt9 = {
+    id: 'tt9', type: 'series', name: 'Dragons: Riders of Berk',
+    videos: [
+      { season: 4, episode: 1, name: 'Team Astrid' },
+      { season: 5, episode: 1, name: 'Enemy of My Enemy' },
+      { season: 5, episode: 2, name: 'Crash Course' },
+    ],
+  };
+  // The "season 4" pack holds Cinemeta's season 5 under S04 codes; its season 3 pack has S4E1 as S03E14.
+  env.mock.torrentio[id] = {
+    streams: [
+      { name: 'Torrentio\n1080p', title: 'Dragons Race to the Edge Сезон: 4\n👤 30', infoHash: h('4'), fileIdx: 0 },
+      { name: 'Torrentio\n1080p', title: 'Dragons COMPLETE S01-S08\n👤 20', infoHash: h('5'), fileIdx: 0 },
+    ],
+  };
+  const packs = {
+    [h('4')]: ['[S04E01] Enemy of My Enemy.mkv', '[S04E02] Crash Course.mkv'],
+    [h('5')]: ['[S03E13] Total Nightmare.mkv', '[S03E14] Team Astrid.mkv'],
+  };
+  env.mock.onAdd = (hash) =>
+    env.mock.addTorrent({ hash, name: hash, pieceSize: 1024, files: packs[hash].map((name) => ({ name, size: 4096 })) });
+
+  assert.equal((await download({ type: 'series', id })).status, 200);
+  const rec = await waitFor(() => env.db.get(id)?.selected && env.db.get(id));
+  assert.equal(rec.infoHash, h('5'));
+  assert.equal(rec.fileName, '[S03E14] Team Astrid.mkv', 'found by title, not by the S04E01 code');
+  assert.deepEqual(rec.tried, [h('4')]);
+});
+
 test('a torrent without the episode and no other torrent ends as an error', async () => {
   const id = 'tt8:2:2';
   env.mock.torrentio[id] = {
