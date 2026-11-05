@@ -57,7 +57,7 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
   test('manifest is served under the token and nowhere else', async () => {
     const m = await (await get('/manifest.json')).json();
     assert.equal(m.id, 'community.local.download-and-watch');
-    assert.deepEqual(m.resources, ['stream']);
+    assert.deepEqual(m.resources, ['catalog', 'stream']);
     assert.equal((await fetch(`${env.origin}/manifest.json`)).status, 404);
     assert.equal((await fetch(`${env.origin}/wrong-token-0123456789/manifest.json`)).status, 404);
   });

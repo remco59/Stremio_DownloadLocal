@@ -248,7 +248,15 @@ async function syncOnce() {
       }
     }
     const progressAt = progress > (rec.progress || 0) ? Date.now() : rec.progressAt;
-    syncPatch(rec, { progress, playable, progressAt, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+    syncPatch(rec, {
+      progress,
+      playable,
+      progressAt,
+      status: progress >= 1 ? 'complete' : 'downloading',
+      // When it finished: the "recently downloaded" order of the Stremio catalogs.
+      ...(progress >= 1 && { completedAt: Date.now() }),
+      savePath: t.savePath,
+    });
   }
 }
 

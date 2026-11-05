@@ -147,6 +147,10 @@ Here the torrent client's `/downloads` must be reachable on this machine under t
 - The status screen is a video that ffmpeg draws while it plays (`statusclip.js`, `statusscreen.js`; the backdrops and fonts are in `assets/`). It has no length and cannot be seeked, and while it is open it uses roughly a fifth of a CPU core (at most 3 screens at once). Where ffmpeg cannot draw text, or with the setting *Status screen in Stremio* on *Fixed clips* (`LIVE_STATUS=0`), Stremio gets the fixed clips in `clips/` instead: the same look, without the numbers. If a Stremio device does not play the live screen, switch to the fixed clips.
 - Regenerate the fixed clips with `node scripts/make-clips.js` (needs ffmpeg), and the backdrops in `assets/` with `python3 scripts/make-scenes.py` (needs Pillow and numpy). The fonts (Inter, SIL Open Font License) are in `assets/fonts/`.
 
+## Home-screen rows
+
+The add-on also puts two rows on Stremio's Board/Discover pages: **Recently downloaded** for movies and **Recently downloaded** for series (pick the add-on's catalog in the Discover filters). Only finished downloads are listed, newest first; a series appears once, ranked by its newest finished episode. Names and posters come from Cinemeta, and opening a title shows the usual *🏠 Your server* stream. Stremio only reads the catalog list when the add-on is installed, so after updating, remove the add-on and install it again (or use *Reinstall* in its settings) to see the rows. To show them on the home screen, enable them in Stremio's Board settings.
+
 ## Choosing torrents
 
 Torrents come from **Torrentio**, **Jackett / Prowlarr** (Torznab), or both (Settings → Torrent source). Results from all sources are merged per info hash, then filtered and scored with the *Torrent choice* settings:
