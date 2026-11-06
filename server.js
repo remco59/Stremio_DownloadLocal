@@ -15,6 +15,7 @@ const player = require('./player');
 const subtitles = require('./subtitles');
 const discover = require('./discover');
 const statusclip = require('./statusclip');
+const catalog = require('./catalog');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -27,10 +28,10 @@ const manifest = {
   version: '0.1.0',
   name: 'Local Download & Watch',
   description: 'Adds a stream that downloads the title to your own server and plays it from there.',
-  resources: ['stream'],
+  resources: ['catalog', 'stream'],
   types: ['movie', 'series'],
   idPrefixes: ['tt'],
-  catalogs: [],
+  catalogs: catalog.CATALOGS,
 };
 
 const app = express();
@@ -70,6 +71,19 @@ function limitWrites(req, res, next) {
 const baseUrl = (req) => `${cfg.publicUrl || `${req.protocol}://${req.get('host')}`}/${cfg.token}`;
 
 addon.get('/manifest.json', (req, res) => res.json(manifest));
+
+// The home-screen rows: what is downloaded on the server, newest first. Extra args come as ".../skip=100.json".
+addon.get(['/catalog/:type/:id.json', '/catalog/:type/:id/:extra.json'], async (req, res) => {
+  res.set('Cache-Control', 'max-age=0, no-cache');
+  const { type, id, extra } = req.params;
+  const skip = Number(new URLSearchParams(extra || '').get('skip'));
+  try {
+    res.json({ metas: await catalog.metas(type, id, Number.isInteger(skip) && skip > 0 ? skip : 0), cacheMaxAge: 0 });
+  } catch (e) {
+    console.error('[catalog]', e.message);
+    res.json({ metas: [] });
+  }
+});
 
 // What Stremio asks for on every title/episode page
 addon.get('/stream/:type/:id.json', (req, res) => {

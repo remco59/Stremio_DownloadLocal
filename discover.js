@@ -307,4 +307,4 @@ async function recommend({ played = [] } = {}) {
   return { basedOn: seedMetas.length, genres: favGenres.slice(0, 5), rows, hidden: skip.size };
 }
 
-module.exports = { recommend, hide, unhideAll, seeds };
+module.exports = { recommend, hide, unhideAll, seeds, cinemeta, pool, META_TTL };
