@@ -7,7 +7,7 @@ let env;
 test.before(async () => {
   env = await boot({ CINEMETA_RETRY_MS: '10', CINEMETA_TIMEOUT_MS: '500' });
   env.mock.metas.tt1111111 = { id: 'tt1111111', type: 'movie', name: 'Old Movie', poster: 'http://p/1.jpg' };
-  env.mock.metas.tt2222222 = { id: 'tt2222222', type: 'movie', name: 'New Movie', poster: 'http://p/2.jpg' };
+  env.mock.metas.tt2222222 = { id: 'tt2222222', type: 'movie', name: 'New Movie', poster: 'http://p/2.jpg', description: 'A film.', genres: ['Drama'], imdbRating: '7.9', runtime: '120 min', cast: ['A B'], background: 'http://p/bg.jpg', videos: [{ id: 'x' }] };
   env.mock.metas.tt3333333 = { id: 'tt3333333', type: 'series', name: 'Some Show', poster: 'http://p/3.jpg' };
   env.mock.metas.tt4444444 = { id: 'tt4444444', type: 'series', name: 'Other Show' };
   const rec = (id, type, status, completedAt) => env.db.set(id, { id, type, status, completedAt, title: id, createdAt: completedAt });
@@ -33,6 +33,11 @@ test('movies: finished ones only, newest first, with Cinemeta name and poster', 
   assert.deepEqual(metas.map((m) => m.id), ['tt2222222', 'tt1111111']);
   assert.equal(metas[0].name, 'New Movie');
   assert.equal(metas[0].poster, 'http://p/2.jpg');
+  // The details the hero banner shows, but not the (large) episode list; empty ones are left out.
+  assert.deepEqual(
+    { ...metas[0], id: undefined },
+    { id: undefined, type: 'movie', name: 'New Movie', posterShape: 'poster', poster: 'http://p/2.jpg', background: 'http://p/bg.jpg', description: 'A film.', imdbRating: '7.9', runtime: '120 min', genres: ['Drama'], cast: ['A B'] }
+  );
 });
 
 test('series: one entry per show, ranked by its newest finished episode', async () => {

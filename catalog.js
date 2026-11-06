@@ -25,6 +25,12 @@ function titles(type) {
   return [...byTt.values()].sort((a, b) => b.at - a.at);
 }
 
+// What Stremio's hero banner and cards show for the focused title. Without these it only has a name and year.
+// (No `videos`: that list is large for a series and a catalog does not use it.)
+const FIELDS = ['poster', 'background', 'logo', 'description', 'releaseInfo', 'imdbRating', 'runtime', 'genres', 'cast', 'director', 'links', 'trailers'];
+const filled = (v) => (Array.isArray(v) ? v.length > 0 : v != null && v !== '');
+const pick = (m) => Object.fromEntries(FIELDS.filter((k) => filled(m[k])).map((k) => [k, m[k]]));
+
 async function metas(type, catalogId, skip = 0) {
   if (!CATALOGS.some((c) => c.type === type && c.id === catalogId)) return [];
   const page = titles(type).slice(skip, skip + PAGE);
@@ -36,9 +42,8 @@ async function metas(type, catalogId, skip = 0) {
       id: t.id,
       type,
       name: m.name || t.title || t.id,
-      ...(m.poster && { poster: m.poster }),
-      ...(m.releaseInfo && { releaseInfo: m.releaseInfo }),
       posterShape: 'poster',
+      ...pick(m),
     };
   });
 }

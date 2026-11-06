@@ -96,6 +96,8 @@ module.exports = function addonSuite({ client, mockOpts, partial }) {
     assert.equal(rec.fileOffset, EXTRA.size);
     assert.equal(rec.pieceSize, PIECE);
     const t = env.mock.torrents.get(HASH);
+    // The record is marked selected just before the file selection reaches the client.
+    await waitFor(() => t.files.map((f) => f.priority).join() === '0,1').catch(() => {});
     assert.deepEqual(t.files.map((f) => f.priority), [0, 1]);
   });
 
