@@ -282,6 +282,7 @@ These are the defaults for the settings page.
 | `SEEK_WAIT_MS` | `8000` | seek past the downloaded part: how long to wait before answering 503 |
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
 | `STALL_SWITCH_MIN` | `10` | a download still at 0% after this many minutes (not paused or queued in the client) moves to the next best untried torrent; `0` = never |
+| `EPISODES_AT_ONCE` | `0` | unfinished episodes of one season pack downloading at the same time, earliest first (the rest wait; playing one moves it to the front); `0` = all at once |
 | `SYNC_INTERVAL_MS` | `5000` | torrent client poll interval |
 | `SUBTITLES_URL` | `https://opensubtitles-v3.strem.io` | Stremio subtitles add-on for the player's online subtitles; empty = off |
 | `PLAYER_MAX_HEIGHT` | `1080` | max resolution when the player has to convert video |

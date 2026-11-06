@@ -151,3 +151,64 @@ test('dropping a season pack for one episode keeps it for episodes still waiting
   await env.dl.syncOnce();
   assert.notEqual(env.db.get('tt2000010:1:3').status, 'missing');
 });
+
+// Few seeders spread over a whole season pack fill every episode a little; episodesAtOnce makes the earliest go first.
+test('episodes of a season pack take turns, earliest first; playing one moves it up', async () => {
+  const cfg = require('../config');
+  const hash = 'd'.repeat(40);
+  const names = ['S01E01.mkv', 'S01E02.mkv', 'S01E03.mkv'];
+  const t = env.mock.addTorrent({ hash, pieceSize: 1024, files: names.map((name) => ({ name, size: 2048 })) });
+  names.forEach((name, i) => env.db.set(`tt2000020:1:${i + 1}`, {
+    id: `tt2000020:1:${i + 1}`, type: 'series', status: 'queued', selected: false, infoHash: hash, fileIdx: i, progress: 0,
+    createdAt: Date.now() - i, progressAt: Date.now(), tried: [],
+  }));
+  const wanted = () => t.files.map((f) => (f.priority ? 1 : 0)).join('');
+  const waiting = () => [1, 2, 3].map((e) => (env.dl.view(env.db.get(`tt2000020:1:${e}`)).waiting ? 'w' : '-')).join('');
+  cfg.episodesAtOnce = 1;
+  try {
+    await env.dl.syncOnce();
+    assert.equal(wanted(), '100', 'only the first episode downloads');
+    assert.equal(waiting(), '-ww');
+
+    env.mock.havePieces(hash, 0, 2); // E1 done
+    await env.dl.syncOnce();
+    assert.equal(env.db.get('tt2000020:1:1').status, 'complete');
+    assert.equal(wanted(), '110', 'E2 takes its turn; E1 keeps its file');
+    assert.equal(waiting(), '--w');
+
+    await env.dl.prioritize('tt2000020:1:3'); // someone presses play on E3
+    assert.equal(wanted(), '101');
+    assert.equal(waiting(), '-w-');
+
+    cfg.episodesAtOnce = 0;
+    await env.dl.syncOnce();
+    assert.equal(wanted(), '111', 'no limit: everything downloads');
+    assert.equal(waiting(), '---');
+  } finally {
+    cfg.episodesAtOnce = 0;
+  }
+});
+
+test('an episode waiting for its turn is not a stalled download', async () => {
+  const cfg = require('../config');
+  const hash = 'e'.repeat(40);
+  env.mock.addTorrent({ hash, pieceSize: 1024, files: [{ name: 'S01E01.mkv', size: 2048 }, { name: 'S01E02.mkv', size: 2048 }] });
+  for (const e of [1, 2]) {
+    env.db.set(`tt2000030:1:${e}`, {
+      id: `tt2000030:1:${e}`, type: 'series', status: 'queued', selected: false, infoHash: hash, fileIdx: e - 1, progress: 0,
+      createdAt: STALE(), progressAt: Date.now(), tried: [],
+    });
+  }
+  cfg.episodesAtOnce = 1;
+  try {
+    await env.dl.syncOnce();
+    env.db.update('tt2000030:1:2', { progressAt: STALE() }); // waited longer than the stall limit
+    await env.dl.syncOnce();
+    const rec = env.db.get('tt2000030:1:2');
+    assert.equal(rec.infoHash, hash, 'no switch to another torrent');
+    assert.deepEqual(rec.tried, []);
+    assert.equal(rec.waiting, true);
+  } finally {
+    cfg.episodesAtOnce = 0;
+  }
+});

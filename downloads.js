@@ -155,18 +155,11 @@ async function selectFile(rec, files, t) {
   }
 
   // Only download the file we need, plus subtitle files that come with it (for the web player) - but keep
-  // files other records (same season pack) rely on.
+  // files other records (same season pack) rely on. applyQueue sets that once the record knows its file.
   const subFiles = sidecarIndexes(files, idx).map((i) => ({ index: i, name: files[i].name }));
-  const wanted = new Set([idx, ...subFiles.map((f) => f.index)]);
-  for (const r of db.all()) {
-    if (r.id !== rec.id && r.infoHash === rec.infoHash && r.selected && r.fileIndex != null &&
-        r.status !== 'error' && r.status !== 'missing') wantedBy(r).forEach((i) => wanted.add(i));
-  }
-  await client.setWanted(rec.infoHash, [...wanted], files.length);
-
   const { pieceSize } = await client.pieces(rec.infoHash);
   const fileOffset = files.slice(0, idx).reduce((s, f) => s + f.size, 0);
-  return syncPatch(rec, {
+  const picked = syncPatch(rec, {
     selected: true,
     status: 'downloading',
     fileIndex: idx,
@@ -177,6 +170,53 @@ async function selectFile(rec, files, t) {
     pieceSize,
     savePath: t.savePath,
   });
+  if (picked) await applyQueue(rec.infoHash, files.length, { force: true });
+  return picked;
+}
+
+/** Whose turn first: an episode someone tried to play (latest first), then season and episode order, then age. */
+function byTurn(a, b) {
+  const ea = episodeOf(a.id) || { season: Infinity, episode: Infinity };
+  const eb = episodeOf(b.id) || { season: Infinity, episode: Infinity };
+  return (b.playAt || 0) - (a.playAt || 0) || ea.season - eb.season || ea.episode - eb.episode ||
+    (a.createdAt || 0) - (b.createdAt || 0);
+}
+
+/**
+ * The records of a torrent whose files it should download (finished ones keep theirs), and those waiting for their
+ * turn: with `episodesAtOnce` set, only that many unfinished episodes of one season pack download at the same time.
+ */
+function queueOf(hash, except = null) {
+  const recs = db.all().filter((r) => r.id !== except && r.infoHash === hash && r.selected && r.fileIndex != null && ACTIVE(r));
+  const open = recs.filter((r) => r.status !== 'complete').sort(byTurn);
+  const n = cfg.episodesAtOnce > 0 ? cfg.episodesAtOnce : Infinity;
+  return { keep: [...recs.filter((r) => r.status === 'complete'), ...open.slice(0, n)], waiting: open.slice(n) };
+}
+
+const lastWanted = new Map(); // info hash -> file selection last sent to the client
+/**
+ * Tells the client which files of a torrent to download (see queueOf) and marks the records waiting for their turn.
+ * Only sends what changed, unless `force` (a new pick, a dropped file).
+ */
+async function applyQueue(hash, fileCount, { except = null, force = false } = {}) {
+  const { keep, waiting } = queueOf(hash, except);
+  for (const r of keep) if (r.waiting) db.update(r.id, { waiting: false, progressAt: Date.now() }); // the stall clock starts now
+  for (const r of waiting) if (!r.waiting) db.update(r.id, { waiting: true });
+  if (!keep.length) return;
+  const wanted = [...new Set(keep.flatMap(wantedBy))].sort((a, b) => a - b);
+  const key = `${fileCount}:${wanted.join(',')}`;
+  if (!force && lastWanted.get(hash) === key) return;
+  await client.setWanted(hash, wanted, fileCount);
+  lastWanted.set(hash, key);
+}
+
+/** Someone wants to watch this now: an episode waiting for its turn goes first. */
+async function prioritize(id) {
+  const rec = db.get(id);
+  if (!rec || !rec.waiting || rec.status === 'complete') return;
+  db.update(id, { playAt: Date.now() });
+  const files = await client.files(rec.infoHash);
+  if (Array.isArray(files) && files.length) await applyQueue(rec.infoHash, files.length);
 }
 
 /**
@@ -197,6 +237,7 @@ async function syncOnce() {
   const infos = await client.info([...new Set(recs.map((r) => r.infoHash))]);
   const byHash = new Map(infos.map((t) => [t.hash, t]));
   const haves = new Map(); // piece maps fetched this round (episodes of one pack share one)
+  const fileCounts = new Map(); // info hash -> number of files, for the queue after the round
 
   for (let rec of recs) {
     const t = byHash.get(rec.infoHash);
@@ -215,8 +256,9 @@ async function syncOnce() {
       syncPatch(rec, { status: 'error', error: t.error });
       continue;
     }
-    // Time spent paused or waiting on the client does not count as a stall (nor time before this check existed).
-    if (IDLE.has(t.state) || !rec.progressAt) {
+    // Time spent paused, waiting on the client or waiting for its turn does not count as a stall (nor time before
+    // this check existed).
+    if (IDLE.has(t.state) || !rec.progressAt || rec.waiting) {
       rec = syncPatch(rec, { progressAt: Date.now() });
       if (!rec) continue;
     } else if (stuckAtZero(rec)) {
@@ -231,6 +273,7 @@ async function syncOnce() {
       continue; // client hiccup: try again next round
     }
     if (!Array.isArray(files) || !files.length) continue;
+    fileCounts.set(rec.infoHash, files.length);
 
     if (!rec.selected) rec = await selectFile(rec, files, t);
     if (!rec) continue; // deleted while we were busy
@@ -249,6 +292,14 @@ async function syncOnce() {
     }
     const progressAt = progress > (rec.progress || 0) ? Date.now() : rec.progressAt;
     syncPatch(rec, { progress, playable, progressAt, status: progress >= 1 ? 'complete' : 'downloading', savePath: t.savePath });
+  }
+  // An episode that finished makes room for the next one in its season pack.
+  for (const [hash, n] of fileCounts) {
+    try {
+      await applyQueue(hash, n);
+    } catch (e) {
+      console.error('[sync]', hash, e.message);
+    }
   }
 }
 
@@ -376,7 +427,7 @@ async function dropFile(rec, others) {
   // An episode that has not picked its file yet leaves the selection alone; selectFile narrows it down later.
   if (others.some((r) => !r.selected || r.fileIndex == null)) return;
   const files = await client.files(rec.infoHash);
-  if (files && files.length) await client.setWanted(rec.infoHash, others.flatMap(wantedBy), files.length);
+  if (files && files.length) await applyQueue(rec.infoHash, files.length, { except: rec.id, force: true });
 }
 
 /** True if `p` is inside the local downloads dir (symlinks resolved), so we never delete anything else. */
@@ -502,6 +553,8 @@ const view = (r, t) => ({
   seeds: t && r.status !== 'complete' ? t.seeds ?? null : null,
   eta: t && r.status !== 'complete' && t.eta > 0 && t.eta < 8640000 ? t.eta : null,
   shared: !!r.infoHash && sharers(r).length > 0,
+  // Unfinished episode of a season pack that waits until earlier ones are done (episodesAtOnce).
+  waiting: !!r.waiting && r.status !== 'complete',
 });
 
 /** All records, newest first, merged with live client state (best effort: records still list if the client is down). */
@@ -523,6 +576,7 @@ async function list() {
 module.exports = {
   availableFrom,
   searching,
+  prioritize,
   isEpisode,
   ensureDownload,
   startSync,

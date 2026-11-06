@@ -140,6 +140,7 @@ addon.all('/play/:type/:id', async (req, res) => {
     console.error('[play]', id, e.message);
     return clip(req, res, 'error', { type, id });
   }
+  dl.prioritize(id).catch((e) => console.error('[play]', id, e.message));
   try {
     for (;;) {
       if (gone) return;
@@ -388,6 +389,7 @@ async function playerRoute(req, res, fn) {
   if (!valid(type, id)) return res.status(400).json({ error: 'bad type/id' });
   try {
     if (!(await player.available())) return res.status(501).json({ error: 'ffmpeg is not installed on the server', ffmpeg: false });
+    dl.prioritize(id).catch((e) => console.error('[player]', id, e.message));
     await fn(db.get(id));
   } catch (e) {
     if (!e.status) console.error('[player]', id, e.message);
