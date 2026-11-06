@@ -49,6 +49,8 @@ const FIELDS = [
     help: 'Comma separated. Releases containing any of these are never picked.' },
   { key: 'stallSwitchMin', group: 'Torrent choice', label: 'Try another torrent when stuck at 0% for (minutes)', type: 'int', min: 0, max: 10080,
     help: 'Dead swarms: the next best torrent is picked, never one already tried for that title. Time paused or queued in the client does not count. 0 = never.' },
+  { key: 'episodesAtOnce', group: 'Torrent choice', label: 'Episodes of one season pack downloading at once', type: 'int', min: 0, max: 1000,
+    help: 'The earliest unfinished episodes go first, the rest wait their turn; playing a waiting episode moves it to the front. Few seeders share their speed over fewer files this way. 0 = all at once.' },
 
   { key: 'subtitlesUrl', group: 'Player', label: 'Online subtitles add-on', type: 'url', optional: true,
     help: 'Stremio subtitles add-on the web player gets online subtitles from (OpenSubtitles v3 by default). Empty = off.' },

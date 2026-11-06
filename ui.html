@@ -972,9 +972,10 @@ function statusText(d, stale) {
   else if (stale) parts.push(`Status unknown, last seen at ${pct}%`);
   else if (d.paused) parts.push(`Paused at ${pct}%`, playable && playable < pct ? `playable up to ${playable}%` : '');
   else {
-    parts.push(d.status === 'queued' ? 'Queued' : `Downloading ${pct}%`);
-    // Why nothing arrives: the client's own queue, missing torrent info, or no one to download from.
-    if (d.clientState === 'queued') parts.push("waiting in the torrent client's queue");
+    parts.push(d.status === 'queued' ? 'Queued' : d.waiting ? `Waiting for its turn at ${pct}%` : `Downloading ${pct}%`);
+    // Why nothing arrives: earlier episodes first, the client's own queue, missing torrent info, or no one to download from.
+    if (d.waiting) parts.push('earlier episodes of this season pack go first');
+    else if (d.clientState === 'queued') parts.push("waiting in the torrent client's queue");
     else if (d.clientState === 'metadata') parts.push('fetching torrent info');
     else if (d.clientState === 'checking') parts.push('checking files');
     else {
@@ -1840,7 +1841,7 @@ function itemState(id) {
   const pct = Math.round((d.progress || 0) * 100);
   if (d.status === 'complete') return { text: 'On your server', busy: true, cls: 'ok' };
   if (d.status === 'queued') return { text: 'Queued', busy: true };
-  if (d.status === 'downloading') return { text: d.paused ? `Paused at ${pct}%` : `Downloading ${pct}%`, busy: true };
+  if (d.status === 'downloading') return { text: d.paused ? `Paused at ${pct}%` : d.waiting ? `Waiting for its turn (${pct}%)` : `Downloading ${pct}%`, busy: true };
   if (d.status === 'error') return { text: 'Failed: ' + (d.error || 'unknown error'), cls: 'err', retry: true };
   return null; // missing: can be downloaded again
 }
