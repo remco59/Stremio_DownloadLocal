@@ -1212,7 +1212,7 @@ function notice(kind, ico, title, text, extra) {
 }
 let noticeSig = '';
 function renderNotices(data) {
-  const sig = JSON.stringify([serverDown, data && data.clientError, pendingIds.size]);
+  const sig = JSON.stringify([serverDown, data && data.clientError, pendingIds.size, data && data.disk && data.disk.low, data && data.disk && Math.floor(data.disk.freeBytes / 1e8)]);
   if (sig === noticeSig) return;
   noticeSig = sig;
   const out = [];
@@ -1220,6 +1220,11 @@ function renderNotices(data) {
   else if (data && data.clientError) {
     out.push(notice('bad', 'alert', "Can't reach the torrent client", `${data.clientError}. Statuses below are from the last check.`,
       el('a', { href: '#settings', textContent: 'Check the connection in Settings' })));
+  }
+  const dk = data && data.disk;
+  if (dk && dk.low) {
+    out.push(notice('bad', 'alert', 'Disk almost full', `${fmtBytes(dk.freeBytes)} free, at least ${fmtBytes(dk.minFreeBytes)} must stay free. New downloads are refused until space is freed.`,
+      el('a', { href: '#settings', textContent: 'Change the limit in Settings' })));
   }
   if (pendingIds.size) out.push(notice('', 'search', `Looking for torrents for ${plural(pendingIds.size, 'more episode')}...`));
   $('#dlNotices').replaceChildren(...out);

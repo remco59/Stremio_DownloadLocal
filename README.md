@@ -248,6 +248,11 @@ On top of the token and the login:
 - The client IP is only taken from `X-Forwarded-For` when the request comes from a private or loopback address (your reverse proxy), so clients cannot fake it.
 - The web UI sends a strict Content-Security-Policy and `Referrer-Policy: no-referrer`, so the token never leaks via the `Referer` header, e.g. when posters load.
 
+## Health and disk space
+
+- **`GET /healthz`** needs no login and answers `{"ok":true,"client":true,"diskLow":false}`: `200` while the torrent client is reachable, `503` when it is not (checked at most every 15 s). The Docker image uses it as its `HEALTHCHECK`, so `docker ps` shows *healthy*/*unhealthy*; Unraid and uptime monitors (Uptime Kuma, etc.) can poll it too. It exposes no paths or error details.
+- **Free-space guard**: while less than `MIN_FREE_GB` (default 5) is free on the downloads disk, no new download starts (the title gets an error that says why; the web API answers `507`) and the Downloads page shows a *Disk almost full* warning. Downloads already running are not stopped. Set it to `0` to switch the guard off. The disk is measured where this container sees `/downloads`.
+
 ## Settings
 
 Everything below can be changed on the **Settings** page of the web UI: torrent client (with a *Test connection* button per client), connection details, path mapping, torrent source, timeouts and the public URL. Changes are stored in `DATA_DIR/settings.json`, override the env vars, and apply right away without a restart. *Reset to default* goes back to the env value. Passwords are never shown again once saved; leave the field empty to keep the saved one.
@@ -287,6 +292,7 @@ These are the defaults for the settings page.
 | `STALL_MS` | `30000` | while playing: how long to wait for missing pieces before dropping the connection |
 | `STALL_SWITCH_MIN` | `10` | a download still at 0% after this many minutes (not paused or queued in the client) moves to the next best untried torrent; `0` = never |
 | `EPISODES_AT_ONCE` | `0` | unfinished episodes of one season pack downloading at the same time, earliest first (the rest wait; playing one moves it to the front); `0` = all at once |
+| `MIN_FREE_GB` | `5` | keep this many GB free on the downloads disk: no new download starts below it (`0` = off) |
 | `SYNC_INTERVAL_MS` | `5000` | torrent client poll interval |
 | `SUBTITLES_URL` | `https://opensubtitles-v3.strem.io` | Stremio subtitles add-on for the player's online subtitles; empty = off |
 | `PLAYER_MAX_HEIGHT` | `1080` | max resolution when the player has to convert video |
