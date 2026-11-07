@@ -63,6 +63,9 @@ const defaults = {
   // Unfinished episodes of one season pack downloading at the same time, earliest first (the rest wait). 0 = all.
   episodesAtOnce: parseInt(env.EPISODES_AT_ONCE || '0', 10),
 
+  // Keep at least this many GB free on the downloads disk: no new download starts below it. 0 = off.
+  minFreeGb: parseInt(env.MIN_FREE_GB ?? '5', 10),
+
   // First tap: how long /play waits for the torrent before showing a "download started" clip instead.
   waitForStartMs: parseInt(env.WAIT_FOR_START_MS || '15000', 10),
   // The status screen Stremio shows while a download is not playable yet: 1 = drawn live (progress, speed, ETA; needs

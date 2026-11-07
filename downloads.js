@@ -5,6 +5,7 @@ const path = require('path');
 const cfg = require('./config');
 const db = require('./db');
 const client = require('./clients');
+const health = require('./health');
 const finder = require('./finder');
 const { sidecarIndexes } = require('./subtitles');
 const { episodeOf } = require('./sources/parse');
@@ -54,6 +55,7 @@ async function ensureDownload(type, id, opts = {}) {
 
   const p = (async () => {
     try {
+      if (!replace) await health.assertSpace(); // swapping the torrent of a running download is not a new one
       if (replace) await removeFromClient(id);
       const pick = opts.pick || (await finder.resolve(type, id, opts));
       const rec = db.set(id, {

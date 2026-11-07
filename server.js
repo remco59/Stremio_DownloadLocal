@@ -16,6 +16,7 @@ const subtitles = require('./subtitles');
 const discover = require('./discover');
 const statusclip = require('./statusclip');
 const catalog = require('./catalog');
+const health = require('./health');
 
 const ID_RE = /^tt\d+(:\d+:\d+)?$/;
 const valid = (type, id) => (type === 'movie' || type === 'series') && ID_RE.test(id);
@@ -39,6 +40,18 @@ const app = express();
 // network). Trusting any proxy would let clients pick their own IP and dodge the per-IP limits.
 app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 app.disable('x-powered-by');
+// Liveness/readiness for Docker and uptime monitors. Before the lockout below, so a monitor is never locked out.
+// Reveals no more than "ok" (torrent client reachable) and "diskLow".
+app.get('/healthz', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const h = await health.check();
+    res.status(h.ok ? 200 : 503).json({ ok: h.ok, client: h.client.ok, diskLow: !!(h.disk && h.disk.low) });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
+
 app.use((req, res, next) => {
   // Stremio (web) fetches the add-on from other origins; the web UI's API is same-origin only.
   if (!req.path.startsWith('/api/')) {
@@ -329,7 +342,7 @@ router.post('/api/account', async (req, res, next) => {
   }
 });
 
-router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list()), batchPending: batch.pending() }));
+router.get('/api/downloads', async (req, res) => res.json({ ...(await dl.list()), batchPending: batch.pending(), disk: await health.disk() }));
 
 // Per-item actions from the downloads page. :id is a Stremio ID (URL-encoded, episodes contain ':').
 const ACTIONS = {
@@ -391,7 +404,7 @@ router.post('/api/download', async (req, res) => {
     }
     res.json(dl.view(await dl.ensureDownload(type, id, { pick })));
   } catch (e) {
-    res.status(502).json({ error: String(e.message) });
+    res.status(e.status === 507 ? 507 : 502).json({ error: String(e.message) });
   }
 });
 
